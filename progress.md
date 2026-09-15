@@ -20,7 +20,7 @@ TAPE's own authors flag two things they did *not* solve:
 - The plan graph is only as good as the LLM's raw candidates — nothing checks a candidate transition against the environment's actual rules before it's trusted.
 - The solver is fixed and pre-specified per task, with no way to adapt.
 
-Our project builds three extensions addressing these gaps, on top of a faithful reproduction of the TAPE baseline. The full 6-phase plan (see the roadmap artifact shared earlier) allocates roughly:
+Our project builds four extensions addressing these gaps, on top of a faithful reproduction of the TAPE baseline. The full 6-phase plan (see the roadmap artifact shared earlier) allocates roughly:
 
 | Phase | Weight | Status |
 |---|---|---|
@@ -44,15 +44,20 @@ MachineLearningCP/
 ├── .env.example                # GEMINI_API_KEY (copy to .env, fill in, do not commit)
 ├── src/tape/
 │   ├── envs/sokoban.py         # the benchmark environment (Phase 1)
-│   ├── llm.py                  # candidate plan generation: MockLLMClient, GeminiClient
-│   ├── graph.py                # plan graph construction + validation hook
+│   ├── llm.py                  # candidate plan generation: MockLLMClient, AdversarialMockLLMClient, GeminiClient
+│   ├── graph.py                # plan graph construction + validation/scoring hooks
 │   ├── solver.py                # CP-SAT path selection (OR-Tools)
 │   ├── executor.py             # constrained execution + mismatch-triggered replanning
 │   ├── validator.py             # Phase 2: CornerDeadlockValidator
 │   ├── experience.py             # Phase 3: sqlite-backed ExperienceStore
+│   ├── scoring.py                # Phase 4: score_transition() (regression, confidence, budget)
 │   └── metrics.py                # aggregate metrics across episodes
-├── experiments/run_baseline.py  # CLI to run episode sweeps with any combination of extensions
-└── tests/                        # 20 tests, all passing (see §6)
+├── experiments/
+│   ├── run_baseline.py          # CLI to run episode sweeps with any combination of extensions
+│   ├── stress_test.py            # Phase 2 adversarial stress test (see §4.1)
+│   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
+├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §9)
+└── tests/                        # 27 tests, all passing (see §7)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -96,7 +101,7 @@ python experiments/run_baseline.py --level simple --episodes 30 --slip 0.2
 
 - A `GraphValidator` protocol: `validate(level, from_state, action, to_state) -> ValidationResult(accept, confidence, reason)`.
 - `CornerDeadlockValidator`: rejects outright any transition that leaves a non-goal box wedged against two perpendicular walls (a corner). A box merely resting against **one** wall (not a corner) is not rejected — it's accepted but flagged **uncertain**, with confidence 0.5 rather than 1.0, per TAPE's own language ("uncertain ones receive lower confidence" rather than a hard binary).
-- `build_validated_plan_graph()` in `graph.py`: identical to the Phase 1 graph builder, except every physically-legal step is also passed through the validator before being added as an edge. A rejected step dead-ends that candidate right there, instead of silently entering the graph. An accepted-but-uncertain step is still added, but its edge cost is inflated (`cost = round(1/confidence)`) — meaning the **same CP-SAT solver from Phase 1**, unmodified, naturally prefers fully-trusted paths over uncertain ones, purely because of how the cost is computed. No solver changes were needed for this.
+- `build_validated_plan_graph()` in `graph.py`: identical to the Phase 1 graph builder, except every physically-legal step is also passed through the validator before being added as an edge. A rejected step dead-ends that candidate right there, instead of silently entering the graph. An accepted-but-uncertain step is still added, but its edge cost is inflated so the confidence penalty makes it more expensive than a fully-trusted step — meaning the **same CP-SAT solver from Phase 1**, unmodified, naturally prefers fully-trusted paths over uncertain ones. No solver changes were needed for this. (At the time Phase 2 was built, that inflation was a simple `cost = round(1/confidence)`; Phase 4, §6 below, later replaced that formula with a richer multi-factor score, but the underlying mechanism — lower confidence means higher cost — is unchanged.)
 - Wired into `run_episode()` / `run_baseline.py` as an optional `validator=` parameter / `--validator corner-deadlock` CLI flag, so **baseline vs. validated is a flip of one flag** — this is exactly the controlled ablation the evaluation plan (Phase 6) needs.
 
 **Verified behaviour:** `tests/test_validator.py` constructs an exact corner-deadlock scenario (`#####` / `#   #` / `#$  #` / `#@ .#` / `#####`, pushing the box up wedges it at (1,1), a corner off the goal at (3,3)) and confirms:
@@ -210,7 +215,20 @@ python -m venv .venv
 
 ---
 
-## 9. What's left to reach 100% (Phases 5–6, not started)
+## 9. The live demo (for the mid-semester presentation)
+
+`demo/index.html` is a standalone, interactive replay built specifically for showing this to the teacher. It requires no server, no internet, and no setup — open it directly in any browser. It shows, side by side:
+
+- The exact same hand-verified adversarial candidate plan run through the Phase 1 baseline (accepts a corner-deadlock push silently) versus the Phase 2 validator (flags and rejects it, "corner deadlock, never added to plan graph"), with a synced step/play control.
+- A toggle to switch to the optimal candidate instead, showing it solve the puzzle end to end on both sides, with the validated side's "uncertain" (wall-hugging) steps visibly marked.
+- The real solver output (graph node/edge counts, chosen path, cost) for both graphs, pulled from an actual pipeline run, not typed in by hand.
+- The Phase 2 stress-test numbers from §4.1 above, rendered as stat cards.
+
+**It is generated, not hand-authored.** `demo/template.html` is the hand-written page (layout, styling, JS logic) with a placeholder where the data goes. Running `python experiments/export_demo.py` re-executes the real pipeline (baseline graph build, validated graph build, and the Phase 2 stress test) and bakes the fresh output into `demo/index.html`. **Whenever the pipeline changes** (as it did for Phase 4 — the solver-cost numbers on the page jumped from single digits into the hundreds because of the new scoring formula), rerun this script before presenting, or the demo will show stale numbers that no longer match the code. Do not hand-edit `demo/index.html` directly; edit `demo/template.html` instead.
+
+---
+
+## 10. What's left to reach 100% (Phases 5–6, not started)
 
 - **Phase 5 — Adaptive path selection:** use Phase 4's score as an A*/AO* heuristic where feasible, keeping CP-SAT for tasks that genuinely need hard-constraint optimization, and choose between them per task.
 - **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. combined across all implemented levels (and, time permitting, additional benchmarks beyond Sokoban), with the aggregate metrics already being tracked in `metrics.py`.

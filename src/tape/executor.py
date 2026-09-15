@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass, field
 
 from tape.envs.sokoban import SokobanLevel, State
+from tape.experience import ExperienceStore
 from tape.graph import build_plan_graph, build_validated_plan_graph
 from tape.llm import LLMClient
 from tape.solver import select_path
@@ -47,6 +48,8 @@ def run_episode(
     slip_prob: float = 0.0,
     rng: random.Random | None = None,
     validator: GraphValidator | None = None,
+    experience: ExperienceStore | None = None,
+    level_id: str = "default",
 ) -> EpisodeResult:
     rng = rng or random.Random()
     state = start or level.initial_state
@@ -57,7 +60,9 @@ def run_episode(
         t0 = time.perf_counter()
         candidates = llm.generate_candidate_plans(level, state, n_candidates, max_depth)
         if validator is not None:
-            plan_graph = build_validated_plan_graph(level, state, candidates, validator)
+            plan_graph = build_validated_plan_graph(
+                level, state, candidates, validator, experience=experience, level_id=level_id
+            )
         else:
             plan_graph = build_plan_graph(level, state, candidates)
         solution = select_path(plan_graph)
@@ -71,13 +76,18 @@ def run_episode(
 
         mismatched = False
         for action, predicted_next in zip(solution.actions, solution.node_path[1:]):
+            from_state = state
             actual_next, moved = level.step(state, action)
             if moved and rng.random() < slip_prob:
                 actual_next, moved = state, False  # simulated real-world slip
             result.total_actions += 1
             state = actual_next
 
-            if actual_next != predicted_next:
+            matched = actual_next == predicted_next
+            if experience is not None:
+                experience.record(level_id, from_state, action, success=matched)
+
+            if not matched:
                 mismatched = True
                 result.replans += 1
                 break

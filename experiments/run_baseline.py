@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tape.envs.sokoban import LEVEL_SIMPLE, LEVEL_TRIVIAL
 from tape.executor import run_episode
+from tape.experience import ExperienceStore
 from tape.llm import GeminiClient, MockLLMClient
 from tape.metrics import aggregate
 from tape.validator import CornerDeadlockValidator
@@ -33,12 +34,14 @@ def main() -> None:
     parser.add_argument("--slip", type=float, default=0.0, help="probability an action silently fails, forcing a mismatch/replan")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--validator", choices=["none", "corner-deadlock"], default="none", help="Phase 2: reject/downweight structurally unsound transitions before they enter the plan graph")
+    parser.add_argument("--experience", action="store_true", help="Phase 3: carry a persistent experience store across all episodes in this run, biasing confidence by past mismatch history (requires --validator)")
     args = parser.parse_args()
 
     level = LEVELS[args.level]
     llm = GeminiClient() if args.llm == "gemini" else MockLLMClient(seed=args.seed)
     rng = random.Random(args.seed)
     validator = CornerDeadlockValidator() if args.validator == "corner-deadlock" else None
+    experience = ExperienceStore() if args.experience else None
 
     episodes = [
         run_episode(
@@ -50,6 +53,8 @@ def main() -> None:
             slip_prob=args.slip,
             rng=rng,
             validator=validator,
+            experience=experience,
+            level_id=args.level,
         )
         for _ in range(args.episodes)
     ]

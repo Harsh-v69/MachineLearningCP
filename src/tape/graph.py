@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 import networkx as nx
 
 from tape.envs.sokoban import SokobanLevel, State
+from tape.experience import ExperienceStore
 from tape.validator import GraphValidator
 
 
@@ -64,13 +65,20 @@ def build_validated_plan_graph(
     start: State,
     candidate_plans: list[list[str]],
     validator: GraphValidator,
+    experience: ExperienceStore | None = None,
+    level_id: str = "default",
 ) -> PlanGraphResult:
     """Same as `build_plan_graph`, but every physically-legal step is also
     passed through `validator` before being accepted as an edge. A rejected
     step dead-ends that candidate (Phase 2 behaviour: catch it here instead
     of only at execution-time mismatch). An accepted-but-uncertain step is
     still added, with cost inflated by its confidence so the solver
-    naturally prefers more-trusted paths."""
+    naturally prefers more-trusted paths.
+
+    When `experience` is given (Phase 3), its recorded success/failure
+    history for this exact (state, action) further scales the confidence --
+    a transition that has repeatedly mismatched execution in past episodes
+    gets trusted less even if the validator has no objection to it."""
     graph = nx.DiGraph()
     graph.add_node(start)
     result = PlanGraphResult(graph=graph, start=start)
@@ -87,9 +95,12 @@ def build_validated_plan_graph(
             if not verdict.accept:
                 result.validator_rejections += 1
                 break
-            cost = max(1, round(1.0 / verdict.confidence))
+            confidence = verdict.confidence
+            if experience is not None:
+                confidence *= experience.confidence(level_id, cur, action)
+            cost = max(1, round(1.0 / confidence))
             if not graph.has_edge(cur, nxt) or graph.edges[cur, nxt]["cost"] > cost:
-                graph.add_edge(cur, nxt, action=action, cost=cost, confidence=verdict.confidence)
+                graph.add_edge(cur, nxt, action=action, cost=cost, confidence=confidence)
             cur = nxt
             if level.is_goal(cur):
                 break

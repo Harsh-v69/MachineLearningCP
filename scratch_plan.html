@@ -1,0 +1,338 @@
+<title>TAPE Extension Roadmap</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#faf9f6;
+  --surface:#ffffff;
+  --ink:#1c1f26;
+  --muted:#5b6270;
+  --line:#e2e0da;
+  --accent:#1f6f66;      /* graph path teal */
+  --accent-soft:#e4f0ee;
+  --milestone:#b5691f;   /* review checkpoint amber */
+  --milestone-soft:#faeddd;
+  --track:#d8d5cc;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14161b;
+    --surface:#1b1e25;
+    --ink:#e9e8e3;
+    --muted:#9a9fab;
+    --line:#2c2f38;
+    --accent:#5fc9ba;
+    --accent-soft:#1d302d;
+    --milestone:#e2a35c;
+    --milestone-soft:#332415;
+    --track:#33363f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14161b;
+  --surface:#1b1e25;
+  --ink:#e9e8e3;
+  --muted:#9a9fab;
+  --line:#2c2f38;
+  --accent:#5fc9ba;
+  --accent-soft:#1d302d;
+  --milestone:#e2a35c;
+  --milestone-soft:#332415;
+  --track:#33363f;
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'IBM Plex Sans', system-ui, sans-serif;
+  line-height:1.55;
+}
+.wrap{max-width:920px; margin:0 auto; padding:56px 24px 96px;}
+
+.masthead{margin-bottom:8px;}
+.eyebrow{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12.5px;
+  letter-spacing:0.09em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin:0 0 14px;
+}
+h1{
+  font-family:'Fraunces', serif;
+  font-weight:600;
+  font-size:clamp(28px,4vw,40px);
+  line-height:1.12;
+  margin:0 0 12px;
+  text-wrap:balance;
+  max-width:16ch;
+}
+.dek{
+  color:var(--muted);
+  font-size:16px;
+  max-width:62ch;
+  margin:0 0 8px;
+}
+.source{
+  font-size:12.5px;
+  color:var(--muted);
+  font-family:'IBM Plex Mono', monospace;
+  margin:18px 0 48px;
+  padding-top:14px;
+  border-top:1px solid var(--line);
+}
+
+/* progress bar */
+.progress-block{margin-bottom:52px;}
+.progress-label{
+  display:flex; justify-content:space-between; align-items:baseline;
+  font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted);
+  margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;
+}
+.progress-track{
+  position:relative; height:10px; border-radius:6px; background:var(--track); overflow:visible;
+}
+.progress-fill-mid{
+  position:absolute; left:0; top:0; height:100%; width:60%;
+  background:linear-gradient(90deg, var(--accent), var(--milestone));
+  border-radius:6px 0 0 6px;
+}
+.progress-fill-rest{
+  position:absolute; left:60%; top:0; height:100%; width:40%;
+  background:var(--track);
+  border-radius:0 6px 6px 0;
+}
+.progress-marker{
+  position:absolute; top:-5px; width:2px; height:20px; background:var(--ink); opacity:0.35;
+}
+.progress-marker.mid{left:60%;}
+.progress-marker-label{
+  position:absolute; top:20px; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted);
+  transform:translateX(-50%);
+}
+
+/* timeline */
+.timeline{position:relative; margin:0 0 56px;}
+.phase{
+  position:relative;
+  display:grid;
+  grid-template-columns:64px 1fr;
+  gap:0 24px;
+  padding-bottom:34px;
+}
+.phase:last-child{padding-bottom:0;}
+.rail{
+  position:relative;
+  display:flex;
+  justify-content:center;
+}
+.rail::before{
+  content:"";
+  position:absolute;
+  top:34px; bottom:-34px;
+  width:2px;
+  background:var(--track);
+}
+.phase:last-child .rail::before{display:none;}
+.rail.done::before{background:var(--accent);}
+.node{
+  position:relative; z-index:1;
+  width:34px; height:34px; border-radius:50%;
+  background:var(--surface);
+  border:2px solid var(--track);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:13px;
+  color:var(--muted);
+}
+.node.done{border-color:var(--accent); color:var(--accent); background:var(--accent-soft);}
+.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:18px 20px;
+}
+.phase-top{
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:8px; flex-wrap:wrap;
+}
+.phase-name{font-family:'Fraunces', serif; font-weight:600; font-size:18.5px;}
+.phase-weeks{
+  font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); white-space:nowrap;
+}
+.phase-desc{font-size:14.5px; color:var(--ink); margin:0 0 10px;}
+.phase-desc b{font-weight:600;}
+.tag-row{display:flex; flex-wrap:wrap; gap:6px;}
+.tag{
+  font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted);
+  border:1px solid var(--line); border-radius:5px; padding:2px 7px;
+}
+
+/* milestone card, breaks the rail */
+.milestone{
+  position:relative;
+  display:grid;
+  grid-template-columns:64px 1fr;
+  gap:0 24px;
+  padding-bottom:34px;
+}
+.milestone .rail::before{background:var(--milestone);}
+.milestone .node{
+  border-color:var(--milestone); color:var(--milestone); background:var(--milestone-soft);
+  width:34px; height:34px; transform:rotate(45deg); border-radius:8px;
+}
+.milestone .node span{transform:rotate(-45deg); display:block;}
+.milestone .card{border-color:var(--milestone); background:var(--milestone-soft);}
+.milestone .phase-name{color:var(--milestone);}
+
+/* stack table */
+h2{
+  font-family:'Fraunces', serif; font-weight:600; font-size:22px; margin:0 0 18px;
+}
+.stack-table{width:100%; border-collapse:collapse; margin-bottom:52px; font-size:14px;}
+.stack-table th{
+  text-align:left; font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase;
+  letter-spacing:0.05em; color:var(--muted); font-weight:500; padding:0 12px 10px 0; border-bottom:1px solid var(--line);
+}
+.stack-table td{padding:11px 12px 11px 0; border-bottom:1px solid var(--line); vertical-align:top;}
+.stack-table tr:last-child td{border-bottom:none;}
+.stack-table .comp{font-weight:600; white-space:nowrap;}
+.stack-table .tech{font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--accent); white-space:nowrap;}
+.stack-table .use{color:var(--muted);}
+
+.outcomes{
+  display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:8px;
+}
+@media (max-width:640px){ .outcomes{grid-template-columns:1fr;} }
+.outcome{
+  border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:var(--surface); font-size:13.5px;
+}
+.outcome .num{
+  font-family:'IBM Plex Mono', monospace; color:var(--accent); font-size:12px; display:block; margin-bottom:6px;
+}
+
+footer{
+  margin-top:56px; padding-top:20px; border-top:1px solid var(--line);
+  font-size:12.5px; color:var(--muted); font-family:'IBM Plex Mono', monospace;
+}
+</style>
+
+<div class="wrap">
+  <div class="masthead">
+    <p class="eyebrow">Semester Project Roadmap</p>
+    <h1>TAPE: Structural Graph Validation &amp; Adaptive Solver Selection</h1>
+    <p class="dek">A 16-week phase plan for extending TAPE (Tool-Guided Adaptive Planning with Constrained Execution) along the two directions its authors flag as open: plan-graph structural integrity and solver generalization.</p>
+  </div>
+  <p class="source">Base paper: Jeong, Kim &amp; Lee (2026), TAPE — arXiv:2602.19633v1</p>
+
+  <div class="progress-block">
+    <div class="progress-label"><span>Week 1</span><span>Week 16 · End-sem</span></div>
+    <div class="progress-track">
+      <div class="progress-fill-mid"></div>
+      <div class="progress-fill-rest"></div>
+      <div class="progress-marker mid"></div>
+      <div class="progress-marker-label" style="left:60%">Week 8 · Mid-sem · 60%</div>
+    </div>
+  </div>
+
+  <h2>Phase Timeline</h2>
+  <div class="timeline">
+
+    <div class="phase">
+      <div class="rail done"><div class="node done">1</div></div>
+      <div class="card">
+        <div class="phase-top"><span class="phase-name">TAPE Baseline</span><span class="phase-weeks">Weeks 1–4</span></div>
+        <p class="phase-desc">Reproduce the core pipeline: candidate plan generation, merging into a plan graph, ILP/CP-SAT path selection, constrained-decoding execution, and mismatch-triggered replanning.</p>
+        <div class="tag-row"><span class="tag">Gemini API</span><span class="tag">NetworkX</span><span class="tag">OR-Tools</span><span class="tag">Sokoban · GSM8K-Hard</span></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="rail done"><div class="node done">2</div></div>
+      <div class="card">
+        <div class="phase-top"><span class="phase-name">Adaptive Graph Validation</span><span class="phase-weeks">Weeks 5–6</span></div>
+        <p class="phase-desc">Check candidate states/actions against environment rules, budgets and constraints <b>before</b> they enter the graph — reject invalid transitions, downweight uncertain ones.</p>
+        <div class="tag-row"><span class="tag">Custom rule engine</span><span class="tag">Sokoban · ALFWorld</span></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="rail done"><div class="node done">3</div></div>
+      <div class="card">
+        <div class="phase-top"><span class="phase-name">Self-Improving Graph</span><span class="phase-weeks">Weeks 7–8</span></div>
+        <p class="phase-desc">Log successful/failed transitions to an experience store; feed past outcomes back in as a confidence signal on later graphs.</p>
+        <div class="tag-row"><span class="tag">PostgreSQL</span><span class="tag">FAISS / Chroma</span></div>
+      </div>
+    </div>
+
+    <div class="milestone">
+      <div class="rail"><div class="node"><span>◆</span></div></div>
+      <div class="card">
+        <div class="phase-top"><span class="phase-name">Mid-Semester Review — ~60% complete</span><span class="phase-weeks">Week 8</span></div>
+        <p class="phase-desc">Live demo of the full pipeline on 2 benchmarks: baseline TAPE run alongside the validated + experience-weighted graph. Report invalid-transition rate before/after validation, and confidence drift across repeated episodes.</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="rail done"><div class="node done">4</div></div>
+      <div class="card">
+        <div class="phase-top"><span class="phase-name">Dynamic Reachability / Utility Score</span><span class="phase-weeks">Weeks 9–10</span></div>
+        <p class="phase-desc">Score each state on goal proximity, accumulated cost, remaining budget, constraint satisfaction and transition confidence — replacing a single fixed reward signal.</p>
+        <div class="tag-row"><span class="tag">Custom scoring module</span></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="rail"><div class="node">5</div></div>
+      <div class="card">
+        <div class="phase-top"><span class="phase-name">Adaptive Path Selection</span><span class="phase-weeks">Weeks 11–12</span></div>
+        <p class="phase-desc">Use the utility score as an A*/AO* heuristic where feasibility is simple; keep ILP/CP-SAT for tasks with hard multi-constraint optimization. Select the method per task instead of fixing one solver globally.</p>
+        <div class="tag-row"><span class="tag">A* / AO*</span><span class="tag">OR-Tools</span><span class="tag">LangGraph</span></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="rail"><div class="node">6</div></div>
+      <div class="card">
+        <div class="phase-top"><span class="phase-name">Evaluation &amp; Ablations</span><span class="phase-weeks">Weeks 13–14</span></div>
+        <p class="phase-desc">Controlled comparison of baseline vs. proposed variants across all four benchmarks: success rate, planning error, invalid-transition rate, replanning frequency, planning time, execution cost.</p>
+        <div class="tag-row"><span class="tag">Sokoban</span><span class="tag">ALFWorld</span><span class="tag">MuSiQue</span><span class="tag">GSM8K-Hard</span><span class="tag">Docker</span></div>
+      </div>
+    </div>
+
+    <div class="milestone">
+      <div class="rail"><div class="node"><span>◆</span></div></div>
+      <div class="card">
+        <div class="phase-top"><span class="phase-name">End-Semester Review — Final Deliverable</span><span class="phase-weeks">Weeks 15–16</span></div>
+        <p class="phase-desc">Final report and presentation: full benchmark comparison table, ablation studies isolating each extension's contribution, and an explicit analysis of when the proposed extensions help and when the original solver-only approach still wins. Code repository handed off in a reproducible Docker environment.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>Stack</h2>
+  <table class="stack-table">
+    <tr><th>Component</th><th>Technology</th><th>Use</th></tr>
+    <tr><td class="comp">Core</td><td class="tech">Python</td><td class="use">Framework implementation and experiments</td></tr>
+    <tr><td class="comp">LLM</td><td class="tech">Gemini API</td><td class="use">Candidate plan and state generation</td></tr>
+    <tr><td class="comp">Plan Graph</td><td class="tech">NetworkX, Neo4j*</td><td class="use">Graph construction, validation, traversal</td></tr>
+    <tr><td class="comp">Graph Validator</td><td class="tech">Custom Python rules</td><td class="use">Check actions, transitions, constraints</td></tr>
+    <tr><td class="comp">State Scoring</td><td class="tech">Custom module</td><td class="use">Reachability / utility score per state</td></tr>
+    <tr><td class="comp">Path Planning</td><td class="tech">A*, AO*</td><td class="use">Graph-search alternatives to the solver</td></tr>
+    <tr><td class="comp">Solver Pool</td><td class="tech">OR-Tools (ILP / CP-SAT)</td><td class="use">Baseline comparison, constrained optimization</td></tr>
+    <tr><td class="comp">Experience Store</td><td class="tech">PostgreSQL, FAISS/Chroma*</td><td class="use">Store and retrieve past execution outcomes</td></tr>
+    <tr><td class="comp">Orchestration</td><td class="tech">LangGraph</td><td class="use">Connect planning, validation, solver, execution</td></tr>
+    <tr><td class="comp">Deployment</td><td class="tech">Docker</td><td class="use">Reproducible experiments</td></tr>
+  </table>
+
+  <h2>Expected Outcomes</h2>
+  <div class="outcomes">
+    <div class="outcome"><span class="num">01</span>Reproducible TAPE baseline for direct comparison.</div>
+    <div class="outcome"><span class="num">02</span>Validated plan graph with fewer invalid/inconsistent transitions.</div>
+    <div class="outcome"><span class="num">03</span>Feedback-based confidence mechanism from past executions.</div>
+    <div class="outcome"><span class="num">04</span>Dynamic state-scoring that adapts to task constraints.</div>
+    <div class="outcome"><span class="num">05</span>Adaptive path-selection layer choosing search vs. formal optimization per task.</div>
+    <div class="outcome"><span class="num">06</span>Clear analysis of where extensions win and where the original solver still wins.</div>
+  </div>
+
+  <footer>*used only if semantic retrieval / graph-scale needs justify it — Phases 1–4 target ~60% of total project effort, delivered by the mid-sem checkpoint.</footer>
+</div>

@@ -1,0 +1,32 @@
+import random
+
+from tape.envs.sokoban import LEVEL_SIMPLE, LEVEL_TRIVIAL
+from tape.executor import run_episode
+from tape.llm import MockLLMClient
+
+
+def test_mock_llm_solves_trivial_level():
+    result = run_episode(LEVEL_TRIVIAL, MockLLMClient(seed=1), n_candidates=3, max_depth=5)
+    assert result.success
+    assert result.total_actions >= 1
+
+
+def test_mock_llm_solves_simple_level_with_enough_candidates():
+    result = run_episode(
+        LEVEL_SIMPLE, MockLLMClient(seed=1), n_candidates=12, max_depth=10, max_replans=3
+    )
+    assert result.success
+
+
+def test_slips_trigger_replanning_and_still_reach_goal_eventually():
+    result = run_episode(
+        LEVEL_TRIVIAL,
+        MockLLMClient(seed=2),
+        n_candidates=4,
+        max_depth=5,
+        max_replans=10,
+        slip_prob=0.5,
+        rng=random.Random(42),
+    )
+    assert result.success
+    assert result.planning_rounds >= 1

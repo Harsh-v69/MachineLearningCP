@@ -1,0 +1,4 @@
+networkx>=3.2
+ortools>=9.9
+google-generativeai>=0.5
+pytest>=8.0

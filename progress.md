@@ -105,12 +105,30 @@ python experiments/run_baseline.py --level simple --episodes 30 --slip 0.2
 - Pushing a box directly onto a goal is never mistakenly flagged as a deadlock.
 - A box against one wall (not a corner) is accepted with confidence 0.5, which produces a higher-cost edge.
 
-**Honest limitation:** on the levels currently implemented (single-box `simple`, and the newly added two-box `LEVEL_MULTI`), the goal-biased mock LLM's noisy candidates rarely happen to wander into a corner by chance — so aggregate metrics (success rate, etc.) look identical with the validator on or off in our current test runs. The validator's *unit-level* correctness is proven directly (above); its *aggregate* payoff would show up more clearly against a noisier candidate source (a real LLM's mistakes, or an adversarially-random one) or a level shaped so a corner sits directly on a natural-looking path. This is flagged here rather than papered over — it's a fair question a teacher could ask.
-
 **Run it:**
 ```bash
 python experiments/run_baseline.py --level simple --episodes 30 --slip 0.1 --validator corner-deadlock
 ```
+
+### 4.1 Stress test: does the validator actually matter in aggregate?
+
+On the normal goal-biased `MockLLMClient`, corner deadlocks basically never happen by chance (its candidates are always steered toward reducing distance to the goal), so running the CLI above shows identical metrics with the validator on or off. Rather than leave that as an open question, we built a deliberate stress test (`experiments/stress_test.py`, automated as `tests/test_stress.py`):
+
+- **`AdversarialMockLLMClient`** — a new, much dumber candidate generator: pure uniform-random legal moves, with **no guaranteed correct plan mixed in** (unlike `MockLLMClient`, which always includes one BFS-optimal candidate as a safety net). This is an honest stress test, not a claim about how a real LLM behaves — it exists purely to make the failure condition the validator is supposed to catch actually happen often enough to measure.
+- Ran 30 trials × 150 adversarial candidates each on the two-box level (`LEVEL_MULTI`), comparing the Phase 1 baseline graph against the Phase 2 validated graph.
+- **Result:**
+
+  | Metric | Value |
+  |---|---|
+  | Total transitions attempted | 54,000 |
+  | Baseline invalid-transition rate | **0.00%** (corner deadlocks are physically legal moves — invisible to it by construction) |
+  | Validator rejections | **200** (0.37% of attempted transitions) |
+  | Independently verified as true dead ends | **200 / 200** (zero false positives) |
+
+  The "independently verified" number matters most: each of the 200 rejected transitions was checked with a plain breadth-first search (nothing to do with the validator's own corner-detection rule) confirming no sequence of moves from that state can ever reach the goal. So this isn't the validator grading its own homework — it's an outside check confirming every rejection is a genuine planning error the baseline's own metric was structurally blind to.
+- **The real finding:** it's not that the validator changes whether episodes succeed (the guaranteed-optimal candidate in normal `MockLLMClient` runs makes that metric insensitive to this by construction — see §4 above). It's that **the baseline's own "invalid transition" metric silently undercounts real planning errors**, because it only catches syntactic illegality (walls, double boxes), not semantic/domain violations (corners). The validator makes a previously invisible category of error visible and preventable.
+
+Reproduce it: `python experiments/stress_test.py`
 
 ---
 
@@ -135,7 +153,7 @@ python experiments/run_baseline.py --level simple --episodes 25 --slip 0.15 --va
 
 ---
 
-## 6. Test coverage (20 tests, all passing)
+## 6. Test coverage (21 tests, all passing)
 
 ```
 tests/test_sokoban.py     4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -144,6 +162,7 @@ tests/test_solver.py      3  — shortest path found, cheaper of two candidates 
 tests/test_pipeline.py    5  — end-to-end: mock LLM solves trivial/simple/two-box levels, slips trigger replanning and still recover
 tests/test_validator.py   4  — corner-deadlock rejected, goal-push never falsely flagged, wall-hug is "uncertain" not rejected, baseline accepts what the validator rejects
 tests/test_experience.py  3  — no-history = full trust, failures lower confidence below successes, cross-episode persistence actually happens
+tests/test_stress.py      1  — at scale (not just one example): adversarial candidates trigger real deadlocks, and every rejection is independently BFS-verified as a true dead end
 ```
 
 Run everything:

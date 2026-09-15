@@ -1,8 +1,11 @@
 """LLM backends for candidate-plan generation.
 
-Two implementations sharing one interface (`generate_candidate_plans`):
-  - MockLLMClient: goal-biased random search. No network/API key needed --
-    used for tests and offline development.
+Three implementations sharing one interface (`generate_candidate_plans`):
+  - MockLLMClient: one guaranteed BFS-optimal plan plus goal-biased noisy
+    ones. No network/API key needed -- used for tests and offline dev.
+  - AdversarialMockLLMClient: pure uniform-random walks, no safety-net
+    optimal plan. Deliberately a much worse stand-in for an LLM, used only
+    to stress-test the Phase 2 validator -- see experiments/stress_test.py.
   - GeminiClient: calls the Gemini REST API directly over `urllib` (no SDK,
     to avoid the multi-hundred-MB google-generativeai/grpc dependency chain
     for what is a single POST request).
@@ -94,6 +97,39 @@ class MockLLMClient:
             scored.sort(key=lambda t: t[0])
             top_k = scored[: max(1, len(scored) // 2 + 1)]
             _, action, cur = self._rng.choice(top_k)
+            actions.append(action)
+        return actions
+
+
+class AdversarialMockLLMClient:
+    """Pure uniform-random action sequences -- no goal bias, no guaranteed
+    BFS-optimal candidate. Stands in for a much less reliable LLM so that
+    domain-rule mistakes (like corner deadlocks) actually happen often
+    enough to measure the validator's effect, instead of relying on a
+    hand-crafted single example. This is an honest stress test, not a
+    claim about how a real LLM behaves -- it exists purely to create the
+    failure condition the validator is supposed to catch.
+    """
+
+    def __init__(self, seed: int = 0):
+        self._rng = random.Random(seed)
+
+    def generate_candidate_plans(
+        self, level: SokobanLevel, state: State, n: int, max_depth: int
+    ) -> list[list[str]]:
+        return [self._one_candidate(level, state, max_depth) for _ in range(n)]
+
+    def _one_candidate(self, level: SokobanLevel, state: State, max_depth: int) -> list[str]:
+        actions: list[str] = []
+        cur = state
+        for _ in range(max_depth):
+            if level.is_goal(cur):
+                break
+            valid = [a for a in ACTIONS if level.step(cur, a)[1]]
+            if not valid:
+                break
+            action = self._rng.choice(valid)
+            cur, _ = level.step(cur, action)
             actions.append(action)
         return actions
 

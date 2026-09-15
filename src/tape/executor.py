@@ -13,9 +13,10 @@ import time
 from dataclasses import dataclass, field
 
 from tape.envs.sokoban import SokobanLevel, State
-from tape.graph import build_plan_graph
+from tape.graph import build_plan_graph, build_validated_plan_graph
 from tape.llm import LLMClient
 from tape.solver import select_path
+from tape.validator import GraphValidator
 
 
 @dataclass
@@ -27,12 +28,13 @@ class EpisodeResult:
     planning_time_s: float = 0.0
     attempted_transitions: int = 0
     invalid_transitions: int = 0
+    validator_rejections: int = 0
 
     @property
     def invalid_transition_rate(self) -> float:
         if self.attempted_transitions == 0:
             return 0.0
-        return self.invalid_transitions / self.attempted_transitions
+        return (self.invalid_transitions + self.validator_rejections) / self.attempted_transitions
 
 
 def run_episode(
@@ -44,6 +46,7 @@ def run_episode(
     max_replans: int = 5,
     slip_prob: float = 0.0,
     rng: random.Random | None = None,
+    validator: GraphValidator | None = None,
 ) -> EpisodeResult:
     rng = rng or random.Random()
     state = start or level.initial_state
@@ -53,11 +56,15 @@ def run_episode(
         result.planning_rounds += 1
         t0 = time.perf_counter()
         candidates = llm.generate_candidate_plans(level, state, n_candidates, max_depth)
-        plan_graph = build_plan_graph(level, state, candidates)
+        if validator is not None:
+            plan_graph = build_validated_plan_graph(level, state, candidates, validator)
+        else:
+            plan_graph = build_plan_graph(level, state, candidates)
         solution = select_path(plan_graph)
         result.planning_time_s += time.perf_counter() - t0
         result.attempted_transitions += plan_graph.attempted_transitions
         result.invalid_transitions += plan_graph.invalid_transitions
+        result.validator_rejections += plan_graph.validator_rejections
 
         if solution is None:
             break  # no candidate reached the goal; give up rather than loop forever

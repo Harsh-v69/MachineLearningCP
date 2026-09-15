@@ -17,6 +17,7 @@ from tape.envs.sokoban import LEVEL_SIMPLE, LEVEL_TRIVIAL
 from tape.executor import run_episode
 from tape.llm import GeminiClient, MockLLMClient
 from tape.metrics import aggregate
+from tape.validator import CornerDeadlockValidator
 
 LEVELS = {"trivial": LEVEL_TRIVIAL, "simple": LEVEL_SIMPLE}
 
@@ -31,11 +32,13 @@ def main() -> None:
     parser.add_argument("--max-replans", type=int, default=5)
     parser.add_argument("--slip", type=float, default=0.0, help="probability an action silently fails, forcing a mismatch/replan")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--validator", choices=["none", "corner-deadlock"], default="none", help="Phase 2: reject/downweight structurally unsound transitions before they enter the plan graph")
     args = parser.parse_args()
 
     level = LEVELS[args.level]
     llm = GeminiClient() if args.llm == "gemini" else MockLLMClient(seed=args.seed)
     rng = random.Random(args.seed)
+    validator = CornerDeadlockValidator() if args.validator == "corner-deadlock" else None
 
     episodes = [
         run_episode(
@@ -46,6 +49,7 @@ def main() -> None:
             max_replans=args.max_replans,
             slip_prob=args.slip,
             rng=rng,
+            validator=validator,
         )
         for _ in range(args.episodes)
     ]

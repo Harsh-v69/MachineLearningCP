@@ -173,6 +173,15 @@ h2{
 .stat .num{font-family:'JetBrains Mono', monospace; font-size:24px; font-weight:800; color:var(--ok); font-variant-numeric:tabular-nums;}
 .stat .label{font-size:11.5px; color:var(--muted); margin-top:4px;}
 
+/* phase 5 method comparison */
+.method-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:28px;}
+@media (max-width:640px){ .method-grid{grid-template-columns:1fr;} }
+.method-card{background:var(--surface); border:1px solid var(--line-strong); border-radius:3px; padding:16px;}
+.method-card .method-choice{
+  font-family:'JetBrains Mono', monospace; font-size:20px; font-weight:800; color:var(--ok); margin:8px 0 4px;
+}
+.method-card .method-note{font-size:12.5px; color:var(--muted);}
+
 /* phase strip */
 .phase-strip{display:flex; gap:5px; margin-bottom:10px;}
 .phase-chip{
@@ -185,16 +194,16 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
 </style>
 
 <div class="wrap">
-  <p class="eyebrow">Phases 2 to 4 · Validation, Experience, Scoring · Live Replay</p>
+  <p class="eyebrow">Phases 2 to 5 · Validation, Experience, Scoring, Path Selection · Live Replay</p>
   <h1>The same push, judged three different ways</h1>
-  <p class="dek">A real trace from the actual pipeline (not a mockup): one candidate plan legally wedges a box into a corner off any goal. The Phase 1 baseline accepts it into the plan graph like any other move. The Phase 2 validator catches it before it's trusted. The Phase 3 column replays the same plan a second time, after an earlier run already recorded a mismatch on one step, so that transition is trusted even less here. Every accepted step also carries its Phase 4 score breakdown, not just a confidence label.</p>
+  <p class="dek">A real trace from the actual pipeline (not a mockup): one candidate plan legally wedges a box into a corner off any goal. The Phase 1 baseline accepts it into the plan graph like any other move. The Phase 2 validator catches it before it's trusted. The Phase 3 column replays the same plan a second time, after an earlier run already recorded a mismatch on one step, so that transition is trusted even less here. Every accepted step also carries its Phase 4 score breakdown, not just a confidence label. Further down, Phase 5 shows the same graph solved by two different methods.</p>
 
   <div class="phase-strip">
     <div class="phase-chip">1 · Baseline ✓</div>
     <div class="phase-chip">2 · Validation ✓</div>
     <div class="phase-chip">3 · Experience ✓</div>
     <div class="phase-chip">4 · Scoring ✓</div>
-    <div class="phase-chip pending">5 · Path Select</div>
+    <div class="phase-chip">5 · Path Select ✓</div>
     <div class="phase-chip pending">6 · Evaluation</div>
   </div>
 
@@ -278,9 +287,30 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
     <div class="stat"><div class="num" id="st-verified"></div><div class="label">independently confirmed true dead ends</div></div>
   </div>
 
+  <h2>Phase 5: same graph, two solvers</h2>
+  <p class="section-note">Every solve above went through CP-SAT (a real ILP-style solver, run as a min-cost flow problem). Phase 5 adds A*, using the Phase 4 score as its heuristic, and a rule for which to use: a single box is a pure shortest-path problem A* handles fine; more than one box means the pushes have to be coordinated jointly, exactly the kind of interacting constraint CP-SAT exists for. These numbers are measured directly, full episodes run start to finish, not a claim.</p>
+  <div class="stat-row">
+    <div class="stat"><div class="num" id="p5-cpsat-time"></div><div class="label">CP-SAT avg planning time (s)</div></div>
+    <div class="stat"><div class="num" id="p5-astar-time"></div><div class="label">A* avg planning time (s)</div></div>
+    <div class="stat"><div class="num" id="p5-speedup"></div><div class="label">A* speedup, identical execution cost</div></div>
+    <div class="stat"><div class="num" id="p5-episodes"></div><div class="label">episodes measured per method</div></div>
+  </div>
+  <div class="method-grid">
+    <div class="method-card">
+      <span class="tag validated">Single-box level</span>
+      <div class="method-choice" id="p5-simple-method"></div>
+      <div class="method-note">Adaptive selection routed every planning round here to A*: no box-to-box coordination needed, so the cheaper method is enough.</div>
+    </div>
+    <div class="method-card">
+      <span class="tag experience">Two-box level</span>
+      <div class="method-choice" id="p5-multi-method"></div>
+      <div class="method-note">Adaptive selection routed every planning round here to CP-SAT: two boxes have to be pushed without one blocking the other, a real joint constraint.</div>
+    </div>
+  </div>
+
   <footer>
-    <span>27/27 automated tests passing</span>
-    <span>Phases 1 to 4 complete (~75% of plan) · generated from a live pipeline run, not hand-authored numbers</span>
+    <span>37/37 automated tests passing</span>
+    <span>Phases 1 to 5 complete (~90% of plan) · generated from a live pipeline run, not hand-authored numbers</span>
   </footer>
 </div>
 
@@ -486,7 +516,18 @@ function fillStressPanel(){
   document.getElementById('st-verified').textContent = `${s.verified_dead_ends}/${s.total_rejected}`;
 }
 
+function fillPhase5Panel(){
+  const p = DATA.phase5;
+  document.getElementById('p5-cpsat-time').textContent = p.cp_sat.avg_planning_time_s.toFixed(4);
+  document.getElementById('p5-astar-time').textContent = p.astar.avg_planning_time_s.toFixed(4);
+  document.getElementById('p5-speedup').textContent = `${p.speedup.toFixed(1)}x`;
+  document.getElementById('p5-episodes').textContent = p.n_episodes;
+  document.getElementById('p5-simple-method').textContent = p.adaptive_simple_methods.join(', ');
+  document.getElementById('p5-multi-method').textContent = p.adaptive_multi_methods.join(', ');
+}
+
 fillSolverPanel();
 fillStressPanel();
+fillPhase5Panel();
 renderAll();
 </script>

@@ -140,6 +140,50 @@ def trace_candidate(
     return steps
 
 
+def run_phase5_comparison(n_episodes: int = 20) -> dict:
+    """Real measured evidence for Phase 5: run full episodes with CP-SAT,
+    A*, and adaptive path selection, on both a single-box level (should
+    route to A*) and a two-box level (should route to CP-SAT)."""
+    from tape.envs.sokoban import LEVEL_MULTI, LEVEL_SIMPLE
+    from tape.executor import run_episode
+    from tape.llm import MockLLMClient
+    from tape.metrics import aggregate
+
+    def run(level, method, n_candidates, max_depth, max_replans=3):
+        episodes = [
+            run_episode(
+                level, MockLLMClient(seed=i), n_candidates=n_candidates,
+                max_depth=max_depth, max_replans=max_replans, path_selection=method,
+            )
+            for i in range(n_episodes)
+        ]
+        agg = aggregate(episodes)
+        methods = sorted({m for ep in episodes for m in ep.path_selection_methods})
+        return agg, methods
+
+    cp_sat_agg, _ = run(LEVEL_SIMPLE, "cp_sat", 6, 15)
+    astar_agg, _ = run(LEVEL_SIMPLE, "astar", 6, 15)
+    _, adaptive_simple_methods = run(LEVEL_SIMPLE, "adaptive", 6, 15)
+    _, adaptive_multi_methods = run(LEVEL_MULTI, "adaptive", 20, 14)
+
+    return {
+        "n_episodes": n_episodes,
+        "cp_sat": {
+            "avg_planning_time_s": cp_sat_agg.avg_planning_time_s,
+            "avg_execution_cost": cp_sat_agg.avg_execution_cost,
+            "success_rate": cp_sat_agg.success_rate,
+        },
+        "astar": {
+            "avg_planning_time_s": astar_agg.avg_planning_time_s,
+            "avg_execution_cost": astar_agg.avg_execution_cost,
+            "success_rate": astar_agg.success_rate,
+        },
+        "speedup": (cp_sat_agg.avg_planning_time_s / astar_agg.avg_planning_time_s) if astar_agg.avg_planning_time_s else None,
+        "adaptive_simple_methods": adaptive_simple_methods,
+        "adaptive_multi_methods": adaptive_multi_methods,
+    }
+
+
 def mode_stats(graph, solution) -> dict:
     stats = {
         "graph_nodes": graph.graph.number_of_nodes(),
@@ -209,6 +253,7 @@ def main() -> None:
             },
         },
         "stress_test": run_stress_test(),
+        "phase5": run_phase5_comparison(),
     }
 
     demo_dir = Path(__file__).resolve().parents[1] / "demo"
@@ -220,6 +265,9 @@ def main() -> None:
     for mode in ("baseline", "validated", "experience"):
         m = data["modes"][mode]
         print(f"{mode} solver: {m['solver_actions']} cost={m['solver_cost']}")
+    p5 = data["phase5"]
+    print(f"phase5: cp_sat={p5['cp_sat']['avg_planning_time_s']:.4f}s astar={p5['astar']['avg_planning_time_s']:.4f}s speedup={p5['speedup']:.1f}x")
+    print(f"phase5: adaptive on simple={p5['adaptive_simple_methods']} adaptive on multi={p5['adaptive_multi_methods']}")
 
 
 if __name__ == "__main__":

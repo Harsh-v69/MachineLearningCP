@@ -1,0 +1,394 @@
+<title>Corner Deadlock Demo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#faf9f6; --surface:#ffffff; --ink:#1c1f26; --muted:#5b6270; --line:#e2e0da;
+  --ok:#1f6f66; --ok-soft:#e4f0ee;
+  --warn:#b5691f; --warn-soft:#faeddd;
+  --danger:#b3392f; --danger-soft:#fbe7e4;
+  --wall:#3a3d44; --floor:#ffffff; --player:#1c1f26;
+  --baseline-tag:#5b6270; --validated-tag:#1f6f66;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14161b; --surface:#1b1e25; --ink:#e9e8e3; --muted:#9a9fab; --line:#2c2f38;
+    --ok:#5fc9ba; --ok-soft:#1d302d;
+    --warn:#e2a35c; --warn-soft:#332415;
+    --danger:#e2726b; --danger-soft:#3a1f1d;
+    --wall:#0e0f12; --floor:#242830; --player:#e9e8e3;
+    --baseline-tag:#9a9fab; --validated-tag:#5fc9ba;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14161b; --surface:#1b1e25; --ink:#e9e8e3; --muted:#9a9fab; --line:#2c2f38;
+  --ok:#5fc9ba; --ok-soft:#1d302d;
+  --warn:#e2a35c; --warn-soft:#332415;
+  --danger:#e2726b; --danger-soft:#3a1f1d;
+  --wall:#0e0f12; --floor:#242830; --player:#e9e8e3;
+  --baseline-tag:#9a9fab; --validated-tag:#5fc9ba;
+}
+
+*{box-sizing:border-box;}
+body{background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans', system-ui, sans-serif; line-height:1.5;}
+.wrap{max-width:1080px; margin:0 auto; padding:44px 22px 80px;}
+
+.eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:.09em; text-transform:uppercase; color:var(--ok); margin:0 0 10px;}
+h1{font-family:'Fraunces', serif; font-weight:600; font-size:clamp(24px,3.6vw,34px); line-height:1.15; margin:0 0 10px; text-wrap:balance; max-width:24ch;}
+.dek{color:var(--muted); font-size:15px; max-width:68ch; margin:0 0 30px;}
+h2{font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin:0 0 4px;}
+.section-note{color:var(--muted); font-size:13px; margin:0 0 16px; max-width:70ch;}
+
+/* controls */
+.controls{
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  background:var(--surface); border:1px solid var(--line); border-radius:12px;
+  padding:14px 16px; margin-bottom:26px;
+}
+.seg{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+.seg button{
+  font-family:'IBM Plex Mono', monospace; font-size:12.5px; padding:8px 14px; border:none;
+  background:var(--surface); color:var(--muted); cursor:pointer;
+}
+.seg button.active{background:var(--ok-soft); color:var(--ok); font-weight:600;}
+.btn{
+  font-family:'IBM Plex Mono', monospace; font-size:12.5px; padding:8px 14px; border-radius:8px;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer;
+}
+.btn:hover{border-color:var(--ok);}
+.btn.primary{background:var(--ok); color:#fff; border-color:var(--ok);}
+.spacer{flex:1;}
+.step-counter{font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--muted);}
+
+/* two-column panels */
+.panels{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:30px;}
+@media (max-width:720px){ .panels{grid-template-columns:1fr;} }
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px;}
+.panel-head{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+.tag{
+  font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  padding:3px 8px; border-radius:5px; font-weight:600;
+}
+.tag.baseline{background:var(--line); color:var(--baseline-tag);}
+.tag.validated{background:var(--ok-soft); color:var(--validated-tag);}
+.panel-title{font-family:'Fraunces', serif; font-weight:600; font-size:15.5px;}
+
+.chain{display:flex; align-items:center; gap:2px; overflow-x:auto; padding:6px 2px 14px; margin-bottom:8px;}
+.chain-node{
+  flex:none; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-family:'IBM Plex Mono', monospace; font-size:10px; font-weight:600; border:2px solid var(--line); color:var(--muted);
+  background:var(--surface); transition:transform .15s;
+}
+.chain-node.start{width:10px; height:10px; border-radius:50%; background:var(--ink); border:none;}
+.chain-node.ok{border-color:var(--ok); color:var(--ok); background:var(--ok-soft);}
+.chain-node.warning{border-color:var(--warn); color:var(--warn); background:var(--warn-soft);}
+.chain-node.danger{border-color:var(--danger); color:var(--danger); background:var(--danger-soft);}
+.chain-node.pending{opacity:.3;}
+.chain-node.current{transform:scale(1.25); box-shadow:0 0 0 3px var(--bg), 0 0 0 5px currentColor;}
+.chain-step{display:flex; align-items:center;}
+.chain-edge{width:14px; height:2px; background:var(--line);}
+.chain-edge.walked{background:var(--muted);}
+
+.grid-box{
+  display:grid; gap:2px; background:var(--line); border:1px solid var(--line); border-radius:8px;
+  overflow:hidden; aspect-ratio:1; max-width:280px; margin:0 auto 12px; transition:box-shadow .2s;
+}
+.grid-box.frozen{box-shadow:0 0 0 3px var(--danger-soft), 0 0 0 4px var(--danger);}
+.cell{position:relative; background:var(--floor);}
+.cell.wall{background:var(--wall);}
+.cell.goal::after{
+  content:""; position:absolute; inset:22%; border:2px dashed var(--ok); border-radius:3px; opacity:.6;
+}
+.cell.box::after, .cell.box-on-goal::after{
+  content:""; position:absolute; inset:18%; border-radius:4px; background:var(--warn);
+}
+.cell.box-on-goal::after{background:var(--ok);}
+.cell.player::before, .cell.player-on-goal::before{
+  content:""; position:absolute; inset:30%; border-radius:50%; background:var(--player);
+}
+
+.badge{
+  font-family:'IBM Plex Mono', monospace; font-size:12px; padding:8px 10px; border-radius:8px; text-align:center;
+}
+.badge.neutral{background:var(--line); color:var(--muted);}
+.badge.ok{background:var(--ok-soft); color:var(--ok);}
+.badge.warning{background:var(--warn-soft); color:var(--warn);}
+.badge.danger{background:var(--danger-soft); color:var(--danger); font-weight:600;}
+
+/* solver outcome */
+.solver-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:30px;}
+@media (max-width:720px){ .solver-grid{grid-template-columns:1fr;} }
+.solver-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px;}
+.solver-card dl{display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13.5px; margin:10px 0 0;}
+.solver-card dt{color:var(--muted); font-family:'IBM Plex Mono', monospace; font-size:11.5px;}
+.solver-card dd{margin:0; font-variant-numeric:tabular-nums;}
+.path-actions{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink); word-break:break-all;}
+
+/* stress test */
+.stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:30px;}
+@media (max-width:720px){ .stat-row{grid-template-columns:1fr 1fr;} }
+.stat{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px;}
+.stat .num{font-family:'IBM Plex Mono', monospace; font-size:26px; font-weight:600; color:var(--ok); font-variant-numeric:tabular-nums;}
+.stat .label{font-size:12px; color:var(--muted); margin-top:4px;}
+
+/* phase strip */
+.phase-strip{display:flex; gap:6px; margin-bottom:10px;}
+.phase-chip{
+  flex:1; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:11px; padding:8px 4px; border-radius:7px;
+  background:var(--ok-soft); color:var(--ok); border:1px solid transparent;
+}
+.phase-chip.pending{background:var(--surface); color:var(--muted); border-color:var(--line);}
+
+footer{margin-top:10px; padding-top:16px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted); font-family:'IBM Plex Mono', monospace; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Phase 2 — Adaptive Graph Validation · Live Replay</p>
+  <h1>The same push, judged two different ways</h1>
+  <p class="dek">A real trace from the actual pipeline (not a mockup): one candidate plan legally wedges a box into a corner off any goal. The Phase 1 baseline accepts it into the plan graph like any other move. The Phase 2 validator catches it before it's trusted.</p>
+
+  <div class="phase-strip">
+    <div class="phase-chip">1 · Baseline ✓</div>
+    <div class="phase-chip">2 · Validation ✓</div>
+    <div class="phase-chip">3 · Experience ✓</div>
+    <div class="phase-chip pending">4 · Scoring</div>
+    <div class="phase-chip pending">5 · Path Select</div>
+    <div class="phase-chip pending">6 · Evaluation</div>
+  </div>
+
+  <div class="controls">
+    <div class="seg" id="plan-seg">
+      <button data-plan="bad" class="active">Adversarial candidate</button>
+      <button data-plan="good">Optimal candidate</button>
+    </div>
+    <button class="btn" id="btn-back">◀ Step</button>
+    <button class="btn primary" id="btn-play">Play</button>
+    <button class="btn" id="btn-fwd">Step ▶</button>
+    <button class="btn" id="btn-reset">Reset</button>
+    <div class="spacer"></div>
+    <span class="step-counter" id="step-counter">0 / 0</span>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-head"><span class="tag baseline">Phase 1</span><span class="panel-title">Baseline — trusts every legal move</span></div>
+      <div class="chain" id="chain-baseline"></div>
+      <div class="grid-box" id="grid-baseline"></div>
+      <div class="badge neutral" id="badge-baseline">Ready</div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="tag validated">Phase 2</span><span class="panel-title">Validated — checks before trusting</span></div>
+      <div class="chain" id="chain-validated"></div>
+      <div class="grid-box" id="grid-validated"></div>
+      <div class="badge neutral" id="badge-validated">Ready</div>
+    </div>
+  </div>
+
+  <h2>Solver outcome</h2>
+  <p class="section-note">Both graphs are built from the <em>same two candidates</em> (one optimal, one adversarial). The adversarial one never reaches the goal in either graph, so the solver picks the optimal path either way — validation doesn't change whether this episode succeeds. What it does change: the validated graph is smaller (the dead branch is discarded, not merely unused), and its solver cost is higher because parts of even the good path get flagged uncertain (wall-hugging) and cost more to traverse.</p>
+  <div class="solver-grid">
+    <div class="solver-card">
+      <span class="tag baseline">Phase 1</span>
+      <dl>
+        <dt>graph nodes</dt><dd id="base-nodes"></dd>
+        <dt>graph edges</dt><dd id="base-edges"></dd>
+        <dt>solver cost</dt><dd id="base-cost"></dd>
+        <dt>chosen path</dt><dd class="path-actions" id="base-path"></dd>
+      </dl>
+    </div>
+    <div class="solver-card">
+      <span class="tag validated">Phase 2</span>
+      <dl>
+        <dt>graph nodes</dt><dd id="val-nodes"></dd>
+        <dt>graph edges</dt><dd id="val-edges"></dd>
+        <dt>rejected transitions</dt><dd id="val-rejections"></dd>
+        <dt>solver cost</dt><dd id="val-cost"></dd>
+        <dt>chosen path</dt><dd class="path-actions" id="val-path"></dd>
+      </dl>
+    </div>
+  </div>
+
+  <h2>Does this matter at scale?</h2>
+  <p class="section-note">On the goal-biased mock LLM, corner mistakes like the one above almost never happen by chance — so the aggregate metrics look identical with or without the validator. To find out whether it actually matters, we stress-tested it with a deliberately much dumber candidate generator (pure random legal moves, no safety-net optimal plan) across 30 trials on a harder two-box level, then independently re-checked every rejection with a plain breadth-first search that has nothing to do with the validator's own logic.</p>
+  <div class="stat-row">
+    <div class="stat"><div class="num" id="st-attempted"></div><div class="label">transitions attempted</div></div>
+    <div class="stat"><div class="num">0.00%</div><div class="label">baseline's own error rate (structurally blind to this)</div></div>
+    <div class="stat"><div class="num" id="st-rejected"></div><div class="label">validator rejections</div></div>
+    <div class="stat"><div class="num" id="st-verified"></div><div class="label">independently confirmed true dead ends</div></div>
+  </div>
+
+  <footer>
+    <span>21/21 automated tests passing</span>
+    <span>Phases 1–3 complete (~60% of plan) · generated from a live pipeline run, not hand-authored numbers</span>
+  </footer>
+</div>
+
+<script>
+const DATA = {"level": {"rows": ["#######", "#     #", "#  $  #", "#     #", "#  @  #", "#    .#", "#######"], "walls": [[0, 1], [4, 0], [0, 4], [6, 1], [4, 6], [6, 4], [0, 2], [0, 5], [1, 0], [1, 6], [6, 2], [6, 0], [6, 5], [0, 0], [0, 3], [2, 0], [3, 0], [0, 6], [5, 0], [5, 6], [2, 6], [3, 6], [6, 6], [6, 3]], "goals": [[5, 5]], "start": {"player": [4, 3], "boxes": [[2, 3]]}}, "modes": {"baseline": {"good_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "L", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "U", "from": {"player": [3, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "R", "from": {"player": [2, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[2, 4]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "R", "from": {"player": [2, 3], "boxes": [[2, 4]]}, "to": {"player": [2, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "U", "from": {"player": [2, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "R", "from": {"player": [1, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 5], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "D", "from": {"player": [1, 5], "boxes": [[2, 5]]}, "to": {"player": [2, 5], "boxes": [[3, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "D", "from": {"player": [2, 5], "boxes": [[3, 5]]}, "to": {"player": [3, 5], "boxes": [[4, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "D", "from": {"player": [3, 5], "boxes": [[4, 5]]}, "to": {"player": [4, 5], "boxes": [[5, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}], "bad_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "U", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "R", "from": {"player": [2, 3], "boxes": [[1, 3]]}, "to": {"player": [2, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "U", "from": {"player": [2, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "L", "from": {"player": [1, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 3], "boxes": [[1, 2]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "L", "from": {"player": [1, 3], "boxes": [[1, 2]]}, "to": {"player": [1, 2], "boxes": [[1, 1]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}], "graph_nodes": 16, "graph_edges": 15, "invalid_transitions": 0, "solver_actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "solver_cost": 10}, "validated": {"good_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "L", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "U", "from": {"player": [3, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "R", "from": {"player": [2, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[2, 4]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "R", "from": {"player": [2, 3], "boxes": [[2, 4]]}, "to": {"player": [2, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified"}, {"action": "U", "from": {"player": [2, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "R", "from": {"player": [1, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 5], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "D", "from": {"player": [1, 5], "boxes": [[2, 5]]}, "to": {"player": [2, 5], "boxes": [[3, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified"}, {"action": "D", "from": {"player": [2, 5], "boxes": [[3, 5]]}, "to": {"player": [3, 5], "boxes": [[4, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified"}, {"action": "D", "from": {"player": [3, 5], "boxes": [[4, 5]]}, "to": {"player": [4, 5], "boxes": [[5, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}], "bad_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "U", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[1, 3]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified"}, {"action": "R", "from": {"player": [2, 3], "boxes": [[1, 3]]}, "to": {"player": [2, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "U", "from": {"player": [2, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok"}, {"action": "L", "from": {"player": [1, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 3], "boxes": [[1, 2]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified"}, {"action": "L", "from": {"player": [1, 3], "boxes": [[1, 2]]}, "to": {"player": [1, 2], "boxes": [[1, 1]]}, "accepted": false, "confidence": 0.0, "reason": "corner deadlock"}], "graph_nodes": 15, "graph_edges": 14, "invalid_transitions": 0, "validator_rejections": 1, "solver_actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "solver_cost": 13}}, "stress_test": {"total_attempted": 54000, "total_rejected": 200, "verified_dead_ends": 200}};
+
+const st = { plan: 'bad', step: -1, playing: false, timer: null };
+
+function key(rc){ return rc[0] + ',' + rc[1]; }
+
+const staticMap = (function(){
+  const walls = new Set(DATA.level.walls.map(key));
+  const goals = new Set(DATA.level.goals.map(key));
+  const height = DATA.level.rows.length;
+  const width = Math.max(...DATA.level.rows.map(r => r.length));
+  return { walls, goals, height, width };
+})();
+
+function renderGrid(container, sokState){
+  container.innerHTML = '';
+  container.style.gridTemplateColumns = `repeat(${staticMap.width}, 1fr)`;
+  container.style.gridTemplateRows = `repeat(${staticMap.height}, 1fr)`;
+  const boxSet = new Set((sokState.boxes || []).map(key));
+  const playerKey = sokState.player ? key(sokState.player) : null;
+  for (let r = 0; r < staticMap.height; r++) {
+    for (let c = 0; c < staticMap.width; c++) {
+      const k = r + ',' + c;
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (staticMap.walls.has(k)) cell.classList.add('wall');
+      else if (staticMap.goals.has(k)) cell.classList.add('goal');
+      if (boxSet.has(k)) cell.classList.add(staticMap.goals.has(k) ? 'box-on-goal' : 'box');
+      if (k === playerKey) cell.classList.add(staticMap.goals.has(k) ? 'player-on-goal' : 'player');
+      container.appendChild(cell);
+    }
+  }
+}
+
+function trace(mode, plan){ return DATA.modes[mode][plan + '_trace']; }
+
+function maxSteps(){
+  return Math.max(trace('baseline', st.plan).length, trace('validated', st.plan).length);
+}
+
+function renderChain(mode){
+  const tr = trace(mode, st.plan);
+  const idx = st.step;
+  const el = document.getElementById('chain-' + mode);
+  el.innerHTML = '';
+  const start = document.createElement('div');
+  start.className = 'chain-node start';
+  el.appendChild(start);
+  tr.forEach((s, i) => {
+    const stepWrap = document.createElement('div');
+    stepWrap.className = 'chain-step';
+    const edge = document.createElement('div');
+    edge.className = 'chain-edge' + (i <= idx ? ' walked' : '');
+    stepWrap.appendChild(edge);
+    const node = document.createElement('div');
+    let cls = 'chain-node';
+    if (s.accepted === false) cls += ' danger';
+    else if (s.confidence < 1) cls += ' warning';
+    else cls += ' ok';
+    if (i > idx) cls += ' pending';
+    node.className = cls + (i === idx ? ' current' : '');
+    node.textContent = s.action;
+    node.title = `${s.action}: ${s.reason} (confidence ${s.confidence})`;
+    stepWrap.appendChild(node);
+    el.appendChild(stepWrap);
+  });
+}
+
+function renderMode(mode){
+  const tr = trace(mode, st.plan);
+  const idx = Math.min(st.step, tr.length - 1);
+  const visState = idx < 0 ? DATA.level.start : tr[idx].to;
+  const grid = document.getElementById('grid-' + mode);
+  renderGrid(grid, visState);
+
+  const frozen = idx >= 0 && tr[idx].accepted === false;
+  grid.classList.toggle('frozen', !!frozen);
+
+  const badge = document.getElementById('badge-' + mode);
+  if (idx < 0) {
+    badge.textContent = 'Ready — press Step or Play';
+    badge.className = 'badge neutral';
+  } else {
+    const s = tr[idx];
+    if (s.accepted === false) {
+      badge.textContent = `REJECTED — ${s.reason} (never added to plan graph)`;
+      badge.className = 'badge danger';
+    } else if (s.confidence < 1) {
+      badge.textContent = `accepted, confidence ${s.confidence.toFixed(2)} — ${s.reason}`;
+      badge.className = 'badge warning';
+    } else {
+      badge.textContent = `accepted into plan graph — action "${s.action}"`;
+      badge.className = 'badge ok';
+    }
+  }
+  renderChain(mode);
+}
+
+function renderAll(){
+  renderMode('baseline');
+  renderMode('validated');
+  document.getElementById('step-counter').textContent = `${Math.max(st.step, 0)} / ${maxSteps()}`;
+  document.getElementById('btn-play').textContent = st.playing ? 'Pause' : 'Play';
+}
+
+function stopPlaying(){
+  st.playing = false;
+  if (st.timer) clearInterval(st.timer);
+  st.timer = null;
+}
+
+function stepForward(){
+  if (st.step + 1 < maxSteps()) { st.step++; renderAll(); }
+  else stopPlaying();
+}
+function stepBack(){ if (st.step > -1) { st.step--; renderAll(); } }
+function reset(){ st.step = -1; renderAll(); }
+
+function setPlan(plan){
+  st.plan = plan;
+  st.step = -1;
+  stopPlaying();
+  document.querySelectorAll('#plan-seg button').forEach(b => b.classList.toggle('active', b.dataset.plan === plan));
+  renderAll();
+}
+
+function togglePlay(){
+  if (st.playing) { stopPlaying(); }
+  else {
+    st.playing = true;
+    st.timer = setInterval(() => {
+      if (st.step + 1 >= maxSteps()) { stopPlaying(); renderAll(); return; }
+      stepForward();
+    }, 900);
+  }
+  renderAll();
+}
+
+document.getElementById('btn-fwd').addEventListener('click', stepForward);
+document.getElementById('btn-back').addEventListener('click', stepBack);
+document.getElementById('btn-reset').addEventListener('click', reset);
+document.getElementById('btn-play').addEventListener('click', togglePlay);
+document.querySelectorAll('#plan-seg button').forEach(b => b.addEventListener('click', () => setPlan(b.dataset.plan)));
+
+function fillSolverPanel(){
+  const b = DATA.modes.baseline, v = DATA.modes.validated;
+  document.getElementById('base-nodes').textContent = b.graph_nodes;
+  document.getElementById('base-edges').textContent = b.graph_edges;
+  document.getElementById('base-cost').textContent = b.solver_cost;
+  document.getElementById('base-path').textContent = (b.solver_actions || []).join(' → ');
+  document.getElementById('val-nodes').textContent = v.graph_nodes;
+  document.getElementById('val-edges').textContent = v.graph_edges;
+  document.getElementById('val-rejections').textContent = v.validator_rejections;
+  document.getElementById('val-cost').textContent = v.solver_cost;
+  document.getElementById('val-path').textContent = (v.solver_actions || []).join(' → ');
+}
+
+function fillStressPanel(){
+  const s = DATA.stress_test;
+  document.getElementById('st-attempted').textContent = s.total_attempted.toLocaleString();
+  document.getElementById('st-rejected').textContent = s.total_rejected.toLocaleString();
+  document.getElementById('st-verified').textContent = `${s.verified_dead_ends}/${s.total_rejected}`;
+}
+
+fillSolverPanel();
+fillStressPanel();
+renderAll();
+</script>

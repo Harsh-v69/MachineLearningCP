@@ -131,7 +131,7 @@ h2{
 .cell.box::after, .cell.box-on-goal::after{
   content:""; position:absolute; inset:20%; border-radius:1px; background:var(--warn);
 }
-.cell.box-on-goal::after{background:var(--ok);}
+.cell.box-on-goal::after{background:var(--ok); clip-path:none; opacity:1;}
 .cell.player::before, .cell.player-on-goal::before{
   content:""; position:absolute; inset:32%; border-radius:50%; background:var(--player);
 }
@@ -181,6 +181,14 @@ h2{
   font-family:'JetBrains Mono', monospace; font-size:20px; font-weight:800; color:var(--ok); margin:8px 0 4px;
 }
 .method-card .method-note{font-size:12.5px; color:var(--muted);}
+
+/* phase 5 visual solve */
+.p5-visual-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;}
+@media (max-width:640px){ .p5-visual-grid{grid-template-columns:1fr;} }
+.p5-visual-grid .panel .grid-box{max-width:220px;}
+.p5-visual-grid .step-label{
+  font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); text-align:center; margin-top:4px;
+}
 
 /* phase strip */
 .phase-strip{display:flex; gap:5px; margin-bottom:10px;}
@@ -308,6 +316,29 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
     </div>
   </div>
 
+  <h2>Watch each solver work</h2>
+  <p class="section-note">Both boards below are being solved live, right now, by whichever method adaptive selection actually picked for that level. The single box only ever needs one push at a time, so A* just walks toward the goal. The two boxes have to be interleaved, push one partway, switch to the other, come back, without either one blocking the other's path, which is what CP-SAT is actually being asked to coordinate.</p>
+  <div class="controls">
+    <button class="btn" id="p5-btn-back">◀ Step</button>
+    <button class="btn primary" id="p5-btn-play">Play</button>
+    <button class="btn" id="p5-btn-fwd">Step ▶</button>
+    <button class="btn" id="p5-btn-reset">Reset</button>
+    <div class="spacer"></div>
+    <span class="step-counter" id="p5-step-counter">0 / 0</span>
+  </div>
+  <div class="p5-visual-grid">
+    <div class="panel">
+      <div class="panel-head"><span class="tag validated">A*</span><span class="panel-title">Single box</span></div>
+      <div class="grid-box" id="grid-p5single"></div>
+      <div class="step-label" id="label-p5single"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="tag experience">CP-SAT</span><span class="panel-title">Two boxes</span></div>
+      <div class="grid-box" id="grid-p5multi"></div>
+      <div class="step-label" id="label-p5multi"></div>
+    </div>
+  </div>
+
   <footer>
     <span>37/37 automated tests passing</span>
     <span>Phases 1 to 5 complete (~90% of plan) · generated from a live pipeline run, not hand-authored numbers</span>
@@ -322,29 +353,32 @@ const st = { plan: 'bad', step: -1, playing: false, timer: null };
 
 function key(rc){ return rc[0] + ',' + rc[1]; }
 
-const staticMap = (function(){
-  const walls = new Set(DATA.level.walls.map(key));
-  const goals = new Set(DATA.level.goals.map(key));
-  const height = DATA.level.rows.length;
-  const width = Math.max(...DATA.level.rows.map(r => r.length));
+function buildStaticMap(levelData){
+  const walls = new Set(levelData.walls.map(key));
+  const goals = new Set(levelData.goals.map(key));
+  const height = levelData.height || levelData.rows.length;
+  const width = levelData.width || Math.max(...levelData.rows.map(r => r.length));
   return { walls, goals, height, width };
-})();
+}
 
-function renderGrid(container, sokState){
+const staticMap = buildStaticMap(DATA.level);
+
+function renderGrid(container, sokState, map){
+  map = map || staticMap;
   container.innerHTML = '';
-  container.style.gridTemplateColumns = `repeat(${staticMap.width}, 1fr)`;
-  container.style.gridTemplateRows = `repeat(${staticMap.height}, 1fr)`;
+  container.style.gridTemplateColumns = `repeat(${map.width}, 1fr)`;
+  container.style.gridTemplateRows = `repeat(${map.height}, 1fr)`;
   const boxSet = new Set((sokState.boxes || []).map(key));
   const playerKey = sokState.player ? key(sokState.player) : null;
-  for (let r = 0; r < staticMap.height; r++) {
-    for (let c = 0; c < staticMap.width; c++) {
+  for (let r = 0; r < map.height; r++) {
+    for (let c = 0; c < map.width; c++) {
       const k = r + ',' + c;
       const cell = document.createElement('div');
       cell.className = 'cell';
-      if (staticMap.walls.has(k)) cell.classList.add('wall');
-      else if (staticMap.goals.has(k)) cell.classList.add('goal');
-      if (boxSet.has(k)) cell.classList.add(staticMap.goals.has(k) ? 'box-on-goal' : 'box');
-      if (k === playerKey) cell.classList.add(staticMap.goals.has(k) ? 'player-on-goal' : 'player');
+      if (map.walls.has(k)) cell.classList.add('wall');
+      else if (map.goals.has(k)) cell.classList.add('goal');
+      if (boxSet.has(k)) cell.classList.add(map.goals.has(k) ? 'box-on-goal' : 'box');
+      if (k === playerKey) cell.classList.add(map.goals.has(k) ? 'player-on-goal' : 'player');
       container.appendChild(cell);
     }
   }
@@ -526,8 +560,67 @@ function fillPhase5Panel(){
   document.getElementById('p5-multi-method').textContent = p.adaptive_multi_methods.join(', ');
 }
 
+const p5v = { step: -1, playing: false, timer: null };
+const p5vMaps = {
+  single: buildStaticMap(DATA.phase5_visual.single),
+  two_box: buildStaticMap(DATA.phase5_visual.two_box),
+};
+
+function p5vMaxSteps(){
+  return Math.max(DATA.phase5_visual.single.actions.length, DATA.phase5_visual.two_box.actions.length);
+}
+
+function renderP5Side(key, elGridId, elLabelId){
+  const side = DATA.phase5_visual[key];
+  const idx = Math.min(p5v.step, side.actions.length - 1);
+  const sokState = idx < 0 ? side.start : side.states[idx];
+  renderGrid(document.getElementById(elGridId), sokState, p5vMaps[key]);
+  const label = document.getElementById(elLabelId);
+  if (idx < 0) {
+    label.textContent = `ready (${side.method}, cost ${side.cost})`;
+  } else {
+    label.textContent = `step ${idx + 1}/${side.actions.length}: ${side.actions[idx]}`;
+  }
+}
+
+function renderP5Visual(){
+  renderP5Side('single', 'grid-p5single', 'label-p5single');
+  renderP5Side('two_box', 'grid-p5multi', 'label-p5multi');
+  document.getElementById('p5-step-counter').textContent = `${Math.max(p5v.step, 0)} / ${p5vMaxSteps()}`;
+  document.getElementById('p5-btn-play').textContent = p5v.playing ? 'Pause' : 'Play';
+}
+
+function p5vStopPlaying(){
+  p5v.playing = false;
+  if (p5v.timer) clearInterval(p5v.timer);
+  p5v.timer = null;
+}
+function p5vStepForward(){
+  if (p5v.step + 1 < p5vMaxSteps()) { p5v.step++; renderP5Visual(); }
+  else p5vStopPlaying();
+}
+function p5vStepBack(){ if (p5v.step > -1) { p5v.step--; renderP5Visual(); } }
+function p5vReset(){ p5v.step = -1; renderP5Visual(); }
+function p5vTogglePlay(){
+  if (p5v.playing) { p5vStopPlaying(); }
+  else {
+    p5v.playing = true;
+    p5v.timer = setInterval(() => {
+      if (p5v.step + 1 >= p5vMaxSteps()) { p5vStopPlaying(); renderP5Visual(); return; }
+      p5vStepForward();
+    }, 700);
+  }
+  renderP5Visual();
+}
+
+document.getElementById('p5-btn-fwd').addEventListener('click', p5vStepForward);
+document.getElementById('p5-btn-back').addEventListener('click', p5vStepBack);
+document.getElementById('p5-btn-reset').addEventListener('click', p5vReset);
+document.getElementById('p5-btn-play').addEventListener('click', p5vTogglePlay);
+
 fillSolverPanel();
 fillStressPanel();
 fillPhase5Panel();
 renderAll();
+renderP5Visual();
 </script>

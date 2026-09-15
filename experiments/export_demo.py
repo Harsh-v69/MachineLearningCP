@@ -184,6 +184,40 @@ def run_phase5_comparison(n_episodes: int = 20) -> dict:
     }
 
 
+def build_phase5_visual() -> dict:
+    """An actual step-by-step solve trace for Phase 5, on two different
+    levels, so the adaptive rule's two branches are both visible as real
+    box movement instead of only aggregate timing numbers:
+      - single-box demo level: decide_method routes to A*.
+      - two-box LEVEL_MULTI: decide_method routes to CP-SAT, because two
+        boxes have to be pushed without one blocking the other.
+    """
+    from tape.envs.sokoban import LEVEL_MULTI
+    from tape.path_selector import select_path_adaptive
+
+    def visual(level: SokobanLevel) -> dict:
+        start = level.initial_state
+        plan = _bfs_plan(level, start, 20)
+        graph = build_plan_graph(level, start, [plan])
+        solution, method = select_path_adaptive(level, graph)
+        return {
+            "walls": [list(w) for w in level.walls],
+            "goals": [list(g) for g in level.goals],
+            "width": level.width,
+            "height": level.height,
+            "start": state_dict(start),
+            "actions": solution.actions,
+            "states": [state_dict(s) for s in solution.node_path[1:]],
+            "method": method,
+            "cost": solution.cost,
+        }
+
+    return {
+        "single": visual(SokobanLevel(DEMO_LEVEL_ROWS)),
+        "two_box": visual(LEVEL_MULTI),
+    }
+
+
 def mode_stats(graph, solution) -> dict:
     stats = {
         "graph_nodes": graph.graph.number_of_nodes(),
@@ -254,6 +288,7 @@ def main() -> None:
         },
         "stress_test": run_stress_test(),
         "phase5": run_phase5_comparison(),
+        "phase5_visual": build_phase5_visual(),
     }
 
     demo_dir = Path(__file__).resolve().parents[1] / "demo"
@@ -268,6 +303,9 @@ def main() -> None:
     p5 = data["phase5"]
     print(f"phase5: cp_sat={p5['cp_sat']['avg_planning_time_s']:.4f}s astar={p5['astar']['avg_planning_time_s']:.4f}s speedup={p5['speedup']:.1f}x")
     print(f"phase5: adaptive on simple={p5['adaptive_simple_methods']} adaptive on multi={p5['adaptive_multi_methods']}")
+    pv = data["phase5_visual"]
+    print(f"phase5_visual: single method={pv['single']['method']} actions={pv['single']['actions']}")
+    print(f"phase5_visual: two_box method={pv['two_box']['method']} actions={pv['two_box']['actions']}")
 
 
 if __name__ == "__main__":

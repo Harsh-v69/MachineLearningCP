@@ -164,15 +164,15 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
 </style>
 
 <div class="wrap">
-  <p class="eyebrow">Phase 2 · Adaptive Graph Validation · Live Replay</p>
+  <p class="eyebrow">Phases 2 to 4 · Validation, Experience, Scoring · Live Replay</p>
   <h1>The same push, judged two different ways</h1>
-  <p class="dek">A real trace from the actual pipeline (not a mockup): one candidate plan legally wedges a box into a corner off any goal. The Phase 1 baseline accepts it into the plan graph like any other move. The Phase 2 validator catches it before it's trusted.</p>
+  <p class="dek">A real trace from the actual pipeline (not a mockup): one candidate plan legally wedges a box into a corner off any goal. The Phase 1 baseline accepts it into the plan graph like any other move. The Phase 2 validator catches it before it's trusted, and the Phase 4 utility score decides how expensive every remaining edge is.</p>
 
   <div class="phase-strip">
     <div class="phase-chip">1 · Baseline ✓</div>
     <div class="phase-chip">2 · Validation ✓</div>
     <div class="phase-chip">3 · Experience ✓</div>
-    <div class="phase-chip pending">4 · Scoring</div>
+    <div class="phase-chip">4 · Scoring ✓</div>
     <div class="phase-chip pending">5 · Path Select</div>
     <div class="phase-chip pending">6 · Evaluation</div>
   </div>
@@ -206,7 +206,7 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
   </div>
 
   <h2>Solver outcome</h2>
-  <p class="section-note">Both graphs are built from the <em>same two candidates</em> (one optimal, one adversarial). The adversarial one never reaches the goal in either graph, so the solver picks the optimal path either way; validation does not change whether this episode succeeds. What it does change: the validated graph is smaller, since the dead branch is discarded rather than merely unused, and its solver cost is higher because parts of even the good path get flagged uncertain (wall-hugging) and cost more to traverse.</p>
+  <p class="section-note">Both graphs are built from the <em>same two candidates</em> (one optimal, one adversarial). The adversarial one never reaches the goal in either graph, so the solver picks the optimal path either way; validation and scoring do not change whether this episode succeeds. What they do change: the validated graph is smaller, since the dead branch is discarded rather than merely unused, and its solver cost reads much higher. That is not a bug: Phase 4 no longer prices an edge by confidence alone, it also charges for any step that moves a box farther from its goal and for how much of the planning round's step budget has already been spent, then scales everything up by 10x to keep one decimal of precision as a whole number for the solver. The chosen path stays identical either way; only the price tag attached to trusting it changes.</p>
   <div class="solver-grid">
     <div class="solver-card">
       <span class="tag baseline">Phase 1</span>
@@ -239,8 +239,8 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
   </div>
 
   <footer>
-    <span>21/21 automated tests passing</span>
-    <span>Phases 1 to 3 complete (~60% of plan) · generated from a live pipeline run, not hand-authored numbers</span>
+    <span>27/27 automated tests passing</span>
+    <span>Phases 1 to 4 complete (~75% of plan) · generated from a live pipeline run, not hand-authored numbers</span>
   </footer>
 </div>
 

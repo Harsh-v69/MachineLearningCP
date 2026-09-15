@@ -15,14 +15,16 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_root / "src"))
+sys.path.insert(0, str(_root))
 
 from tape.envs.sokoban import SokobanLevel, State
 from tape.llm import _bfs_plan
 from tape.solver import select_path
 from tape.graph import build_plan_graph, build_validated_plan_graph
 from tape.validator import CornerDeadlockValidator
-from stress_test import run_stress_test
+from experiments.stress_test import run_stress_test
 
 DEMO_LEVEL_ROWS = [
     "#######",

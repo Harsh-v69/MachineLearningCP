@@ -16,6 +16,7 @@ import networkx as nx
 
 from tape.envs.sokoban import SokobanLevel, State
 from tape.experience import ExperienceStore
+from tape.scoring import ScoreWeights, score_transition
 from tape.validator import GraphValidator
 
 
@@ -67,25 +68,36 @@ def build_validated_plan_graph(
     validator: GraphValidator,
     experience: ExperienceStore | None = None,
     level_id: str = "default",
+    max_depth: int | None = None,
+    weights: ScoreWeights = ScoreWeights(),
 ) -> PlanGraphResult:
     """Same as `build_plan_graph`, but every physically-legal step is also
     passed through `validator` before being accepted as an edge. A rejected
     step dead-ends that candidate (Phase 2 behaviour: catch it here instead
-    of only at execution-time mismatch). An accepted-but-uncertain step is
-    still added, with cost inflated by its confidence so the solver
-    naturally prefers more-trusted paths.
+    of only at execution-time mismatch).
 
     When `experience` is given (Phase 3), its recorded success/failure
     history for this exact (state, action) further scales the confidence --
     a transition that has repeatedly mismatched execution in past episodes
-    gets trusted less even if the validator has no objection to it."""
+    gets trusted less even if the validator has no objection to it.
+
+    An accepted-but-uncertain step is still added, but its edge cost
+    (Phase 4) is not just 1/confidence -- it's `score_transition`'s
+    combined score: confidence, plus how much closer this step actually
+    gets a box to a goal (a "legal" move that walks a box away from every
+    goal is trusted just fine but still costs more), plus how much of
+    this planning round's step budget has been used so far. The solver
+    still just minimizes total cost; it now minimizes something closer to
+    "least regressive, most trusted, most budget-efficient" instead of
+    "fewest confident steps"."""
     graph = nx.DiGraph()
     graph.add_node(start)
     result = PlanGraphResult(graph=graph, start=start)
+    budget = max_depth or (max((len(p) for p in candidate_plans), default=1) or 1)
 
     for plan in candidate_plans:
         cur = start
-        for action in plan:
+        for step_index, action in enumerate(plan):
             result.attempted_transitions += 1
             nxt, moved = level.step(cur, action)
             if not moved:
@@ -98,9 +110,12 @@ def build_validated_plan_graph(
             confidence = verdict.confidence
             if experience is not None:
                 confidence *= experience.confidence(level_id, cur, action)
-            cost = max(1, round(1.0 / confidence))
-            if not graph.has_edge(cur, nxt) or graph.edges[cur, nxt]["cost"] > cost:
-                graph.add_edge(cur, nxt, action=action, cost=cost, confidence=confidence)
+            score = score_transition(level, cur, nxt, step_index, budget, confidence, weights)
+            if not graph.has_edge(cur, nxt) or graph.edges[cur, nxt]["cost"] > score.cost:
+                graph.add_edge(
+                    cur, nxt, action=action, cost=score.cost, confidence=confidence,
+                    regression=score.regression,
+                )
             cur = nxt
             if level.is_goal(cur):
                 break

@@ -61,7 +61,8 @@ def run_episode(
         candidates = llm.generate_candidate_plans(level, state, n_candidates, max_depth)
         if validator is not None:
             plan_graph = build_validated_plan_graph(
-                level, state, candidates, validator, experience=experience, level_id=level_id
+                level, state, candidates, validator, experience=experience,
+                level_id=level_id, max_depth=max_depth,
             )
         else:
             plan_graph = build_plan_graph(level, state, candidates)

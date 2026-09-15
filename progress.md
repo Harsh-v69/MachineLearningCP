@@ -1,6 +1,6 @@
 # Progress: TAPE Extension — Adaptive Graph Validation & Solver Generalization
 
-**Overall status: ~60% complete (Phases 1–3 of 6), on schedule for the mid-semester checkpoint.**
+**Overall status: ~75% complete (Phases 1–4 of 6), ahead of the mid-semester checkpoint.**
 
 This document is meant to be read start to finish by a teammate who has not touched the code yet, and to be enough on its own to explain the project to the teacher. It covers what the project is, what's been built, why each piece exists, how to run it, and exactly what's left.
 
@@ -27,11 +27,11 @@ Our project builds three extensions addressing these gaps, on top of a faithful 
 | 1 — TAPE Baseline | 25% | ✅ Done |
 | 2 — Adaptive Graph Validation | 20% | ✅ Done |
 | 3 — Self-Improving Graph | 15% | ✅ Done |
-| 4 — Dynamic Reachability/Utility Score | 15% | ⏳ Not started |
+| 4 — Dynamic Reachability/Utility Score | 15% | ✅ Done |
 | 5 — Adaptive Path Selection (A*/AO* vs solver) | 15% | ⏳ Not started |
 | 6 — Evaluation & Ablations | 10% | ⏳ Not started |
 
-**Phases 1–3 sum to 60%, which is where the project currently stands.**
+**Phases 1–4 sum to 75%, which is where the project currently stands.**
 
 ---
 
@@ -153,7 +153,34 @@ python experiments/run_baseline.py --level simple --episodes 25 --slip 0.15 --va
 
 ---
 
-## 6. Test coverage (21 tests, all passing)
+## 6. Phase 4 — Dynamic Reachability/Utility Score
+
+**The gap this targets:** every edge in the validated graph up to this point cost either a flat 1 (baseline) or `1/confidence` (Phase 2/3) — a purely "how much do we trust this transition" number. TAPE's own plan describes something richer: a per-state score built from goal proximity, accumulated cost, remaining budget, and confidence together, not confidence alone. A transition can be perfectly legal and fully trusted and still be a bad idea, for example if it walks a box away from every goal for no reason.
+
+**What was built** (`src/tape/scoring.py`):
+
+- `goal_distance(level, state)`: sum, over every box not already on a goal, of its Manhattan distance to the nearest goal.
+- `score_transition(level, from_state, to_state, step_index, max_depth, confidence, weights)`: computes a `TransitionScore` combining four factors into one edge cost:
+  - **regression** — how much this step increased goal distance (a move that makes no progress or gets closer costs nothing extra here; only genuine backward movement is penalized).
+  - **confidence penalty** — same confidence signal from Phase 2/3, scaled by `(1 - confidence)`.
+  - **budget pressure** — grows as `(step_index / max_depth)²`, so a transition late in an already-long candidate costs more than the same transition taken early, discouraging the solver from preferring paths that eat deep into the planning budget.
+  - a base step cost of 1, same as the baseline.
+- The four factors are summed with configurable weights (`ScoreWeights`) and scaled by 10 before rounding, since OR-Tools CP-SAT requires integer coefficients and a flat round-to-nearest-integer would collapse every fractional difference to the same cost.
+- `build_validated_plan_graph()` now calls `score_transition()` for every accepted edge instead of the old `max(1, round(1/confidence))` formula — the same CP-SAT solver from Phase 1, completely unmodified, now minimizes a genuinely multi-factor cost instead of a confidence-only one.
+
+**Verified behaviour:** `tests/test_scoring.py` proves each factor moves cost in the expected direction in isolation (a regressing transition costs more than a progressing one at equal confidence; lower confidence costs more at equal progress; a transition late in the step budget costs more than the identical one taken early) and that a real `build_validated_plan_graph()` run on the demo level's known candidates produces edges that all carry a valid non-negative `regression` value and a positive integer cost. 6 new tests.
+
+**Honest note on the resulting numbers:** because of the ×10 integer scaling, solver costs under this formula are on a different, larger scale than Phases 1–3 (a full episode's cost can jump from single digits into the hundreds). That's expected and not evidence of a problem — it doesn't change which path the solver picks in the demo (the same optimal path is still chosen), only the number attached to trusting it. The demo (`demo/index.html`) explains this directly rather than leaving the jump unexplained.
+
+**Run it:**
+```bash
+python experiments/run_baseline.py --level simple --episodes 25 --validator corner-deadlock --experience
+```
+(scoring is active automatically whenever `--validator` is set; there's no separate flag for it, since it replaces the internal cost formula of the same validated-graph path)
+
+---
+
+## 7. Test coverage (27 tests, all passing)
 
 ```
 tests/test_sokoban.py     4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -163,6 +190,7 @@ tests/test_pipeline.py    5  — end-to-end: mock LLM solves trivial/simple/two-
 tests/test_validator.py   4  — corner-deadlock rejected, goal-push never falsely flagged, wall-hug is "uncertain" not rejected, baseline accepts what the validator rejects
 tests/test_experience.py  3  — no-history = full trust, failures lower confidence below successes, cross-episode persistence actually happens
 tests/test_stress.py      1  — at scale (not just one example): adversarial candidates trigger real deadlocks, and every rejection is independently BFS-verified as a true dead end
+tests/test_scoring.py     6  — regression, confidence, and budget pressure each move cost in the right direction in isolation; a real graph build produces valid scores on every edge
 ```
 
 Run everything:
@@ -174,7 +202,7 @@ python -m venv .venv
 
 ---
 
-## 7. Setup notes for teammates
+## 8. Setup notes for teammates
 
 - Needs Python 3.11+, a venv (`python -m venv .venv`), then `pip install -r requirements.txt`.
 - `GEMINI_API_KEY` (copy `.env.example` to `.env` and fill in) is only needed for `--llm gemini`; all tests and the default `--llm mock` run with zero API keys or network access.
@@ -182,9 +210,9 @@ python -m venv .venv
 
 ---
 
-## 8. What's left to reach 100% (Phases 4–6, not started)
+## 9. What's left to reach 100% (Phases 5–6, not started)
 
-- **Phase 4 — Dynamic reachability/utility score:** replace the current flat edge cost (1, or `1/confidence`) with a proper per-state score combining goal proximity, accumulated cost, remaining budget, and confidence.
-- **Phase 5 — Adaptive path selection:** use that score as an A*/AO* heuristic where feasible, keeping CP-SAT for tasks that genuinely need hard-constraint optimization, and choose between them per task.
-- **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. combined across all implemented levels (and, time permitting, additional benchmarks beyond Sokoban), with the aggregate metrics already being tracked (§1 in `metrics.py`).
+- **Phase 5 — Adaptive path selection:** use Phase 4's score as an A*/AO* heuristic where feasible, keeping CP-SAT for tasks that genuinely need hard-constraint optimization, and choose between them per task.
+- **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. combined across all implemented levels (and, time permitting, additional benchmarks beyond Sokoban), with the aggregate metrics already being tracked in `metrics.py`.
 - **Scope gap to flag to the teacher directly:** ALFWorld, MuSiQue, and GSM8K-Hard (three of TAPE's four benchmarks) are not implemented. If cross-benchmark generalization is expected for the final deliverable, at least one more environment should be added before Phase 6.
+- **Tuning gap worth naming honestly:** `ScoreWeights`' default values (regression penalty 1.5, confidence penalty 4.0, budget penalty 2.0) were chosen to be directionally sensible, not fit to data. Phase 6 would be a natural place to actually tune them, or at least justify them empirically, rather than leaving them as reasonable-looking defaults.

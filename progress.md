@@ -217,14 +217,16 @@ python -m venv .venv
 
 ## 9. The live demo (for the mid-semester presentation)
 
-`demo/index.html` is a standalone, interactive replay built specifically for showing this to the teacher. It requires no server, no internet, and no setup — open it directly in any browser. It shows, side by side:
+`demo/index.html` is a standalone, interactive replay built specifically for showing this to the teacher. It requires no server, no internet, and no setup — open it directly in any browser. It shows, side by side in three columns (one per extension):
 
-- The exact same hand-verified adversarial candidate plan run through the Phase 1 baseline (accepts a corner-deadlock push silently) versus the Phase 2 validator (flags and rejects it, "corner deadlock, never added to plan graph"), with a synced step/play control.
-- A toggle to switch to the optimal candidate instead, showing it solve the puzzle end to end on both sides, with the validated side's "uncertain" (wall-hugging) steps visibly marked.
-- The real solver output (graph node/edge counts, chosen path, cost) for both graphs, pulled from an actual pipeline run, not typed in by hand.
+- **Phase 1 (Baseline)** and **Phase 2 + 4 (Validated)**: the exact same hand-verified adversarial candidate plan run through both. Baseline accepts a corner-deadlock push silently; the validator flags and rejects it ("corner deadlock, never added to plan graph"), with a synced step/play control across all three columns.
+- **Phase 3 (With experience)**: the identical plan and steps a second time, except one earlier "episode" already recorded a mismatch on the plan's first uncertain (wall-hugging) step. That step's confidence visibly drops further here than in the plain Phase 2 column (0.50 → 0.17 in the current build) even though the validator's own verdict on it is unchanged — a small purple dot on the chain node and an on-page note both mark which step this is.
+- Every accepted step in the Phase 2+4 and Phase 3 columns shows its full Phase 4 score breakdown underneath the badge: goal-distance change, regression, percent of the step budget used, and the resulting edge cost, not just a single confidence number.
+- A toggle to switch to the optimal candidate instead, showing it solve the puzzle end to end in all three columns.
+- The real solver output (graph node/edge counts, chosen path, cost) for all three graphs, pulled from an actual pipeline run, not typed in by hand.
 - The Phase 2 stress-test numbers from §4.1 above, rendered as stat cards.
 
-**It is generated, not hand-authored.** `demo/template.html` is the hand-written page (layout, styling, JS logic) with a placeholder where the data goes. Running `python experiments/export_demo.py` re-executes the real pipeline (baseline graph build, validated graph build, and the Phase 2 stress test) and bakes the fresh output into `demo/index.html`. **Whenever the pipeline changes** (as it did for Phase 4 — the solver-cost numbers on the page jumped from single digits into the hundreds because of the new scoring formula), rerun this script before presenting, or the demo will show stale numbers that no longer match the code. Do not hand-edit `demo/index.html` directly; edit `demo/template.html` instead.
+**It is generated, not hand-authored.** `demo/template.html` is the hand-written page (layout, styling, JS logic) with a placeholder where the data goes. Running `python experiments/export_demo.py` re-executes the real pipeline (baseline graph build, validated graph build, an experience-primed graph build, and the Phase 2 stress test) and bakes the fresh output into `demo/index.html`. **Whenever the pipeline changes** (as it did for Phase 4 — the solver-cost numbers on the page jumped from single digits into the hundreds because of the new scoring formula), rerun this script before presenting, or the demo will show stale numbers that no longer match the code. Do not hand-edit `demo/index.html` directly; edit `demo/template.html` instead.
 
 ---
 

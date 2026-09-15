@@ -2,12 +2,24 @@
 
 Builds the plan graph for two hand-verified candidates -- one BFS-optimal
 solving plan, one adversarial plan that deliberately walks through an
-"uncertain" wall-hug and then a hard corner-deadlock -- under both the
-Phase 1 baseline and the Phase 2 validated graph builder, recording every
-step's state, verdict, and confidence. Also runs the Phase-2 stress test
-(experiments/stress_test.py) for the aggregate numbers panel.
+"uncertain" wall-hug and then a hard corner-deadlock -- under three modes:
 
-Run: python experiments/export_demo.py   (writes demo/data.json)
+  - baseline    : Phase 1, no validator, flat cost.
+  - validated   : Phase 1 + Phase 2 validator + Phase 4 scoring.
+  - experience  : the same, plus Phase 3 -- one earlier "episode" already
+                  recorded a mismatch on the first uncertain step of each
+                  plan, so that exact transition is now less trusted here,
+                  even though the validator's own verdict on it is
+                  unchanged.
+
+Every step in every trace also carries its Phase 4 score breakdown
+(goal-distance change, regression, budget pressure, resulting cost) when
+a validator is in play, so the demo can show the scoring formula's
+components per step instead of only a single aggregate number. Also runs
+the Phase 2 stress test (experiments/stress_test.py) for the aggregate
+numbers panel.
+
+Run: python experiments/export_demo.py   (writes demo/index.html)
 """
 from __future__ import annotations
 
@@ -20,9 +32,11 @@ sys.path.insert(0, str(_root / "src"))
 sys.path.insert(0, str(_root))
 
 from tape.envs.sokoban import SokobanLevel, State
+from tape.experience import ExperienceStore
 from tape.llm import _bfs_plan
 from tape.solver import select_path
 from tape.graph import build_plan_graph, build_validated_plan_graph
+from tape.scoring import score_transition
 from tape.validator import CornerDeadlockValidator
 from experiments.stress_test import run_stress_test
 
@@ -40,41 +54,103 @@ DEMO_LEVEL_ROWS = [
 # twice, then a hard corner-deadlock at the final push.
 BAD_PLAN = ["U", "U", "R", "U", "L", "L"]
 
+LEVEL_ID = "demo"
+
 
 def state_dict(state: State) -> dict:
     return {"player": list(state.player), "boxes": [list(b) for b in state.boxes]}
 
 
-def trace_candidate(level: SokobanLevel, start: State, plan: list[str], validator=None) -> list[dict]:
-    steps = []
+def find_first_uncertain(level, start, plan, validator) -> tuple[State, str] | None:
+    """The first (state, action) in this plan the validator accepts but
+    doesn't fully trust -- the transition Phase 3 will "learn about" by
+    having one earlier episode record a mismatch on it."""
     cur = start
     for action in plan:
         nxt, moved = level.step(cur, action)
         if not moved:
+            return None
+        verdict = validator.validate(level, cur, action, nxt)
+        if not verdict.accept:
+            return None
+        if verdict.confidence < 1.0:
+            return (cur, action)
+        cur = nxt
+        if level.is_goal(cur):
+            return None
+    return None
+
+
+def trace_candidate(
+    level: SokobanLevel,
+    start: State,
+    plan: list[str],
+    validator=None,
+    experience: ExperienceStore | None = None,
+    level_id: str = LEVEL_ID,
+    max_depth: int | None = None,
+    flagged: tuple[State, str] | None = None,
+) -> list[dict]:
+    steps = []
+    cur = start
+    for step_index, action in enumerate(plan):
+        nxt, moved = level.step(cur, action)
+        if not moved:
             steps.append(
                 {"action": action, "from": state_dict(cur), "to": state_dict(cur),
-                 "accepted": False, "confidence": 0.0, "reason": "illegal move (wall/blocked box)"}
+                 "accepted": False, "confidence": 0.0, "reason": "illegal move (wall/blocked box)",
+                 "learned_from_failure": False}
             )
             break
+
+        is_flagged = flagged is not None and cur == flagged[0] and action == flagged[1]
+
         if validator is not None:
             verdict = validator.validate(level, cur, action, nxt)
+            accept, reason, confidence = verdict.accept, verdict.reason, verdict.confidence
+            if accept and experience is not None:
+                confidence = confidence * experience.confidence(level_id, cur, action)
         else:
-            verdict = None
+            accept, reason, confidence = True, "ok", 1.0
+
         step = {
             "action": action,
             "from": state_dict(cur),
             "to": state_dict(nxt),
-            "accepted": True if verdict is None else verdict.accept,
-            "confidence": 1.0 if verdict is None else verdict.confidence,
-            "reason": "ok" if verdict is None else verdict.reason,
+            "accepted": accept,
+            "confidence": confidence,
+            "reason": reason,
+            "learned_from_failure": is_flagged,
         }
+        if validator is not None and accept:
+            score = score_transition(level, cur, nxt, step_index, max_depth or len(plan), confidence)
+            step["score"] = {
+                "goal_distance_before": score.goal_distance_before,
+                "goal_distance_after": score.goal_distance_after,
+                "regression": score.regression,
+                "budget_used_fraction": round(score.budget_used_fraction, 2),
+                "cost": score.cost,
+            }
         steps.append(step)
-        if verdict is not None and not verdict.accept:
+        if validator is not None and not accept:
             break
         cur = nxt
         if level.is_goal(cur):
             break
     return steps
+
+
+def mode_stats(graph, solution) -> dict:
+    stats = {
+        "graph_nodes": graph.graph.number_of_nodes(),
+        "graph_edges": graph.graph.number_of_edges(),
+        "invalid_transitions": graph.invalid_transitions,
+        "solver_actions": solution.actions if solution else None,
+        "solver_cost": solution.cost if solution else None,
+    }
+    if hasattr(graph, "validator_rejections"):
+        stats["validator_rejections"] = graph.validator_rejections
+    return stats
 
 
 def main() -> None:
@@ -84,12 +160,23 @@ def main() -> None:
 
     good_plan = _bfs_plan(level, start, 20)
     candidates = [good_plan, BAD_PLAN]
+    budget = max(len(good_plan), len(BAD_PLAN))
+
+    # Phase 3 setup: pretend one earlier episode already ran each plan and
+    # mismatched on its first uncertain step.
+    experience = ExperienceStore()
+    flagged_good = find_first_uncertain(level, start, good_plan, validator)
+    flagged_bad = find_first_uncertain(level, start, BAD_PLAN, validator)
+    if flagged_good:
+        experience.record(LEVEL_ID, *flagged_good, success=False)
+    if flagged_bad:
+        experience.record(LEVEL_ID, *flagged_bad, success=False)
 
     baseline_graph = build_plan_graph(level, start, candidates)
-    validated_graph = build_validated_plan_graph(level, start, candidates, validator)
-
-    baseline_solution = select_path(baseline_graph)
-    validated_solution = select_path(validated_graph)
+    validated_graph = build_validated_plan_graph(level, start, candidates, validator, max_depth=budget)
+    experience_graph = build_validated_plan_graph(
+        level, start, candidates, validator, experience=experience, level_id=LEVEL_ID, max_depth=budget
+    )
 
     data = {
         "level": {
@@ -100,23 +187,25 @@ def main() -> None:
         },
         "modes": {
             "baseline": {
-                "good_trace": trace_candidate(level, start, good_plan, validator=None),
-                "bad_trace": trace_candidate(level, start, BAD_PLAN, validator=None),
-                "graph_nodes": baseline_graph.graph.number_of_nodes(),
-                "graph_edges": baseline_graph.graph.number_of_edges(),
-                "invalid_transitions": baseline_graph.invalid_transitions,
-                "solver_actions": baseline_solution.actions if baseline_solution else None,
-                "solver_cost": baseline_solution.cost if baseline_solution else None,
+                "good_trace": trace_candidate(level, start, good_plan),
+                "bad_trace": trace_candidate(level, start, BAD_PLAN),
+                **mode_stats(baseline_graph, select_path(baseline_graph)),
             },
             "validated": {
-                "good_trace": trace_candidate(level, start, good_plan, validator=validator),
-                "bad_trace": trace_candidate(level, start, BAD_PLAN, validator=validator),
-                "graph_nodes": validated_graph.graph.number_of_nodes(),
-                "graph_edges": validated_graph.graph.number_of_edges(),
-                "invalid_transitions": validated_graph.invalid_transitions,
-                "validator_rejections": validated_graph.validator_rejections,
-                "solver_actions": validated_solution.actions if validated_solution else None,
-                "solver_cost": validated_solution.cost if validated_solution else None,
+                "good_trace": trace_candidate(level, start, good_plan, validator=validator, max_depth=budget, flagged=flagged_good),
+                "bad_trace": trace_candidate(level, start, BAD_PLAN, validator=validator, max_depth=budget, flagged=flagged_bad),
+                **mode_stats(validated_graph, select_path(validated_graph)),
+            },
+            "experience": {
+                "good_trace": trace_candidate(
+                    level, start, good_plan, validator=validator, experience=experience,
+                    level_id=LEVEL_ID, max_depth=budget, flagged=flagged_good,
+                ),
+                "bad_trace": trace_candidate(
+                    level, start, BAD_PLAN, validator=validator, experience=experience,
+                    level_id=LEVEL_ID, max_depth=budget, flagged=flagged_bad,
+                ),
+                **mode_stats(experience_graph, select_path(experience_graph)),
             },
         },
         "stress_test": run_stress_test(),
@@ -128,8 +217,9 @@ def main() -> None:
     out_path = demo_dir / "index.html"
     out_path.write_text(html, encoding="utf-8")
     print(f"wrote {out_path}")
-    print(f"baseline solver: {data['modes']['baseline']['solver_actions']} cost={data['modes']['baseline']['solver_cost']}")
-    print(f"validated solver: {data['modes']['validated']['solver_actions']} cost={data['modes']['validated']['solver_cost']}")
+    for mode in ("baseline", "validated", "experience"):
+        m = data["modes"][mode]
+        print(f"{mode} solver: {m['solver_actions']} cost={m['solver_cost']}")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,8 @@
 
 This document is meant to be read start to finish by a teammate who has not touched the code yet, and to be enough on its own to explain the project to the teacher. It covers what the project is, what's been built, why each piece exists, how to run it, and exactly what's left.
 
+**[`docs/pipeline_diagram.html`](docs/pipeline_diagram.html)** is a system flow diagram covering the same ground visually: environment state in, validated optimal path out, with every stage in between labeled by phase.
+
 ---
 
 ## 1. What this project is

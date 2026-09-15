@@ -13,14 +13,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from tape.envs.sokoban import LEVEL_SIMPLE, LEVEL_TRIVIAL
+from tape.envs.sokoban import LEVEL_MULTI, LEVEL_SIMPLE, LEVEL_TRIVIAL
 from tape.executor import run_episode
 from tape.experience import ExperienceStore
 from tape.llm import GeminiClient, MockLLMClient
 from tape.metrics import aggregate
 from tape.validator import CornerDeadlockValidator
 
-LEVELS = {"trivial": LEVEL_TRIVIAL, "simple": LEVEL_SIMPLE}
+LEVELS = {"trivial": LEVEL_TRIVIAL, "simple": LEVEL_SIMPLE, "multi": LEVEL_MULTI}
 
 
 def main() -> None:
@@ -35,6 +35,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--validator", choices=["none", "corner-deadlock"], default="none", help="Phase 2: reject/downweight structurally unsound transitions before they enter the plan graph")
     parser.add_argument("--experience", action="store_true", help="Phase 3: carry a persistent experience store across all episodes in this run, biasing confidence by past mismatch history (requires --validator)")
+    parser.add_argument("--path-selection", choices=["cp_sat", "astar", "adaptive"], default="cp_sat", help="Phase 5: cp_sat (original TAPE solver), astar (Phase 4 score as heuristic), or adaptive (choose per task: astar for single-box, cp_sat for multi-box)")
     args = parser.parse_args()
 
     level = LEVELS[args.level]
@@ -55,10 +56,13 @@ def main() -> None:
             validator=validator,
             experience=experience,
             level_id=args.level,
+            path_selection=args.path_selection,
         )
         for _ in range(args.episodes)
     ]
     print(aggregate(episodes).report())
+    methods_used = sorted({m for ep in episodes for m in ep.path_selection_methods})
+    print(f"path-selection methods used: {methods_used}")
 
 
 if __name__ == "__main__":

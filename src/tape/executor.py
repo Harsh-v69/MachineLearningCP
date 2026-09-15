@@ -16,8 +16,11 @@ from tape.envs.sokoban import SokobanLevel, State
 from tape.experience import ExperienceStore
 from tape.graph import build_plan_graph, build_validated_plan_graph
 from tape.llm import LLMClient
+from tape.path_selector import ASTAR, CP_SAT, astar_select_path, select_path_adaptive
 from tape.solver import select_path
 from tape.validator import GraphValidator
+
+ADAPTIVE = "adaptive"
 
 
 @dataclass
@@ -30,6 +33,7 @@ class EpisodeResult:
     attempted_transitions: int = 0
     invalid_transitions: int = 0
     validator_rejections: int = 0
+    path_selection_methods: list[str] = field(default_factory=list)
 
     @property
     def invalid_transition_rate(self) -> float:
@@ -50,6 +54,7 @@ def run_episode(
     validator: GraphValidator | None = None,
     experience: ExperienceStore | None = None,
     level_id: str = "default",
+    path_selection: str = CP_SAT,
 ) -> EpisodeResult:
     rng = rng or random.Random()
     state = start or level.initial_state
@@ -66,7 +71,15 @@ def run_episode(
             )
         else:
             plan_graph = build_plan_graph(level, state, candidates)
-        solution = select_path(plan_graph)
+
+        if path_selection == ASTAR:
+            solution, method_used = astar_select_path(level, plan_graph), ASTAR
+        elif path_selection == ADAPTIVE:
+            solution, method_used = select_path_adaptive(level, plan_graph)
+        else:
+            solution, method_used = select_path(plan_graph), CP_SAT
+        result.path_selection_methods.append(method_used)
+
         result.planning_time_s += time.perf_counter() - t0
         result.attempted_transitions += plan_graph.attempted_transitions
         result.invalid_transitions += plan_graph.invalid_transitions

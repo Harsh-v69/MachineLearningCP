@@ -1,6 +1,6 @@
 # Progress: TAPE Extension — Adaptive Graph Validation & Solver Generalization
 
-**Overall status: ~75% complete (Phases 1–4 of 6), ahead of the mid-semester checkpoint.**
+**Overall status: ~90% complete (Phases 1–5 of 6), well ahead of the mid-semester checkpoint.**
 
 This document is meant to be read start to finish by a teammate who has not touched the code yet, and to be enough on its own to explain the project to the teacher. It covers what the project is, what's been built, why each piece exists, how to run it, and exactly what's left.
 
@@ -20,7 +20,7 @@ TAPE's own authors flag two things they did *not* solve:
 - The plan graph is only as good as the LLM's raw candidates — nothing checks a candidate transition against the environment's actual rules before it's trusted.
 - The solver is fixed and pre-specified per task, with no way to adapt.
 
-Our project builds four extensions addressing these gaps, on top of a faithful reproduction of the TAPE baseline. The full 6-phase plan (see the roadmap artifact shared earlier) allocates roughly:
+Our project builds five extensions addressing these gaps, on top of a faithful reproduction of the TAPE baseline. The full 6-phase plan (see the roadmap artifact shared earlier) allocates roughly:
 
 | Phase | Weight | Status |
 |---|---|---|
@@ -28,10 +28,10 @@ Our project builds four extensions addressing these gaps, on top of a faithful r
 | 2 — Adaptive Graph Validation | 20% | ✅ Done |
 | 3 — Self-Improving Graph | 15% | ✅ Done |
 | 4 — Dynamic Reachability/Utility Score | 15% | ✅ Done |
-| 5 — Adaptive Path Selection (A*/AO* vs solver) | 15% | ⏳ Not started |
+| 5 — Adaptive Path Selection (A*/AO* vs solver) | 15% | ✅ Done |
 | 6 — Evaluation & Ablations | 10% | ⏳ Not started |
 
-**Phases 1–4 sum to 75%, which is where the project currently stands.**
+**Phases 1–5 sum to 90%, which is where the project currently stands.**
 
 ---
 
@@ -51,13 +51,14 @@ MachineLearningCP/
 │   ├── validator.py             # Phase 2: CornerDeadlockValidator
 │   ├── experience.py             # Phase 3: sqlite-backed ExperienceStore
 │   ├── scoring.py                # Phase 4: score_transition() (regression, confidence, budget)
+│   ├── path_selector.py          # Phase 5: astar_select_path(), decide_method(), select_path_adaptive()
 │   └── metrics.py                # aggregate metrics across episodes
 ├── experiments/
 │   ├── run_baseline.py          # CLI to run episode sweeps with any combination of extensions
 │   ├── stress_test.py            # Phase 2 adversarial stress test (see §4.1)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
-├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §9)
-└── tests/                        # 27 tests, all passing (see §7)
+├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §10)
+└── tests/                        # 37 tests, all passing (see §8)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -185,17 +186,42 @@ python experiments/run_baseline.py --level simple --episodes 25 --validator corn
 
 ---
 
-## 7. Test coverage (27 tests, all passing)
+## 7. Phase 5 — Adaptive Path Selection
+
+**The gap this targets:** TAPE's second identified limitation. Every path-selection call up to this point, in the baseline and in every extension, goes through CP-SAT: a real ILP-style solver, formulated in `solver.py` as a min-cost flow problem. That's the right tool when a task has genuinely interacting hard constraints, but it's formal-optimization machinery brought to bear on graphs where a plain shortest-path search would find the identical answer. TAPE's own gap analysis names this directly: the framework depends on one pre-specified solver for every task, with no way to adapt.
+
+**What was built** (`src/tape/path_selector.py`):
+
+- `astar_select_path(level, plan_graph)`: a standard A* search over the same plan graph CP-SAT already solves. The g-cost is the sum of Phase 4's edge costs (identical units, so the two methods are directly comparable); the heuristic is `goal_distance` (Phase 4's own Manhattan-distance-to-nearest-goal function) scaled to match. It returns the same `PlanSolution` type `select_path()` does, so callers don't need to know which method actually ran.
+- `decide_method(plan_graph)`: the actual adaptive rule. A single-box Sokoban level is a pure shortest-path problem, nothing needs to be jointly coordinated, so A* is enough. More than one box means the boxes' pushes have to be planned together (progress on one can conflict with another), which is exactly the kind of interacting constraint CP-SAT exists for. The rule is one line: more than one box in the start state routes to CP-SAT, otherwise A*.
+- `select_path_adaptive(level, plan_graph)`: calls `decide_method` and dispatches, returning `(solution, method_used)` so the caller (and the metrics) can see which one actually ran.
+- Wired into `run_episode()` via a `path_selection` argument (`"cp_sat"` default, `"astar"`, or `"adaptive"`) and `--path-selection` on the CLI. `EpisodeResult.path_selection_methods` records which method every planning round in the episode actually used.
+
+**Verified behaviour:** `tests/test_path_selector.py` confirms A* finds a path on a trivial one-step level, that it produces the *same cost* as CP-SAT on a richer multi-candidate graph (not just "a" path, the same optimal one), that it correctly returns `None` when the graph has no path to a goal, and that `decide_method` routes every single-box level tested to A* and the two-box level to CP-SAT. `tests/test_pipeline.py` adds three end-to-end checks: a full episode solved with `path_selection="astar"`, one with `"adaptive"` on a single-box level confirming every round used A*, and one with `"adaptive"` on the two-box level confirming every round used CP-SAT. 10 new tests (7 + 3).
+
+**Does it actually help, or just match?** Measured directly via the CLI on 20 episodes of the `simple` level: CP-SAT averages 0.0201s of planning time per episode; A* averages 0.0027s, roughly 7x faster, for the identical execution cost (9.0) and 100% success rate in both cases. `adaptive` correctly selects A* on `simple` (single box) and CP-SAT on `multi` (two boxes), succeeding both times. This is the concrete evidence for Phase 5's claim: adaptive selection gets the speed benefit where the task is simple enough to allow it, without giving up the solver's guarantees where the task actually needs them.
+
+**Run it:**
+```bash
+python experiments/run_baseline.py --level simple --episodes 20 --path-selection cp_sat
+python experiments/run_baseline.py --level simple --episodes 20 --path-selection astar
+python experiments/run_baseline.py --level multi --episodes 20 --candidates 20 --max-depth 14 --path-selection adaptive
+```
+
+---
+
+## 8. Test coverage (37 tests, all passing)
 
 ```
-tests/test_sokoban.py     4  — environment legality: pushes, walls, box-into-wall, rendering
-tests/test_graph.py       2  — candidate merging onto shared nodes; illegal steps become dead ends
-tests/test_solver.py      3  — shortest path found, cheaper of two candidates preferred, infeasible → None
-tests/test_pipeline.py    5  — end-to-end: mock LLM solves trivial/simple/two-box levels, slips trigger replanning and still recover
-tests/test_validator.py   4  — corner-deadlock rejected, goal-push never falsely flagged, wall-hug is "uncertain" not rejected, baseline accepts what the validator rejects
-tests/test_experience.py  3  — no-history = full trust, failures lower confidence below successes, cross-episode persistence actually happens
-tests/test_stress.py      1  — at scale (not just one example): adversarial candidates trigger real deadlocks, and every rejection is independently BFS-verified as a true dead end
-tests/test_scoring.py     6  — regression, confidence, and budget pressure each move cost in the right direction in isolation; a real graph build produces valid scores on every edge
+tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
+tests/test_graph.py         2  — candidate merging onto shared nodes; illegal steps become dead ends
+tests/test_solver.py        3  — shortest path found, cheaper of two candidates preferred, infeasible → None
+tests/test_pipeline.py      7  — end-to-end: mock LLM solves trivial/simple/two-box levels, slips trigger replanning and still recover, astar/adaptive path selection solve correctly
+tests/test_validator.py     4  — corner-deadlock rejected, goal-push never falsely flagged, wall-hug is "uncertain" not rejected, baseline accepts what the validator rejects
+tests/test_experience.py    3  — no-history = full trust, failures lower confidence below successes, cross-episode persistence actually happens
+tests/test_stress.py        1  — at scale (not just one example): adversarial candidates trigger real deadlocks, and every rejection is independently BFS-verified as a true dead end
+tests/test_scoring.py       6  — regression, confidence, and budget pressure each move cost in the right direction in isolation; a real graph build produces valid scores on every edge
+tests/test_path_selector.py 7  — A* finds the same-cost optimal path CP-SAT does, returns None when infeasible, decide_method routes single-box to A* and multi-box to CP-SAT, adaptive selection solves both correctly
 ```
 
 Run everything:
@@ -207,7 +233,7 @@ python -m venv .venv
 
 ---
 
-## 8. Setup notes for teammates
+## 9. Setup notes for teammates
 
 - Needs Python 3.11+, a venv (`python -m venv .venv`), then `pip install -r requirements.txt`.
 - `GEMINI_API_KEY` (copy `.env.example` to `.env` and fill in) is only needed for `--llm gemini`; all tests and the default `--llm mock` run with zero API keys or network access.
@@ -215,7 +241,7 @@ python -m venv .venv
 
 ---
 
-## 9. The live demo (for the mid-semester presentation)
+## 10. The live demo (for the mid-semester presentation)
 
 `demo/index.html` is a standalone, interactive replay built specifically for showing this to the teacher. It requires no server, no internet, and no setup — open it directly in any browser. It shows, side by side in three columns (one per extension):
 
@@ -230,9 +256,9 @@ python -m venv .venv
 
 ---
 
-## 10. What's left to reach 100% (Phases 5–6, not started)
+## 11. What's left to reach 100% (Phase 6, not started)
 
-- **Phase 5 — Adaptive path selection:** use Phase 4's score as an A*/AO* heuristic where feasible, keeping CP-SAT for tasks that genuinely need hard-constraint optimization, and choose between them per task.
-- **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. combined across all implemented levels (and, time permitting, additional benchmarks beyond Sokoban), with the aggregate metrics already being tracked in `metrics.py`.
+- **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. Phase 5 vs. combined across all implemented levels (and, time permitting, additional benchmarks beyond Sokoban), with the aggregate metrics already being tracked in `metrics.py` and `EpisodeResult.path_selection_methods`.
 - **Scope gap to flag to the teacher directly:** ALFWorld, MuSiQue, and GSM8K-Hard (three of TAPE's four benchmarks) are not implemented. If cross-benchmark generalization is expected for the final deliverable, at least one more environment should be added before Phase 6.
+- **Demo gap worth naming:** the live demo (§10) still only shows Phases 1–4. Phase 5's actual evidence (A* running ~7x faster than CP-SAT at identical cost, adaptive correctly routing single-box vs. multi-box levels) exists only in this document and the CLI output right now, not in the interactive replay. Worth adding before the final presentation if Phase 5 needs its own visual moment.
 - **Tuning gap worth naming honestly:** `ScoreWeights`' default values (regression penalty 1.5, confidence penalty 4.0, budget penalty 2.0) were chosen to be directionally sensible, not fit to data. Phase 6 would be a natural place to actually tune them, or at least justify them empirically, rather than leaving them as reasonable-looking defaults.

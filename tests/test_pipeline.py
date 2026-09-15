@@ -47,3 +47,29 @@ def test_two_box_level_solves_with_validator_and_experience_enabled():
         level_id="multi",
     )
     assert result.success
+
+
+def test_run_episode_solves_with_astar_path_selection():
+    result = run_episode(
+        LEVEL_TRIVIAL, MockLLMClient(seed=1), n_candidates=3, max_depth=5, path_selection="astar"
+    )
+    assert result.success
+    assert result.path_selection_methods == ["astar"]
+
+
+def test_run_episode_adaptive_picks_astar_for_single_box_level():
+    result = run_episode(
+        LEVEL_SIMPLE, MockLLMClient(seed=1), n_candidates=12, max_depth=10,
+        max_replans=3, path_selection="adaptive",
+    )
+    assert result.success
+    assert all(m == "astar" for m in result.path_selection_methods)
+
+
+def test_run_episode_adaptive_picks_cp_sat_for_multi_box_level():
+    result = run_episode(
+        LEVEL_MULTI, MockLLMClient(seed=4), n_candidates=20, max_depth=14,
+        max_replans=3, path_selection="adaptive",
+    )
+    assert result.success
+    assert all(m == "cp_sat" for m in result.path_selection_methods)

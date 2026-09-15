@@ -1,8 +1,9 @@
 import random
 
-from tape.envs.sokoban import LEVEL_SIMPLE, LEVEL_TRIVIAL
+from tape.envs.sokoban import LEVEL_MULTI, LEVEL_SIMPLE, LEVEL_TRIVIAL
 from tape.executor import run_episode
 from tape.llm import MockLLMClient
+from tape.validator import CornerDeadlockValidator
 
 
 def test_mock_llm_solves_trivial_level():
@@ -30,3 +31,19 @@ def test_slips_trigger_replanning_and_still_reach_goal_eventually():
     )
     assert result.success
     assert result.planning_rounds >= 1
+
+
+def test_two_box_level_solves_with_validator_and_experience_enabled():
+    from tape.experience import ExperienceStore
+
+    result = run_episode(
+        LEVEL_MULTI,
+        MockLLMClient(seed=4),
+        n_candidates=20,
+        max_depth=14,
+        max_replans=3,
+        validator=CornerDeadlockValidator(),
+        experience=ExperienceStore(),
+        level_id="multi",
+    )
+    assert result.success

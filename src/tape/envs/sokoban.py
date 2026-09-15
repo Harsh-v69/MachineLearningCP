@@ -131,3 +131,18 @@ LEVEL_SIMPLE = SokobanLevel(
         "#######",
     ]
 )
+
+# Two boxes: gives the corner-deadlock validator (Phase 2) real branches to
+# reject -- a two-box search has far more ways for a noisy candidate to
+# wedge one box uselessly while still leaving the other solvable.
+LEVEL_MULTI = SokobanLevel(
+    [
+        "#######",
+        "#     #",
+        "# $ $ #",
+        "#  @  #",
+        "# . . #",
+        "#     #",
+        "#######",
+    ]
+)

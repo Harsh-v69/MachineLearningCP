@@ -13,14 +13,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from tape.envs.sokoban import LEVEL_MULTI, LEVEL_SIMPLE, LEVEL_TRIVIAL
+from tape.envs.sokoban import LEVEL_HARD, LEVEL_MULTI, LEVEL_SIMPLE, LEVEL_TRIVIAL
 from tape.executor import run_episode
 from tape.experience import ExperienceStore
 from tape.llm import GeminiClient, MockLLMClient
 from tape.metrics import aggregate
 from tape.validator import CornerDeadlockValidator
 
-LEVELS = {"trivial": LEVEL_TRIVIAL, "simple": LEVEL_SIMPLE, "multi": LEVEL_MULTI}
+LEVELS = {"trivial": LEVEL_TRIVIAL, "simple": LEVEL_SIMPLE, "multi": LEVEL_MULTI, "hard": LEVEL_HARD}
 
 
 def main() -> None:

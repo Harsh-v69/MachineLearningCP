@@ -132,6 +132,22 @@ LEVEL_SIMPLE = SokobanLevel(
     ]
 )
 
+# Three boxes, an internal wall splitting the room, and a 29-move optimal
+# solution (verified by BFS). Internal walls create corner cells the
+# validator has to recognize away from the border, and three boxes force
+# the pushes to be interleaved across the wall gap.
+LEVEL_HARD = SokobanLevel(
+    [
+        "#########",
+        "#       #",
+        "# $ # $ #",
+        "#   #   #",
+        "# @   $ #",
+        "#  ...  #",
+        "#########",
+    ]
+)
+
 # Two boxes: gives the corner-deadlock validator (Phase 2) real branches to
 # reject -- a two-box search has far more ways for a noisy candidate to
 # wedge one box uselessly while still leaving the other solvable.

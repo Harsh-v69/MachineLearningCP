@@ -60,7 +60,7 @@ MachineLearningCP/
 │   ├── stress_test.py            # Phase 2 adversarial stress test (see §4.1)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
 ├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §10)
-└── tests/                        # 37 tests, all passing (see §8)
+└── tests/                        # 40 tests, all passing (see §8)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -212,7 +212,7 @@ python experiments/run_baseline.py --level multi --episodes 20 --candidates 20 -
 
 ---
 
-## 8. Test coverage (37 tests, all passing)
+## 8. Test coverage (40 tests, all passing)
 
 ```
 tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -223,6 +223,7 @@ tests/test_validator.py     4  — corner-deadlock rejected, goal-push never fal
 tests/test_experience.py    3  — no-history = full trust, failures lower confidence below successes, cross-episode persistence actually happens
 tests/test_stress.py        1  — at scale (not just one example): adversarial candidates trigger real deadlocks, and every rejection is independently BFS-verified as a true dead end
 tests/test_scoring.py       6  — regression, confidence, and budget pressure each move cost in the right direction in isolation; a real graph build produces valid scores on every edge
+tests/test_hard_level.py     3  — the tougher level: BFS-verified 29-move optimum, full pipeline solves it (cp_sat on three boxes, zero false validator rejections), recovers from random slips
 tests/test_path_selector.py 7  — A* finds the same-cost optimal path CP-SAT does, returns None when infeasible, decide_method routes single-box to A* and multi-box to CP-SAT, adaptive selection solves both correctly
 ```
 
@@ -231,6 +232,18 @@ Run everything:
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 .venv\Scripts\python -m pytest tests/ -q
+```
+
+---
+
+### 8.1 The hard level (`--level hard`)
+
+`LEVEL_HARD` is a 9x7 room with an internal wall and three boxes. Its optimal solution is 29 moves (verified by BFS), versus 9 for `simple` and 11 for `multi`. The full pipeline (validator, experience, scoring, adaptive selection) solves it in exactly 29 actions, routes it to CP-SAT because it has three boxes, and the validator never falsely rejects the optimal path. With a 5% random slip it still succeeds after replanning.
+
+**Honest limitation:** this is not hard for the *pipeline*, because the normal mock LLM always plants one BFS-optimal candidate. The real difficulty shows against the random-candidate generator (`AdversarialMockLLMClient`, 200 candidates, 20 episodes each): `simple` succeeds 4/20, `multi` 0/20, `hard` 0/20. That gap is what a real LLM's candidate quality will be measured against in Phase 6.
+
+```bash
+python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --max-depth 32 --validator corner-deadlock --experience --path-selection adaptive
 ```
 
 ---

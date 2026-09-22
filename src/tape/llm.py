@@ -34,10 +34,20 @@ class LLMClient(Protocol):
     ) -> list[list[str]]: ...
 
 
-def _bfs_plan(level: Environment, start: State, max_depth: int) -> list[str]:
+def _bfs_plan(level: Environment, start: State, max_depth: int, validator=None) -> list[str]:
     """Shortest solving action sequence within max_depth, or [] if none.
     Used as one "good" candidate among the mock LLM's proposals -- a real
-    LLM occasionally gets it exactly right too."""
+    LLM occasionally gets it exactly right too.
+
+    When `validator` is given, transitions it would reject are skipped
+    during the search, same as a "well-behaved" candidate that already
+    knows a domain rule (as opposed to one that has to be caught after
+    the fact). Sokoban's corner states are structural dead ends either
+    way, so this changes nothing there -- but some games (river crossing)
+    have shortcuts that are physically legal, look heuristically
+    attractive, and are still forbidden; without this, the "guaranteed
+    good" candidate would cheat through them and never actually solve
+    the real puzzle."""
     frontier = deque([(start, [])])
     seen = {start}
     while frontier:
@@ -48,9 +58,12 @@ def _bfs_plan(level: Environment, start: State, max_depth: int) -> list[str]:
             continue
         for a in level.ACTIONS:
             nxt, moved = level.step(cur, a)
-            if moved and nxt not in seen:
-                seen.add(nxt)
-                frontier.append((nxt, path + [a]))
+            if not moved or nxt in seen:
+                continue
+            if validator is not None and not validator.validate(level, cur, a, nxt).accept:
+                continue
+            seen.add(nxt)
+            frontier.append((nxt, path + [a]))
     return []
 
 
@@ -60,15 +73,21 @@ class MockLLMClient:
     solver stages have a realistic mix (one good plan buried in imperfect,
     sometimes dead-ending ones) to work with -- without depending on an API
     key for tests and offline development.
+
+    `validator`, if given, is consulted by both the guaranteed candidate
+    and the noisy ones -- modeling an LLM that has been told a domain
+    rule (a system prompt describing it, say) and mostly avoids it,
+    while `AdversarialMockLLMClient` below models one that hasn't.
     """
 
-    def __init__(self, seed: int = 0):
+    def __init__(self, seed: int = 0, validator=None):
         self._rng = random.Random(seed)
+        self._validator = validator
 
     def generate_candidate_plans(
         self, level: Environment, state: State, n: int, max_depth: int
     ) -> list[list[str]]:
-        plans = [_bfs_plan(level, state, max_depth)]
+        plans = [_bfs_plan(level, state, max_depth, validator=self._validator)]
         for _ in range(max(0, n - 1)):
             plans.append(self._noisy_candidate(level, state, max_depth))
         return plans
@@ -83,6 +102,8 @@ class MockLLMClient:
             for a in level.ACTIONS:
                 nxt, moved = level.step(cur, a)
                 if not moved:
+                    continue
+                if self._validator is not None and not self._validator.validate(level, cur, a, nxt).accept:
                     continue
                 scored.append((level.heuristic(nxt), a, nxt))
             if not scored:

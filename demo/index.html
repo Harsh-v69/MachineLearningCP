@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Corner Deadlock Demo</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Public+Sans:wght@400;500;600&display=swap');
@@ -190,6 +191,33 @@ h2{
   font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); text-align:center; margin-top:4px;
 }
 
+/* river crossing: no grid at all -- two banks and a boat */
+.river-board{display:flex; align-items:stretch; gap:0; margin:0 auto 12px; max-width:320px;}
+.bank{flex:1; border:2px solid var(--line-strong); padding:12px 8px; text-align:center; background:var(--floor);}
+.bank-label{font-family:'JetBrains Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:8px;}
+.bank-count{font-family:'JetBrains Mono', monospace; font-size:15px; font-variant-numeric:tabular-nums; margin:2px 0;}
+.bank-count b{font-size:20px;}
+.boat-track{width:56px; display:flex; align-items:center; justify-content:center; border-top:2px solid var(--line-strong); border-bottom:2px solid var(--line-strong); background:var(--surface); position:relative;}
+.boat{
+  font-family:'JetBrains Mono', monospace; font-size:9px; font-weight:700; color:#fff; background:var(--ok);
+  padding:4px 6px; border-radius:2px; transition:transform .3s;
+}
+.boat-track.right .boat{transform:translateX(14px);}
+.boat-track.left .boat{transform:translateX(-14px);}
+
+/* rush hour: multi-cell vehicles on a CSS grid */
+.vehicle-grid{
+  display:grid; gap:2px; background:var(--line-strong); border:2px solid var(--line-strong); border-radius:2px;
+  overflow:hidden; max-width:260px; margin:0 auto 12px;
+}
+.vehicle-grid .cell{background:var(--floor);}
+.vehicle{
+  display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace;
+  font-size:11px; font-weight:700; color:#fff; background:var(--warn); border-radius:1px;
+}
+.vehicle.target{background:var(--ok);}
+.exit-marker{background:var(--ok-soft); border-left:2px dashed var(--ok);}
+
 /* phase strip */
 .phase-strip{display:flex; gap:5px; margin-bottom:10px;}
 .phase-chip{
@@ -204,7 +232,7 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
 <div class="wrap">
   <p class="eyebrow">Phases 2 to 5 · Validation, Experience, Scoring, Path Selection · Live Replay</p>
   <h1>The same push, judged three different ways</h1>
-  <p class="dek">A real trace from the actual pipeline (not a mockup): one candidate plan legally wedges a box into a corner off any goal. The Phase 1 baseline accepts it into the plan graph like any other move. The Phase 2 validator catches it before it's trusted. The Phase 3 column replays the same plan a second time, after an earlier run already recorded a mismatch on one step, so that transition is trusted even less here. Every accepted step also carries its Phase 4 score breakdown, not just a confidence label. Further down, Phase 5 shows the same graph solved by two different methods.</p>
+  <p class="dek">A real trace from the actual pipeline (not a mockup): one candidate plan legally wedges a box into a corner off any goal. The Phase 1 baseline accepts it into the plan graph like any other move. The Phase 2 validator catches it before it's trusted. The Phase 3 column replays the same plan a second time, after an earlier run already recorded a mismatch on one step, so that transition is trusted even less here. Every accepted step also carries its Phase 4 score breakdown, not just a confidence label. Further down, Phase 5 shows the same graph solved by two different methods, and two more benchmarks (river crossing, Rush Hour) prove none of this is Sokoban-specific.</p>
 
   <div class="phase-strip">
     <div class="phase-chip">1 · Baseline ✓</div>
@@ -339,14 +367,82 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
     </div>
   </div>
 
+  <h2>River crossing: a completely different game</h2>
+  <p class="section-note">Missionaries and cannibals. No grid at all &mdash; the whole state is two head counts and which bank the boat is on. Taking 2 missionaries across first is physically legal and looks like fast progress, but it leaves 1 missionary alone with 3 cannibals on the near bank. Same judgment moment as the corner push above, completely different mechanic.</p>
+  <div class="controls">
+    <button class="btn" id="rc-btn-back">◀ Step</button>
+    <button class="btn primary" id="rc-btn-play">Play</button>
+    <button class="btn" id="rc-btn-fwd">Step ▶</button>
+    <button class="btn" id="rc-btn-reset">Reset</button>
+    <div class="spacer"></div>
+    <span class="step-counter" id="rc-step-counter">0 / 1</span>
+  </div>
+  <div class="panels" style="grid-template-columns:1fr 1fr;">
+    <div class="panel">
+      <div class="panel-head"><span class="tag baseline">Phase 1</span><span class="panel-title">Baseline: trusts every legal trip</span></div>
+      <div class="river-board" id="river-baseline"></div>
+      <div class="badge neutral" id="badge-river-baseline">Ready</div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="tag validated">Phase 2</span><span class="panel-title">Validated: checks before trusting</span></div>
+      <div class="river-board" id="river-validated"></div>
+      <div class="badge neutral" id="badge-river-validated">Ready</div>
+    </div>
+  </div>
+
+  <p class="section-note">The real, textbook-verified answer takes 11 one-way trips, ferrying people back as well as forward &mdash; a validator-aware candidate finds it, solved here by A*, since only one boat ever moves independently (complexity 1).</p>
+  <div class="controls">
+    <button class="btn" id="rcs-btn-back">◀ Step</button>
+    <button class="btn primary" id="rcs-btn-play">Play</button>
+    <button class="btn" id="rcs-btn-fwd">Step ▶</button>
+    <button class="btn" id="rcs-btn-reset">Reset</button>
+    <div class="spacer"></div>
+    <span class="step-counter" id="rcs-step-counter">0 / 11</span>
+  </div>
+  <div class="panel" style="max-width:340px; margin:0 auto 30px;">
+    <div class="panel-head"><span class="tag validated">A*</span><span class="panel-title">Full safe solve</span></div>
+    <div class="river-board" id="river-solve"></div>
+    <div class="step-label" id="label-river-solve"></div>
+  </div>
+
+  <h2>Rush Hour: a completely different game</h2>
+  <p class="section-note">The sliding-vehicle traffic jam (ThinkFun, 1996). Vehicles occupy multiple cells with a fixed orientation and length &mdash; a third mechanic, nothing like a single-cell box or a headcount. Watch the vertical blocker <code>B</code> slide out of the way before the target <code>X</code> can reach the exit.</p>
+  <div class="controls">
+    <button class="btn" id="rh-btn-back">◀ Step</button>
+    <button class="btn primary" id="rh-btn-play">Play</button>
+    <button class="btn" id="rh-btn-fwd">Step ▶</button>
+    <button class="btn" id="rh-btn-reset">Reset</button>
+    <div class="spacer"></div>
+    <span class="step-counter" id="rh-step-counter">0 / 6</span>
+  </div>
+  <div class="panel" style="max-width:280px; margin:0 auto 24px;">
+    <div class="panel-head"><span class="tag experience">CP-SAT</span><span class="panel-title">Full solve (3 vehicles)</span></div>
+    <div class="vehicle-grid" id="grid-rh-solve"></div>
+    <div class="step-label" id="label-rh-solve"></div>
+  </div>
+
+  <p class="section-note">The hard-reject tier (a fully sealed row) turns out to be a static property of a level's design, not something a move creates mid-game &mdash; see progress.md &sect;8.2.1. The soft tier genuinely does vary by state: here <code>D</code> is boxed between the target and a vertical vehicle <code>E</code> that also can't move away <em>right now</em>. Baseline says nothing; the validator flags it as worth distrusting, without claiming it's permanently stuck.</p>
+  <div class="panels" style="grid-template-columns:1fr 1fr;">
+    <div class="panel">
+      <div class="panel-head"><span class="tag baseline">Phase 1</span><span class="panel-title">Baseline</span></div>
+      <div class="vehicle-grid" id="grid-rh-baseline"></div>
+      <div class="badge ok" id="badge-rh-baseline">accepted, no domain check</div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="tag validated">Phase 2</span><span class="panel-title">Validated</span></div>
+      <div class="vehicle-grid" id="grid-rh-validated"></div>
+      <div class="badge warning" id="badge-rh-validated"></div>
+    </div>
+  </div>
+
   <footer>
-    <span>37/37 automated tests passing</span>
-    <span>Phases 1 to 5 complete (~90% of plan) · generated from a live pipeline run, not hand-authored numbers</span>
+    <span>60/60 automated tests passing</span>
+    <span>Phases 1 to 5 complete (~90% of plan) · three benchmarks (Sokoban, river crossing, Rush Hour) · generated from a live pipeline run, not hand-authored numbers</span>
   </footer>
 </div>
 
 <script>
-const DATA = {"level": {"rows": ["#######", "#     #", "#  $  #", "#     #", "#  @  #", "#    .#", "#######"], "walls": [[0, 1], [4, 0], [0, 4], [6, 1], [4, 6], [6, 4], [0, 2], [0, 5], [1, 0], [1, 6], [6, 2], [6, 0], [6, 5], [0, 0], [0, 3], [2, 0], [3, 0], [0, 6], [5, 0], [5, 6], [2, 6], [3, 6], [6, 6], [6, 3]], "goals": [[5, 5]], "start": {"player": [4, 3], "boxes": [[2, 3]]}}, "modes": {"baseline": {"good_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "L", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "U", "from": {"player": [3, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "R", "from": {"player": [2, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[2, 4]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "R", "from": {"player": [2, 3], "boxes": [[2, 4]]}, "to": {"player": [2, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "U", "from": {"player": [2, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "R", "from": {"player": [1, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 5], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "D", "from": {"player": [1, 5], "boxes": [[2, 5]]}, "to": {"player": [2, 5], "boxes": [[3, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "D", "from": {"player": [2, 5], "boxes": [[3, 5]]}, "to": {"player": [3, 5], "boxes": [[4, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "D", "from": {"player": [3, 5], "boxes": [[4, 5]]}, "to": {"player": [4, 5], "boxes": [[5, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}], "bad_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "U", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "R", "from": {"player": [2, 3], "boxes": [[1, 3]]}, "to": {"player": [2, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "U", "from": {"player": [2, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "L", "from": {"player": [1, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 3], "boxes": [[1, 2]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "L", "from": {"player": [1, 3], "boxes": [[1, 2]]}, "to": {"player": [1, 2], "boxes": [[1, 1]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}], "graph_nodes": 16, "graph_edges": 15, "invalid_transitions": 0, "solver_actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "solver_cost": 10, "validator_rejections": 0}, "validated": {"good_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.1, "cost": 10}}, {"action": "L", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.2, "cost": 11}}, {"action": "U", "from": {"player": [3, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.3, "cost": 12}}, {"action": "R", "from": {"player": [2, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[2, 4]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 4, "regression": 0, "budget_used_fraction": 0.4, "cost": 13}}, {"action": "R", "from": {"player": [2, 3], "boxes": [[2, 4]]}, "to": {"player": [2, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": true, "score": {"goal_distance_before": 4, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.5, "cost": 35}}, {"action": "U", "from": {"player": [2, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.6, "cost": 17}}, {"action": "R", "from": {"player": [1, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 5], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.7, "cost": 20}}, {"action": "D", "from": {"player": [1, 5], "boxes": [[2, 5]]}, "to": {"player": [2, 5], "boxes": [[3, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 2, "regression": 0, "budget_used_fraction": 0.8, "cost": 43}}, {"action": "D", "from": {"player": [2, 5], "boxes": [[3, 5]]}, "to": {"player": [3, 5], "boxes": [[4, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 2, "goal_distance_after": 1, "regression": 0, "budget_used_fraction": 0.9, "cost": 46}}, {"action": "D", "from": {"player": [3, 5], "boxes": [[4, 5]]}, "to": {"player": [4, 5], "boxes": [[5, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 1, "goal_distance_after": 0, "regression": 0, "budget_used_fraction": 1.0, "cost": 30}}], "bad_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.1, "cost": 10}}, {"action": "U", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[1, 3]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": true, "score": {"goal_distance_before": 5, "goal_distance_after": 6, "regression": 1, "budget_used_fraction": 0.2, "cost": 46}}, {"action": "R", "from": {"player": [2, 3], "boxes": [[1, 3]]}, "to": {"player": [2, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 6, "regression": 0, "budget_used_fraction": 0.3, "cost": 12}}, {"action": "U", "from": {"player": [2, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 6, "regression": 0, "budget_used_fraction": 0.4, "cost": 13}}, {"action": "L", "from": {"player": [1, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 3], "boxes": [[1, 2]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 7, "regression": 1, "budget_used_fraction": 0.5, "cost": 50}}, {"action": "L", "from": {"player": [1, 3], "boxes": [[1, 2]]}, "to": {"player": [1, 2], "boxes": [[1, 1]]}, "accepted": false, "confidence": 0.0, "reason": "corner deadlock", "learned_from_failure": false}], "graph_nodes": 15, "graph_edges": 14, "invalid_transitions": 0, "solver_actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "solver_cost": 237, "validator_rejections": 1}, "experience": {"good_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.1, "cost": 10}}, {"action": "L", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.2, "cost": 11}}, {"action": "U", "from": {"player": [3, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.3, "cost": 12}}, {"action": "R", "from": {"player": [2, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[2, 4]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 4, "regression": 0, "budget_used_fraction": 0.4, "cost": 13}}, {"action": "R", "from": {"player": [2, 3], "boxes": [[2, 4]]}, "to": {"player": [2, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 0.16666666666666666, "reason": "box against wall, unverified", "learned_from_failure": true, "score": {"goal_distance_before": 4, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.5, "cost": 48}}, {"action": "U", "from": {"player": [2, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.6, "cost": 17}}, {"action": "R", "from": {"player": [1, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 5], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.7, "cost": 20}}, {"action": "D", "from": {"player": [1, 5], "boxes": [[2, 5]]}, "to": {"player": [2, 5], "boxes": [[3, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 2, "regression": 0, "budget_used_fraction": 0.8, "cost": 43}}, {"action": "D", "from": {"player": [2, 5], "boxes": [[3, 5]]}, "to": {"player": [3, 5], "boxes": [[4, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 2, "goal_distance_after": 1, "regression": 0, "budget_used_fraction": 0.9, "cost": 46}}, {"action": "D", "from": {"player": [3, 5], "boxes": [[4, 5]]}, "to": {"player": [4, 5], "boxes": [[5, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 1, "goal_distance_after": 0, "regression": 0, "budget_used_fraction": 1.0, "cost": 30}}], "bad_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.1, "cost": 10}}, {"action": "U", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[1, 3]]}, "accepted": true, "confidence": 0.16666666666666666, "reason": "box against wall, unverified", "learned_from_failure": true, "score": {"goal_distance_before": 5, "goal_distance_after": 6, "regression": 1, "budget_used_fraction": 0.2, "cost": 59}}, {"action": "R", "from": {"player": [2, 3], "boxes": [[1, 3]]}, "to": {"player": [2, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 6, "regression": 0, "budget_used_fraction": 0.3, "cost": 12}}, {"action": "U", "from": {"player": [2, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 6, "regression": 0, "budget_used_fraction": 0.4, "cost": 13}}, {"action": "L", "from": {"player": [1, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 3], "boxes": [[1, 2]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 7, "regression": 1, "budget_used_fraction": 0.5, "cost": 50}}, {"action": "L", "from": {"player": [1, 3], "boxes": [[1, 2]]}, "to": {"player": [1, 2], "boxes": [[1, 1]]}, "accepted": false, "confidence": 0.0, "reason": "corner deadlock", "learned_from_failure": false}], "graph_nodes": 15, "graph_edges": 14, "invalid_transitions": 0, "solver_actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "solver_cost": 250, "validator_rejections": 1}}, "stress_test": {"total_attempted": 54000, "total_rejected": 200, "verified_dead_ends": 200}, "phase5": {"n_episodes": 20, "cp_sat": {"avg_planning_time_s": 0.02212663000000248, "avg_execution_cost": 9.0, "success_rate": 1.0}, "astar": {"avg_planning_time_s": 0.0025785350000205654, "avg_execution_cost": 9.0, "success_rate": 1.0}, "speedup": 8.581085771504364, "adaptive_simple_methods": ["astar"], "adaptive_multi_methods": ["cp_sat"]}, "phase5_visual": {"single": {"walls": [[0, 1], [4, 0], [0, 4], [6, 1], [4, 6], [6, 4], [0, 2], [0, 5], [1, 0], [1, 6], [6, 2], [6, 0], [6, 5], [0, 0], [0, 3], [2, 0], [3, 0], [0, 6], [5, 0], [5, 6], [2, 6], [3, 6], [6, 6], [6, 3]], "goals": [[5, 5]], "width": 7, "height": 7, "start": {"player": [4, 3], "boxes": [[2, 3]]}, "actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "states": [{"player": [3, 3], "boxes": [[2, 3]]}, {"player": [3, 2], "boxes": [[2, 3]]}, {"player": [2, 2], "boxes": [[2, 3]]}, {"player": [2, 3], "boxes": [[2, 4]]}, {"player": [2, 4], "boxes": [[2, 5]]}, {"player": [1, 4], "boxes": [[2, 5]]}, {"player": [1, 5], "boxes": [[2, 5]]}, {"player": [2, 5], "boxes": [[3, 5]]}, {"player": [3, 5], "boxes": [[4, 5]]}, {"player": [4, 5], "boxes": [[5, 5]]}], "method": "astar", "cost": 10}, "two_box": {"walls": [[0, 1], [4, 0], [0, 4], [6, 1], [4, 6], [6, 4], [0, 2], [0, 5], [1, 0], [1, 6], [6, 2], [6, 0], [6, 5], [0, 0], [0, 3], [2, 0], [3, 0], [0, 6], [5, 0], [5, 6], [2, 6], [3, 6], [6, 6], [6, 3]], "goals": [[4, 4], [4, 2]], "width": 7, "height": 7, "start": {"player": [3, 3], "boxes": [[2, 4], [2, 2]]}, "actions": ["U", "U", "L", "D", "D", "U", "U", "R", "R", "D", "D"], "states": [{"player": [2, 3], "boxes": [[2, 4], [2, 2]]}, {"player": [1, 3], "boxes": [[2, 4], [2, 2]]}, {"player": [1, 2], "boxes": [[2, 4], [2, 2]]}, {"player": [2, 2], "boxes": [[2, 4], [3, 2]]}, {"player": [3, 2], "boxes": [[2, 4], [4, 2]]}, {"player": [2, 2], "boxes": [[2, 4], [4, 2]]}, {"player": [1, 2], "boxes": [[2, 4], [4, 2]]}, {"player": [1, 3], "boxes": [[2, 4], [4, 2]]}, {"player": [1, 4], "boxes": [[2, 4], [4, 2]]}, {"player": [2, 4], "boxes": [[3, 4], [4, 2]]}, {"player": [3, 4], "boxes": [[4, 4], [4, 2]]}], "method": "cp_sat", "cost": 11}}};
+const DATA = {"level": {"rows": ["#######", "#     #", "#  $  #", "#     #", "#  @  #", "#    .#", "#######"], "walls": [[0, 1], [4, 0], [0, 4], [6, 1], [4, 6], [6, 4], [0, 2], [0, 5], [1, 0], [1, 6], [6, 2], [6, 0], [6, 5], [0, 0], [0, 3], [2, 0], [3, 0], [0, 6], [5, 0], [5, 6], [2, 6], [3, 6], [6, 6], [6, 3]], "goals": [[5, 5]], "start": {"player": [4, 3], "boxes": [[2, 3]]}}, "modes": {"baseline": {"good_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "L", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "U", "from": {"player": [3, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "R", "from": {"player": [2, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[2, 4]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "R", "from": {"player": [2, 3], "boxes": [[2, 4]]}, "to": {"player": [2, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "U", "from": {"player": [2, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "R", "from": {"player": [1, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 5], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "D", "from": {"player": [1, 5], "boxes": [[2, 5]]}, "to": {"player": [2, 5], "boxes": [[3, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "D", "from": {"player": [2, 5], "boxes": [[3, 5]]}, "to": {"player": [3, 5], "boxes": [[4, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "D", "from": {"player": [3, 5], "boxes": [[4, 5]]}, "to": {"player": [4, 5], "boxes": [[5, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}], "bad_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "U", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "R", "from": {"player": [2, 3], "boxes": [[1, 3]]}, "to": {"player": [2, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "U", "from": {"player": [2, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "L", "from": {"player": [1, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 3], "boxes": [[1, 2]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}, {"action": "L", "from": {"player": [1, 3], "boxes": [[1, 2]]}, "to": {"player": [1, 2], "boxes": [[1, 1]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false}], "graph_nodes": 16, "graph_edges": 15, "invalid_transitions": 0, "solver_actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "solver_cost": 10, "validator_rejections": 0}, "validated": {"good_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.1, "cost": 10}}, {"action": "L", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.2, "cost": 11}}, {"action": "U", "from": {"player": [3, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.3, "cost": 12}}, {"action": "R", "from": {"player": [2, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[2, 4]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 4, "regression": 0, "budget_used_fraction": 0.4, "cost": 13}}, {"action": "R", "from": {"player": [2, 3], "boxes": [[2, 4]]}, "to": {"player": [2, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": true, "score": {"goal_distance_before": 4, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.5, "cost": 35}}, {"action": "U", "from": {"player": [2, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.6, "cost": 17}}, {"action": "R", "from": {"player": [1, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 5], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.7, "cost": 20}}, {"action": "D", "from": {"player": [1, 5], "boxes": [[2, 5]]}, "to": {"player": [2, 5], "boxes": [[3, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 2, "regression": 0, "budget_used_fraction": 0.8, "cost": 43}}, {"action": "D", "from": {"player": [2, 5], "boxes": [[3, 5]]}, "to": {"player": [3, 5], "boxes": [[4, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 2, "goal_distance_after": 1, "regression": 0, "budget_used_fraction": 0.9, "cost": 46}}, {"action": "D", "from": {"player": [3, 5], "boxes": [[4, 5]]}, "to": {"player": [4, 5], "boxes": [[5, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 1, "goal_distance_after": 0, "regression": 0, "budget_used_fraction": 1.0, "cost": 30}}], "bad_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.1, "cost": 10}}, {"action": "U", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[1, 3]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": true, "score": {"goal_distance_before": 5, "goal_distance_after": 6, "regression": 1, "budget_used_fraction": 0.2, "cost": 46}}, {"action": "R", "from": {"player": [2, 3], "boxes": [[1, 3]]}, "to": {"player": [2, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 6, "regression": 0, "budget_used_fraction": 0.3, "cost": 12}}, {"action": "U", "from": {"player": [2, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 6, "regression": 0, "budget_used_fraction": 0.4, "cost": 13}}, {"action": "L", "from": {"player": [1, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 3], "boxes": [[1, 2]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 7, "regression": 1, "budget_used_fraction": 0.5, "cost": 50}}, {"action": "L", "from": {"player": [1, 3], "boxes": [[1, 2]]}, "to": {"player": [1, 2], "boxes": [[1, 1]]}, "accepted": false, "confidence": 0.0, "reason": "corner deadlock", "learned_from_failure": false}], "graph_nodes": 15, "graph_edges": 14, "invalid_transitions": 0, "solver_actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "solver_cost": 237, "validator_rejections": 1}, "experience": {"good_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.1, "cost": 10}}, {"action": "L", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.2, "cost": 11}}, {"action": "U", "from": {"player": [3, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 2], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.3, "cost": 12}}, {"action": "R", "from": {"player": [2, 2], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[2, 4]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 4, "regression": 0, "budget_used_fraction": 0.4, "cost": 13}}, {"action": "R", "from": {"player": [2, 3], "boxes": [[2, 4]]}, "to": {"player": [2, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 0.16666666666666666, "reason": "box against wall, unverified", "learned_from_failure": true, "score": {"goal_distance_before": 4, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.5, "cost": 48}}, {"action": "U", "from": {"player": [2, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 4], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.6, "cost": 17}}, {"action": "R", "from": {"player": [1, 4], "boxes": [[2, 5]]}, "to": {"player": [1, 5], "boxes": [[2, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 3, "regression": 0, "budget_used_fraction": 0.7, "cost": 20}}, {"action": "D", "from": {"player": [1, 5], "boxes": [[2, 5]]}, "to": {"player": [2, 5], "boxes": [[3, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 3, "goal_distance_after": 2, "regression": 0, "budget_used_fraction": 0.8, "cost": 43}}, {"action": "D", "from": {"player": [2, 5], "boxes": [[3, 5]]}, "to": {"player": [3, 5], "boxes": [[4, 5]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 2, "goal_distance_after": 1, "regression": 0, "budget_used_fraction": 0.9, "cost": 46}}, {"action": "D", "from": {"player": [3, 5], "boxes": [[4, 5]]}, "to": {"player": [4, 5], "boxes": [[5, 5]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 1, "goal_distance_after": 0, "regression": 0, "budget_used_fraction": 1.0, "cost": 30}}], "bad_trace": [{"action": "U", "from": {"player": [4, 3], "boxes": [[2, 3]]}, "to": {"player": [3, 3], "boxes": [[2, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 5, "goal_distance_after": 5, "regression": 0, "budget_used_fraction": 0.1, "cost": 10}}, {"action": "U", "from": {"player": [3, 3], "boxes": [[2, 3]]}, "to": {"player": [2, 3], "boxes": [[1, 3]]}, "accepted": true, "confidence": 0.16666666666666666, "reason": "box against wall, unverified", "learned_from_failure": true, "score": {"goal_distance_before": 5, "goal_distance_after": 6, "regression": 1, "budget_used_fraction": 0.2, "cost": 59}}, {"action": "R", "from": {"player": [2, 3], "boxes": [[1, 3]]}, "to": {"player": [2, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 6, "regression": 0, "budget_used_fraction": 0.3, "cost": 12}}, {"action": "U", "from": {"player": [2, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 4], "boxes": [[1, 3]]}, "accepted": true, "confidence": 1.0, "reason": "ok", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 6, "regression": 0, "budget_used_fraction": 0.4, "cost": 13}}, {"action": "L", "from": {"player": [1, 4], "boxes": [[1, 3]]}, "to": {"player": [1, 3], "boxes": [[1, 2]]}, "accepted": true, "confidence": 0.5, "reason": "box against wall, unverified", "learned_from_failure": false, "score": {"goal_distance_before": 6, "goal_distance_after": 7, "regression": 1, "budget_used_fraction": 0.5, "cost": 50}}, {"action": "L", "from": {"player": [1, 3], "boxes": [[1, 2]]}, "to": {"player": [1, 2], "boxes": [[1, 1]]}, "accepted": false, "confidence": 0.0, "reason": "corner deadlock", "learned_from_failure": false}], "graph_nodes": 15, "graph_edges": 14, "invalid_transitions": 0, "solver_actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "solver_cost": 250, "validator_rejections": 1}}, "stress_test": {"total_attempted": 54000, "total_rejected": 200, "verified_dead_ends": 200}, "phase5": {"n_episodes": 20, "cp_sat": {"avg_planning_time_s": 0.02020089000579901, "avg_execution_cost": 9.0, "success_rate": 1.0}, "astar": {"avg_planning_time_s": 0.0032545900059631093, "avg_execution_cost": 9.0, "success_rate": 1.0}, "speedup": 6.206892410038325, "adaptive_simple_methods": ["astar"], "adaptive_multi_methods": ["cp_sat"]}, "phase5_visual": {"single": {"walls": [[0, 1], [4, 0], [0, 4], [6, 1], [4, 6], [6, 4], [0, 2], [0, 5], [1, 0], [1, 6], [6, 2], [6, 0], [6, 5], [0, 0], [0, 3], [2, 0], [3, 0], [0, 6], [5, 0], [5, 6], [2, 6], [3, 6], [6, 6], [6, 3]], "goals": [[5, 5]], "width": 7, "height": 7, "start": {"player": [4, 3], "boxes": [[2, 3]]}, "actions": ["U", "L", "U", "R", "R", "U", "R", "D", "D", "D"], "states": [{"player": [3, 3], "boxes": [[2, 3]]}, {"player": [3, 2], "boxes": [[2, 3]]}, {"player": [2, 2], "boxes": [[2, 3]]}, {"player": [2, 3], "boxes": [[2, 4]]}, {"player": [2, 4], "boxes": [[2, 5]]}, {"player": [1, 4], "boxes": [[2, 5]]}, {"player": [1, 5], "boxes": [[2, 5]]}, {"player": [2, 5], "boxes": [[3, 5]]}, {"player": [3, 5], "boxes": [[4, 5]]}, {"player": [4, 5], "boxes": [[5, 5]]}], "method": "astar", "cost": 10}, "two_box": {"walls": [[0, 1], [4, 0], [0, 4], [6, 1], [4, 6], [6, 4], [0, 2], [0, 5], [1, 0], [1, 6], [6, 2], [6, 0], [6, 5], [0, 0], [0, 3], [2, 0], [3, 0], [0, 6], [5, 0], [5, 6], [2, 6], [3, 6], [6, 6], [6, 3]], "goals": [[4, 4], [4, 2]], "width": 7, "height": 7, "start": {"player": [3, 3], "boxes": [[2, 4], [2, 2]]}, "actions": ["U", "U", "L", "D", "D", "U", "U", "R", "R", "D", "D"], "states": [{"player": [2, 3], "boxes": [[2, 4], [2, 2]]}, {"player": [1, 3], "boxes": [[2, 4], [2, 2]]}, {"player": [1, 2], "boxes": [[2, 4], [2, 2]]}, {"player": [2, 2], "boxes": [[2, 4], [3, 2]]}, {"player": [3, 2], "boxes": [[2, 4], [4, 2]]}, {"player": [2, 2], "boxes": [[2, 4], [4, 2]]}, {"player": [1, 2], "boxes": [[2, 4], [4, 2]]}, {"player": [1, 3], "boxes": [[2, 4], [4, 2]]}, {"player": [1, 4], "boxes": [[2, 4], [4, 2]]}, {"player": [2, 4], "boxes": [[3, 4], [4, 2]]}, {"player": [3, 4], "boxes": [[4, 4], [4, 2]]}], "method": "cp_sat", "cost": 11}}, "river_crossing": {"n": 3, "start": {"missionaries_left": 3, "cannibals_left": 3, "boat_left": true}, "bad_trace_baseline": [{"action": "2M", "from": {"missionaries_left": 3, "cannibals_left": 3, "boat_left": true}, "to": {"missionaries_left": 1, "cannibals_left": 3, "boat_left": false}, "accepted": true, "confidence": 1.0, "reason": "ok"}], "bad_trace_validated": [{"action": "2M", "from": {"missionaries_left": 3, "cannibals_left": 3, "boat_left": true}, "to": {"missionaries_left": 1, "cannibals_left": 3, "boat_left": false}, "accepted": false, "confidence": 0.0, "reason": "cannibals outnumber missionaries"}], "solve": {"actions": ["2C", "1C", "2C", "1C", "2M", "1M1C", "2M", "1C", "2C", "1M", "1M1C"], "states": [{"missionaries_left": 3, "cannibals_left": 1, "boat_left": false}, {"missionaries_left": 3, "cannibals_left": 2, "boat_left": true}, {"missionaries_left": 3, "cannibals_left": 0, "boat_left": false}, {"missionaries_left": 3, "cannibals_left": 1, "boat_left": true}, {"missionaries_left": 1, "cannibals_left": 1, "boat_left": false}, {"missionaries_left": 2, "cannibals_left": 2, "boat_left": true}, {"missionaries_left": 0, "cannibals_left": 2, "boat_left": false}, {"missionaries_left": 0, "cannibals_left": 3, "boat_left": true}, {"missionaries_left": 0, "cannibals_left": 1, "boat_left": false}, {"missionaries_left": 1, "cannibals_left": 1, "boat_left": true}, {"missionaries_left": 0, "cannibals_left": 0, "boat_left": false}], "cost": 11}}, "rush_hour": {"width": 6, "height": 6, "vehicles": {"A": {"orientation": "H", "length": 2}, "B": {"orientation": "V", "length": 3}, "X": {"orientation": "H", "length": 2}}, "start": [["A", 3, 3], ["X", 2, 0], ["B", 1, 2]], "solve": {"actions": ["B+", "B+", "X+", "X+", "X+", "X+"], "states": [[["B", 2, 2], ["A", 3, 3], ["X", 2, 0]], [["B", 3, 2], ["A", 3, 3], ["X", 2, 0]], [["B", 3, 2], ["A", 3, 3], ["X", 2, 1]], [["B", 3, 2], ["A", 3, 3], ["X", 2, 2]], [["X", 2, 3], ["B", 3, 2], ["A", 3, 3]], [["B", 3, 2], ["X", 2, 4], ["A", 3, 3]]], "method": "cp_sat", "cost": 6}, "uncertain_demo": {"width": 6, "height": 4, "vehicles": {"D": {"orientation": "H", "length": 2}, "E": {"orientation": "V", "length": 3}, "X": {"orientation": "H", "length": 2}}, "state": [["X", 2, 0], ["E", 0, 4], ["D", 2, 2]], "validated_confidence": 0.5, "validated_reason": "blocked by D, which has no immediate move either (unverified if rescuable)"}}};
 const MODES = ['baseline', 'validated', 'experience'];
 
 const st = { plan: 'bad', step: -1, playing: false, timer: null };
@@ -618,9 +714,188 @@ document.getElementById('p5-btn-back').addEventListener('click', p5vStepBack);
 document.getElementById('p5-btn-reset').addEventListener('click', p5vReset);
 document.getElementById('p5-btn-play').addEventListener('click', p5vTogglePlay);
 
+// ---------- River crossing ----------
+function renderRiverBoard(container, state){
+  container.innerHTML = '';
+  const n = DATA.river_crossing.n;
+  const rightM = n - state.missionaries_left;
+  const rightC = n - state.cannibals_left;
+
+  const left = document.createElement('div');
+  left.className = 'bank';
+  left.innerHTML = `<div class="bank-label">Left bank</div><div class="bank-count">M <b>${state.missionaries_left}</b></div><div class="bank-count">C <b>${state.cannibals_left}</b></div>`;
+
+  const track = document.createElement('div');
+  track.className = 'boat-track ' + (state.boat_left ? 'left' : 'right');
+  track.innerHTML = '<div class="boat">BOAT</div>';
+
+  const right = document.createElement('div');
+  right.className = 'bank';
+  right.innerHTML = `<div class="bank-label">Right bank</div><div class="bank-count">M <b>${rightM}</b></div><div class="bank-count">C <b>${rightC}</b></div>`;
+
+  container.appendChild(left);
+  container.appendChild(track);
+  container.appendChild(right);
+}
+
+const rcState = { step: -1, playing: false, timer: null };
+function rcMaxSteps(){
+  return Math.max(DATA.river_crossing.bad_trace_baseline.length, DATA.river_crossing.bad_trace_validated.length);
+}
+function renderRiverMode(mode){
+  const trace = DATA.river_crossing['bad_trace_' + mode];
+  const idx = Math.min(rcState.step, trace.length - 1);
+  const s = idx < 0 ? DATA.river_crossing.start : trace[idx].to;
+  renderRiverBoard(document.getElementById('river-' + mode), s);
+  const badge = document.getElementById('badge-river-' + mode);
+  const step = idx < 0 ? null : trace[idx];
+  if (!step) { badge.textContent = 'Ready. Press Step or Play.'; badge.className = 'badge neutral'; }
+  else if (step.accepted === false) { badge.textContent = `REJECTED: ${step.reason}`; badge.className = 'badge danger'; }
+  else { badge.textContent = `accepted, action "${step.action}"`; badge.className = 'badge ok'; }
+}
+function renderRiverAll(){
+  renderRiverMode('baseline');
+  renderRiverMode('validated');
+  document.getElementById('rc-step-counter').textContent = `${Math.max(rcState.step, 0)} / ${rcMaxSteps()}`;
+  document.getElementById('rc-btn-play').textContent = rcState.playing ? 'Pause' : 'Play';
+}
+function rcStopPlaying(){ rcState.playing = false; if (rcState.timer) clearInterval(rcState.timer); rcState.timer = null; }
+function rcStepForward(){ if (rcState.step + 1 < rcMaxSteps()) { rcState.step++; renderRiverAll(); } else rcStopPlaying(); }
+function rcStepBack(){ if (rcState.step > -1) { rcState.step--; renderRiverAll(); } }
+function rcReset(){ rcState.step = -1; renderRiverAll(); }
+function rcTogglePlay(){
+  if (rcState.playing) { rcStopPlaying(); }
+  else {
+    rcState.playing = true;
+    rcState.timer = setInterval(() => {
+      if (rcState.step + 1 >= rcMaxSteps()) { rcStopPlaying(); renderRiverAll(); return; }
+      rcStepForward();
+    }, 900);
+  }
+  renderRiverAll();
+}
+document.getElementById('rc-btn-fwd').addEventListener('click', rcStepForward);
+document.getElementById('rc-btn-back').addEventListener('click', rcStepBack);
+document.getElementById('rc-btn-reset').addEventListener('click', rcReset);
+document.getElementById('rc-btn-play').addEventListener('click', rcTogglePlay);
+
+const rcsState = { step: -1, playing: false, timer: null };
+function rcsMaxSteps(){ return DATA.river_crossing.solve.actions.length; }
+function renderRcsAll(){
+  const solve = DATA.river_crossing.solve;
+  const idx = Math.min(rcsState.step, solve.states.length - 1);
+  const s = idx < 0 ? DATA.river_crossing.start : solve.states[idx];
+  renderRiverBoard(document.getElementById('river-solve'), s);
+  const label = document.getElementById('label-river-solve');
+  label.textContent = idx < 0 ? `ready (astar, cost ${solve.cost})` : `step ${idx + 1}/${solve.actions.length}: ${solve.actions[idx]}`;
+  document.getElementById('rcs-step-counter').textContent = `${Math.max(rcsState.step, 0)} / ${rcsMaxSteps()}`;
+  document.getElementById('rcs-btn-play').textContent = rcsState.playing ? 'Pause' : 'Play';
+}
+function rcsStopPlaying(){ rcsState.playing = false; if (rcsState.timer) clearInterval(rcsState.timer); rcsState.timer = null; }
+function rcsStepForward(){ if (rcsState.step + 1 < rcsMaxSteps()) { rcsState.step++; renderRcsAll(); } else rcsStopPlaying(); }
+function rcsStepBack(){ if (rcsState.step > -1) { rcsState.step--; renderRcsAll(); } }
+function rcsReset(){ rcsState.step = -1; renderRcsAll(); }
+function rcsTogglePlay(){
+  if (rcsState.playing) { rcsStopPlaying(); }
+  else {
+    rcsState.playing = true;
+    rcsState.timer = setInterval(() => {
+      if (rcsState.step + 1 >= rcsMaxSteps()) { rcsStopPlaying(); renderRcsAll(); return; }
+      rcsStepForward();
+    }, 700);
+  }
+  renderRcsAll();
+}
+document.getElementById('rcs-btn-fwd').addEventListener('click', rcsStepForward);
+document.getElementById('rcs-btn-back').addEventListener('click', rcsStepBack);
+document.getElementById('rcs-btn-reset').addEventListener('click', rcsReset);
+document.getElementById('rcs-btn-play').addEventListener('click', rcsTogglePlay);
+
+// ---------- Rush Hour ----------
+function renderVehicles(container, width, height, meta, placements){
+  container.innerHTML = '';
+  container.style.gridTemplateColumns = `repeat(${width}, 1fr)`;
+  container.style.gridTemplateRows = `repeat(${height}, 1fr)`;
+  container.style.aspectRatio = `${width} / ${height}`;
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.gridColumn = `${c + 1} / span 1`;
+      cell.style.gridRow = `${r + 1} / span 1`;
+      container.appendChild(cell);
+    }
+  }
+  const xp = placements.find(p => p[0] === 'X');
+  if (xp) {
+    const exit = document.createElement('div');
+    exit.className = 'exit-marker';
+    exit.style.gridColumn = `${width} / span 1`;
+    exit.style.gridRow = `${xp[1] + 1} / span 1`;
+    container.appendChild(exit);
+  }
+  placements.forEach(([vid, row, col]) => {
+    const m = meta[vid];
+    const el = document.createElement('div');
+    el.className = 'vehicle' + (vid === 'X' ? ' target' : '');
+    el.textContent = vid;
+    if (m.orientation === 'H') {
+      el.style.gridColumn = `${col + 1} / span ${m.length}`;
+      el.style.gridRow = `${row + 1} / span 1`;
+    } else {
+      el.style.gridColumn = `${col + 1} / span 1`;
+      el.style.gridRow = `${row + 1} / span ${m.length}`;
+    }
+    container.appendChild(el);
+  });
+}
+
+const rhState = { step: -1, playing: false, timer: null };
+function rhMaxSteps(){ return DATA.rush_hour.solve.actions.length; }
+function renderRhAll(){
+  const rh = DATA.rush_hour;
+  const idx = Math.min(rhState.step, rh.solve.states.length - 1);
+  const placements = idx < 0 ? rh.start : rh.solve.states[idx];
+  renderVehicles(document.getElementById('grid-rh-solve'), rh.width, rh.height, rh.vehicles, placements);
+  const label = document.getElementById('label-rh-solve');
+  label.textContent = idx < 0 ? `ready (${rh.solve.method}, cost ${rh.solve.cost})` : `step ${idx + 1}/${rh.solve.actions.length}: ${rh.solve.actions[idx]}`;
+  document.getElementById('rh-step-counter').textContent = `${Math.max(rhState.step, 0)} / ${rhMaxSteps()}`;
+  document.getElementById('rh-btn-play').textContent = rhState.playing ? 'Pause' : 'Play';
+}
+function rhStopPlaying(){ rhState.playing = false; if (rhState.timer) clearInterval(rhState.timer); rhState.timer = null; }
+function rhStepForward(){ if (rhState.step + 1 < rhMaxSteps()) { rhState.step++; renderRhAll(); } else rhStopPlaying(); }
+function rhStepBack(){ if (rhState.step > -1) { rhState.step--; renderRhAll(); } }
+function rhReset(){ rhState.step = -1; renderRhAll(); }
+function rhTogglePlay(){
+  if (rhState.playing) { rhStopPlaying(); }
+  else {
+    rhState.playing = true;
+    rhState.timer = setInterval(() => {
+      if (rhState.step + 1 >= rhMaxSteps()) { rhStopPlaying(); renderRhAll(); return; }
+      rhStepForward();
+    }, 700);
+  }
+  renderRhAll();
+}
+document.getElementById('rh-btn-fwd').addEventListener('click', rhStepForward);
+document.getElementById('rh-btn-back').addEventListener('click', rhStepBack);
+document.getElementById('rh-btn-reset').addEventListener('click', rhReset);
+document.getElementById('rh-btn-play').addEventListener('click', rhTogglePlay);
+
+function fillRhUncertainDemo(){
+  const d = DATA.rush_hour.uncertain_demo;
+  renderVehicles(document.getElementById('grid-rh-baseline'), d.width, d.height, d.vehicles, d.state);
+  renderVehicles(document.getElementById('grid-rh-validated'), d.width, d.height, d.vehicles, d.state);
+  document.getElementById('badge-rh-validated').textContent = `confidence ${d.validated_confidence.toFixed(2)}: ${d.validated_reason}`;
+}
+
 fillSolverPanel();
 fillStressPanel();
 fillPhase5Panel();
 renderAll();
 renderP5Visual();
+renderRiverAll();
+renderRcsAll();
+renderRhAll();
+fillRhUncertainDemo();
 </script>

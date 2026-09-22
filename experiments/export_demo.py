@@ -218,6 +218,132 @@ def build_phase5_visual() -> dict:
     }
 
 
+def build_river_crossing_demo() -> dict:
+    """River crossing: a completely different mechanic (no grid, just two
+    head counts and a boat side). Shows the same "judged differently"
+    moment as the Sokoban demo -- taking 2 missionaries across first is
+    physically legal and looks like fast progress, but leaves 1
+    missionary alone with 3 cannibals -- plus a full live solve of the
+    real 11-move safe answer."""
+    from tape.envs.river_crossing import LEVEL_CLASSIC as RC_LEVEL
+    from tape.envs.river_crossing_validator import RiverSafetyValidator
+    from tape.path_selector import astar_select_path
+
+    level = RC_LEVEL
+    validator = RiverSafetyValidator()
+    start = level.initial_state
+
+    def rc_state(s) -> dict:
+        return {
+            "missionaries_left": s.missionaries_left,
+            "cannibals_left": s.cannibals_left,
+            "boat_left": s.boat_left,
+        }
+
+    def rc_trace(plan: list[str], use_validator: bool) -> list[dict]:
+        steps = []
+        cur = start
+        for action in plan:
+            nxt, moved = level.step(cur, action)
+            if not moved:
+                steps.append({
+                    "action": action, "from": rc_state(cur), "to": rc_state(cur),
+                    "accepted": False, "confidence": 0.0, "reason": "not enough people on that bank",
+                })
+                break
+            if use_validator:
+                verdict = validator.validate(level, cur, action, nxt)
+                accept, reason, confidence = verdict.accept, verdict.reason, verdict.confidence
+            else:
+                accept, reason, confidence = True, "ok", 1.0
+            steps.append({
+                "action": action, "from": rc_state(cur), "to": rc_state(nxt),
+                "accepted": accept, "confidence": confidence, "reason": reason,
+            })
+            if use_validator and not accept:
+                break
+            cur = nxt
+            if level.is_goal(cur):
+                break
+        return steps
+
+    bad_plan = ["2M"]  # the tempting-but-fatal first move
+    safe_plan = _bfs_plan(level, start, 20, validator=validator)
+    graph = build_plan_graph(level, start, [safe_plan])
+    solution = astar_select_path(level, graph)
+
+    return {
+        "n": level.n,
+        "start": rc_state(start),
+        "bad_trace_baseline": rc_trace(bad_plan, use_validator=False),
+        "bad_trace_validated": rc_trace(bad_plan, use_validator=True),
+        "solve": {
+            "actions": solution.actions,
+            "states": [rc_state(s) for s in solution.node_path[1:]],
+            "cost": solution.cost,
+        },
+    }
+
+
+def build_rush_hour_demo() -> dict:
+    """Rush Hour: multi-cell oriented vehicles instead of single-cell
+    boxes or headcounts -- the most visually distinct of the three
+    benchmarks. Shows the real 6-move solve (vehicles sliding, not just
+    a box) and the validator's dynamic "uncertain" tier (the hard-reject
+    tier is a static level-design invariant, not something a move
+    creates -- see progress.md 8.2.1 -- so it isn't staged as a live
+    "move causes deadlock" moment here, that would misrepresent it)."""
+    from tape.envs.rush_hour import LEVEL_CLASSIC as RH_LEVEL, RushHourLevel
+    from tape.envs.rush_hour_validator import RowGridlockValidator
+    from tape.path_selector import select_path_adaptive
+
+    level = RH_LEVEL
+    validator = RowGridlockValidator()
+    start = level.initial_state
+
+    def rh_state(s) -> list[list]:
+        return [list(p) for p in s]
+
+    def rh_meta(lv: RushHourLevel) -> dict:
+        return {
+            vid: {"orientation": lv.orientation_of(vid), "length": lv.length_of(vid)}
+            for vid in lv.vehicle_ids
+        }
+
+    good_plan = _bfs_plan(level, start, 20)
+    graph = build_plan_graph(level, start, [good_plan])
+    solution, method = select_path_adaptive(level, graph)
+
+    # Constructed example for the soft "uncertain" tier: D is boxed
+    # between X and a vertical vehicle E that currently can't move away
+    # either -- a real, dynamic, worth-distrusting signal, explicitly not
+    # a hard reject, since E might still move away later.
+    demo_level = RushHourLevel(["....E.", "....E.", "XXDDE.", "......"])
+    demo_state = demo_level.initial_state
+    verdict = validator.validate(demo_level, demo_state, "D+", demo_state)
+
+    return {
+        "width": level.width,
+        "height": level.height,
+        "vehicles": rh_meta(level),
+        "start": rh_state(start),
+        "solve": {
+            "actions": solution.actions,
+            "states": [rh_state(s) for s in solution.node_path[1:]],
+            "method": method,
+            "cost": solution.cost,
+        },
+        "uncertain_demo": {
+            "width": demo_level.width,
+            "height": demo_level.height,
+            "vehicles": rh_meta(demo_level),
+            "state": rh_state(demo_state),
+            "validated_confidence": verdict.confidence,
+            "validated_reason": verdict.reason,
+        },
+    }
+
+
 def mode_stats(graph, solution) -> dict:
     stats = {
         "graph_nodes": graph.graph.number_of_nodes(),
@@ -289,6 +415,8 @@ def main() -> None:
         "stress_test": run_stress_test(),
         "phase5": run_phase5_comparison(),
         "phase5_visual": build_phase5_visual(),
+        "river_crossing": build_river_crossing_demo(),
+        "rush_hour": build_rush_hour_demo(),
     }
 
     demo_dir = Path(__file__).resolve().parents[1] / "demo"

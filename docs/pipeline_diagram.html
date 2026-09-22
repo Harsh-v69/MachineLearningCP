@@ -67,7 +67,7 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
 <div class="wrap">
   <p class="eyebrow">System Architecture · Phases 1 to 5</p>
   <h1>From raw environment state to a validated optimal path</h1>
-  <p class="dek">Everything left of the blue box is benchmark-agnostic: it operates on states and actions, not on Sokoban pushes specifically, so swapping in ALFWorld, MuSiQue, or GSM8K-Hard means implementing a new environment adapter, not rebuilding the pipeline.</p>
+  <p class="dek">Everything left of the blue box is benchmark-agnostic: it operates on states and actions, not on Sokoban pushes specifically. Three benchmarks (Sokoban, river crossing, Rush Hour) now share it unchanged; swapping in ALFWorld, MuSiQue, or GSM8K-Hard means implementing the same kind of environment adapter, not rebuilding the pipeline.</p>
 
   <figure>
     <svg viewBox="0 0 1520 660" role="img" aria-label="Pipeline flow: an environment state produces multiple candidate plans, which are merged into a plan graph, filtered by a domain validator, priced using confidence and experience history, then solved by an adaptively chosen search method into a validated optimal path, which is executed and either succeeds or triggers a replan.">
@@ -83,9 +83,10 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
       <text x="100" y="150" text-anchor="middle" font-size="10.5">state s</text>
       <text x="100" y="170" text-anchor="middle" font-size="9.5">(player, boxes,</text>
       <text x="100" y="182" text-anchor="middle" font-size="9.5">goals, walls)</text>
-      <text x="100" y="225" text-anchor="middle" font-size="9" fill="currentColor">Sokoban (built)</text>
-      <text x="100" y="237" text-anchor="middle" font-size="9" fill="var(--muted)">ALFWorld · MuSiQue</text>
-      <text x="100" y="249" text-anchor="middle" font-size="9" fill="var(--muted)">GSM8K-Hard (planned)</text>
+      <text x="100" y="225" text-anchor="middle" font-size="9" fill="currentColor">Sokoban · River Crossing</text>
+      <text x="100" y="237" text-anchor="middle" font-size="9" fill="currentColor">Rush Hour (built)</text>
+      <text x="100" y="252" text-anchor="middle" font-size="9" fill="var(--muted)">ALFWorld · MuSiQue</text>
+      <text x="100" y="264" text-anchor="middle" font-size="9" fill="var(--muted)">GSM8K-Hard (planned)</text>
 
       <line x1="180" y1="155" x2="222" y2="155" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)"/>
       <text x="201" y="145" text-anchor="middle" font-size="9">sample N</text>
@@ -222,7 +223,7 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
 
   <h2>Stage by stage</h2>
   <ol class="stage-list">
-    <li><b>Environment</b> &mdash; any benchmark's <code>step(state, action)</code> and <code>is_goal(state)</code>. Sokoban is built; ALFWorld, MuSiQue, and GSM8K-Hard are the same abstraction, not yet implemented.</li>
+    <li><b>Environment</b> &mdash; any benchmark's <code>step(state, action)</code> and <code>is_goal(state)</code>. Sokoban, river crossing, and Rush Hour are built and share every phase below unchanged; ALFWorld, MuSiQue, and GSM8K-Hard (TAPE's own named benchmarks) are the same abstraction, not yet implemented.</li>
     <li><b>Candidate plans</b> (Phase 1) &mdash; the LLM proposes several action sequences from the current state, not one.</li>
     <li><b>Plan graph</b> (Phase 1) &mdash; every candidate is simulated step by step; identical resulting states collapse onto one shared node.</li>
     <li><b>Validator</b> (Phase 2) &mdash; each transition is checked against domain rules the environment itself doesn't enforce (e.g. a Sokoban corner deadlock). Rejected transitions never become edges; uncertain ones get a lower confidence instead of a hard reject.</li>
@@ -233,5 +234,5 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
     <li><b>Execute &amp; replan</b> &mdash; the path is run step by step; a mismatch between predicted and actual state triggers a fresh planning round from the real state, and both outcomes feed back into the experience store.</li>
   </ol>
 
-  <footer>Phases 1&ndash;5 built and tested (37 automated tests) &middot; Phase 6 (cross-benchmark evaluation) is what this diagram's "any benchmark" claim still needs to prove empirically.</footer>
+  <footer>Phases 1&ndash;5 built and tested (54 automated tests) across three benchmarks (Sokoban, river crossing, Rush Hour) &middot; Phase 6 (cross-benchmark evaluation) and TAPE's own remaining benchmarks (ALFWorld, MuSiQue, GSM8K-Hard) are what's left.</footer>
 </div>

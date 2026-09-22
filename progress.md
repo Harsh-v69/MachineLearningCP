@@ -1,6 +1,6 @@
 # Progress: TAPE Extension — Adaptive Graph Validation & Solver Generalization
 
-**Overall status: ~90% complete (Phases 1–5 of 6), well ahead of the mid-semester checkpoint.**
+**Overall status: ~90% complete (Phases 1–5 of 6), well ahead of the mid-semester checkpoint, now verified across three benchmarks (Sokoban, river crossing, Rush Hour) instead of one.**
 
 This document is meant to be read start to finish by a teammate who has not touched the code yet, and to be enough on its own to explain the project to the teacher. It covers what the project is, what's been built, why each piece exists, how to run it, and exactly what's left.
 
@@ -45,22 +45,29 @@ MachineLearningCP/
 ├── requirements.txt           # networkx, ortools, google-generativeai, pytest
 ├── .env.example                # GEMINI_API_KEY (copy to .env, fill in, do not commit)
 ├── src/tape/
-│   ├── envs/sokoban.py         # the benchmark environment (Phase 1)
+│   ├── env_base.py              # the Environment protocol every benchmark implements (see §8.0)
+│   ├── envs/
+│   │   ├── sokoban.py                   # benchmark 1 (Phase 1)
+│   │   ├── river_crossing.py            # benchmark 2 (§8.1): missionaries and cannibals
+│   │   ├── river_crossing_validator.py  # its Phase 2 validator: RiverSafetyValidator
+│   │   └── rush_hour.py                 # benchmark 3 (§8.2): sliding-vehicle traffic jam
 │   ├── llm.py                  # candidate plan generation: MockLLMClient, AdversarialMockLLMClient, GeminiClient
 │   ├── graph.py                # plan graph construction + validation/scoring hooks
 │   ├── solver.py                # CP-SAT path selection (OR-Tools)
 │   ├── executor.py             # constrained execution + mismatch-triggered replanning
-│   ├── validator.py             # Phase 2: CornerDeadlockValidator
+│   ├── validator.py             # Phase 2: CornerDeadlockValidator (Sokoban)
 │   ├── experience.py             # Phase 3: sqlite-backed ExperienceStore
 │   ├── scoring.py                # Phase 4: score_transition() (regression, confidence, budget)
 │   ├── path_selector.py          # Phase 5: astar_select_path(), decide_method(), select_path_adaptive()
 │   └── metrics.py                # aggregate metrics across episodes
 ├── experiments/
-│   ├── run_baseline.py          # CLI to run episode sweeps with any combination of extensions
+│   ├── run_baseline.py          # CLI: Sokoban episode sweeps with any combination of extensions
+│   ├── run_river_crossing.py     # CLI: same pipeline, river crossing
+│   ├── run_rush_hour.py          # CLI: same pipeline, Rush Hour
 │   ├── stress_test.py            # Phase 2 adversarial stress test (see §4.1)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
-├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §10)
-└── tests/                        # 40 tests, all passing (see §8)
+├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §11)
+└── tests/                        # 54 tests, all passing (see §9)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -195,7 +202,7 @@ python experiments/run_baseline.py --level simple --episodes 25 --validator corn
 **What was built** (`src/tape/path_selector.py`):
 
 - `astar_select_path(level, plan_graph)`: a standard A* search over the same plan graph CP-SAT already solves. The g-cost is the sum of Phase 4's edge costs (identical units, so the two methods are directly comparable); the heuristic is `goal_distance` (Phase 4's own Manhattan-distance-to-nearest-goal function) scaled to match. It returns the same `PlanSolution` type `select_path()` does, so callers don't need to know which method actually ran.
-- `decide_method(plan_graph)`: the actual adaptive rule. A single-box Sokoban level is a pure shortest-path problem, nothing needs to be jointly coordinated, so A* is enough. More than one box means the boxes' pushes have to be planned together (progress on one can conflict with another), which is exactly the kind of interacting constraint CP-SAT exists for. The rule is one line: more than one box in the start state routes to CP-SAT, otherwise A*.
+- `decide_method(level, plan_graph)`: the actual adaptive rule, generalized (see §8 below) to call `level.complexity(state)` rather than reading Sokoban's box count directly. A puzzle with one independently-movable piece is a pure shortest-path problem, nothing needs to be jointly coordinated, so A* is enough. More than one means those pieces' moves have to be planned together (progress on one can conflict with another), which is exactly the kind of interacting constraint CP-SAT exists for. The rule is one line: `complexity(state) > 1` routes to CP-SAT, otherwise A*.
 - `select_path_adaptive(level, plan_graph)`: calls `decide_method` and dispatches, returning `(solution, method_used)` so the caller (and the metrics) can see which one actually ran.
 - Wired into `run_episode()` via a `path_selection` argument (`"cp_sat"` default, `"astar"`, or `"adaptive"`) and `--path-selection` on the CLI. `EpisodeResult.path_selection_methods` records which method every planning round in the episode actually used.
 
@@ -212,7 +219,66 @@ python experiments/run_baseline.py --level multi --episodes 20 --candidates 20 -
 
 ---
 
-## 8. Test coverage (40 tests, all passing)
+## 8. Beyond Sokoban: two more benchmarks, not just box-pushing
+
+Phases 1–5 above were all built and verified against Sokoban. The pipeline diagram (`docs/pipeline_diagram.html`) claimed everything left of the validated-optimal-path box is benchmark-agnostic — this section is where that claim stopped being architecture and started being three real benchmarks passing the same tests.
+
+### 8.0 Making the pipeline actually generic
+
+Before any new benchmark could plug in, several pipeline modules had to stop assuming a Sokoban-shaped state (an object with `.player`/`.boxes` fields). `src/tape/env_base.py` defines the interface every environment now implements:
+
+- `step(state, action) -> (next_state, legal)`, `is_goal(state)`, `render(state)`, `ACTIONS` — already generic (Phases 1–3 never touched box/goal internals directly).
+- `heuristic(state) -> int` — a "distance to solved" estimate, 0 at the goal. Sokoban's is the Manhattan-distance calc that used to live directly in `scoring.py`; it moved into `SokobanLevel.heuristic()`, and `score_transition()` now calls `level.heuristic(...)` instead of a Sokoban-only free function.
+- `complexity(state) -> int` — how many independently-movable pieces this puzzle instance has. Sokoban: box count (unchanged behaviour — `decide_method` used to read `state.boxes` directly; now it calls `level.complexity(state) > 1`, same threshold, same result for every existing Sokoban test).
+
+`experience.py`'s state-keying also assumed `.player`/`.boxes`; it now uses `repr(state)`, which works for any hashable state (verified that two frozensets with identical elements but different construction order produce identical reprs, so this doesn't silently fragment history).
+
+**A real bug this generalization surfaced, not introduced by it:** `MockLLMClient`'s "guaranteed good candidate" (a plain BFS ignoring domain rules) and its goal-biased noisy candidates had no way to know about a validator's rules. This never mattered for Sokoban, because corner-deadlock states are *structural* dead ends — a plain shortest-path search naturally never routes through them, since they can't reach the goal either way. River crossing broke that assumption (see §8.1): its unsafe states are *not* dead ends and often look heuristically attractive, so the naive "optimal" candidate cheerfully cheated through a fatal configuration and found a 9-move "solution" that isn't a real solution to the actual puzzle. Fixed by giving `_bfs_plan()` and `MockLLMClient` an optional `validator` to consult (default `None`, so Sokoban's behaviour and all 40 prior tests were unaffected) — modeling an LLM that has been told a rule, as distinct from `AdversarialMockLLMClient`, which never is.
+
+All 40 prior Sokoban tests passed unchanged after this refactor before any new benchmark was added, confirming it was genuinely invisible to existing behaviour rather than a rewrite in disguise.
+
+### 8.1 River crossing (missionaries and cannibals)
+
+**Why this one:** a classic AI-planning textbook problem, and a mechanic with nothing in common with Sokoban — no grid, no walls, the entire state is two headcounts and which bank the boat is on. It's also a second, cleaner example of Phase 2's validator pattern: `RiverCrossingLevel.step()` allows any physically possible boat trip and deliberately does **not** enforce the safety rule (cannibals must never outnumber missionaries on either bank while any missionaries are present) — exactly like Sokoban's corner deadlock, a physically legal move that is still a fatal, unrecoverable domain violation. `RiverSafetyValidator` (`src/tape/envs/river_crossing_validator.py`) is the Phase 2 analog of `CornerDeadlockValidator` for this domain.
+
+`complexity(state)` returns `1`: unlike Sokoban's independently-pushable boxes, people here never move independently of each other — every crossing is a single sequential decision about the one boat — so this always routes to A*, never CP-SAT.
+
+**Verified against an independent ground truth, not just internal consistency:** the textbook answer for 3 missionary/cannibal pairs with a 2-seat boat is 11 one-way trips. A validator-aware `_bfs_plan()` finds exactly 11. (The validator-*unaware* physical-only BFS finds a 9-move "solution" that passes through a fatal state — see §8.0 — which is exactly why the fix mattered.)
+
+**The validator's necessity is immediate here, unlike Sokoban.** Sokoban needed a dedicated adversarial stress test (§4.1) before the validator's aggregate effect became visible, because its guaranteed-good candidate already avoided the failure case by construction. River crossing has no such luck: an `AdversarialMockLLMClient` (pure random legal moves, no knowledge of the safety rule) run for 20 episodes with the validator active still succeeds **0/20** — this puzzle is essentially unsolvable by an agent that hasn't been told the rule, which is the whole point of Phase 2 existing.
+
+6 tests (`tests/test_river_crossing.py`).
+
+**Run it:**
+```bash
+python experiments/run_river_crossing.py --episodes 20
+python experiments/run_river_crossing.py --llm adversarial --episodes 20 --candidates 50
+```
+
+### 8.2 Rush Hour
+
+**Why this one:** a very well-known commercial sliding-block puzzle (ThinkFun, 1996) and a third, structurally distinct mechanic — vehicles occupy multiple cells with a fixed orientation and length, not a single position like a Sokoban box or a headcount like river crossing's people. State is a frozenset of `(vehicle_id, anchor_row, anchor_col)`; each vehicle's own orientation and length are fixed level metadata parsed once from the board, not part of the state that changes. `step()` enforces board bounds and vehicle-vehicle collision (every cell a vehicle would newly occupy must be empty or already its own).
+
+`complexity(state)` returns the vehicle count. Getting the target vehicle out almost always means moving one or more blockers out of its way, in the right order — independently-movable pieces whose routes can conflict, the same shape of problem as Sokoban's multiple boxes — so it correctly routes to CP-SAT via the *same* adaptive rule already used for the other two benchmarks, no special-casing needed.
+
+**Honest scope limitation:** there is no bespoke Phase 2 validator for Rush Hour. A real gridlock-detection rule (is a vehicle permanently boxed in, accounting for what its blocking neighbors could still do) needs real lookahead to be sound; a shallow one-level local check risks being either useless (catches nothing real) or unsound (falsely rejects a solvable position). Rather than ship a fake validator for the sake of symmetry with the other two benchmarks, this is left undone and named here directly.
+
+**Verified against a hand-worked solution:** the demo board has a vertical blocker (`B`) directly in the target's exit row, and an uninvolved decoy vehicle (`A`) that never needs to move (same as real Rush Hour boards usually have pieces that are irrelevant to the solution). BFS confirms the optimal solution is exactly 6 actions — move `B` down twice to clear the row, then slide the target right four times — matching a hand-traced solution, not just "the code agrees with itself."
+
+8 tests (`tests/test_rush_hour.py`), including two that confirm level construction actually rejects malformed boards (a disconnected same-letter run; a vertical target vehicle).
+
+**Run it:**
+```bash
+python experiments/run_rush_hour.py --episodes 20
+```
+
+### 8.3 What "any benchmark" means now, honestly
+
+Three benchmarks (Sokoban, river crossing, Rush Hour) now share Phases 1–5 unchanged, which is real evidence the architecture generalizes — not just the claim the pipeline diagram made before this work. What hasn't changed: TAPE's own four benchmarks (Sokoban, ALFWorld, MuSiQue, GSM8K-Hard) are still three-quarters unimplemented — river crossing and Rush Hour are *additional* benchmarks proving generality, not substitutes for the ones the original project scope named. If cross-benchmark generalization against TAPE's own suite specifically is expected for the final deliverable, ALFWorld/MuSiQue/GSM8K-Hard are still the gap to close, not river crossing/Rush Hour.
+
+---
+
+## 9. Test coverage (54 tests, all passing)
 
 ```
 tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -223,8 +289,10 @@ tests/test_validator.py     4  — corner-deadlock rejected, goal-push never fal
 tests/test_experience.py    3  — no-history = full trust, failures lower confidence below successes, cross-episode persistence actually happens
 tests/test_stress.py        1  — at scale (not just one example): adversarial candidates trigger real deadlocks, and every rejection is independently BFS-verified as a true dead end
 tests/test_scoring.py       6  — regression, confidence, and budget pressure each move cost in the right direction in isolation; a real graph build produces valid scores on every edge
-tests/test_hard_level.py     3  — the tougher level: BFS-verified 29-move optimum, full pipeline solves it (cp_sat on three boxes, zero false validator rejections), recovers from random slips
+tests/test_hard_level.py     3  — the tougher Sokoban level: BFS-verified 29-move optimum, full pipeline solves it (cp_sat on three boxes, zero false validator rejections), recovers from random slips
 tests/test_path_selector.py 7  — A* finds the same-cost optimal path CP-SAT does, returns None when infeasible, decide_method routes single-box to A* and multi-box to CP-SAT, adaptive selection solves both correctly
+tests/test_river_crossing.py 6  — matches the textbook 11-move answer, step() doesn't self-enforce safety, validator rejects/accepts correctly, complexity is always 1, full pipeline solves it, and fails without an aware LLM
+tests/test_rush_hour.py      8  — 6-move hand-verified optimal solution, target blocked by a vehicle ahead, can't drive off the board, complexity is the vehicle count, full pipeline solves it via CP-SAT, malformed boards rejected
 ```
 
 Run everything:
@@ -236,7 +304,7 @@ python -m venv .venv
 
 ---
 
-### 8.1 The hard level (`--level hard`)
+### 9.1 The hard level (`--level hard`)
 
 `LEVEL_HARD` is a 9x7 room with an internal wall and three boxes. Its optimal solution is 29 moves (verified by BFS), versus 9 for `simple` and 11 for `multi`. The full pipeline (validator, experience, scoring, adaptive selection) solves it in exactly 29 actions, routes it to CP-SAT because it has three boxes, and the validator never falsely rejects the optimal path. With a 5% random slip it still succeeds after replanning.
 
@@ -248,7 +316,7 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 
 ---
 
-## 9. Setup notes for teammates
+## 10. Setup notes for teammates
 
 - Needs Python 3.11+, a venv (`python -m venv .venv`), then `pip install -r requirements.txt`.
 - `GEMINI_API_KEY` (copy `.env.example` to `.env` and fill in) is only needed for `--llm gemini`; all tests and the default `--llm mock` run with zero API keys or network access.
@@ -256,7 +324,7 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 
 ---
 
-## 10. The live demo (for the mid-semester presentation)
+## 11. The live demo (for the mid-semester presentation)
 
 `demo/index.html` is a standalone, interactive replay built specifically for showing this to the teacher. It requires no server, no internet, and no setup — open it directly in any browser. It shows, side by side in three columns (one per extension):
 
@@ -273,8 +341,8 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 
 ---
 
-## 11. What's left to reach 100% (Phase 6, not started)
+## 12. What's left to reach 100% (Phase 6, not started)
 
-- **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. Phase 5 vs. combined across all implemented levels (and, time permitting, additional benchmarks beyond Sokoban), with the aggregate metrics already being tracked in `metrics.py` and `EpisodeResult.path_selection_methods`.
-- **Scope gap to flag to the teacher directly:** ALFWorld, MuSiQue, and GSM8K-Hard (three of TAPE's four benchmarks) are not implemented. If cross-benchmark generalization is expected for the final deliverable, at least one more environment should be added before Phase 6.
+- **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. Phase 5 vs. combined across all implemented levels *and now all three benchmarks* (Sokoban, river crossing, Rush Hour), with the aggregate metrics already being tracked in `metrics.py` and `EpisodeResult.path_selection_methods`.
+- **Scope gap to flag to the teacher directly:** TAPE's own four named benchmarks are ALFWorld, MuSiQue, GSM8K-Hard, and Sokoban. Only Sokoban is implemented; river crossing and Rush Hour (§8) are additional benchmarks that prove the architecture generalizes, not substitutes for TAPE's own suite. If the final deliverable specifically needs generalization against TAPE's own benchmarks, ALFWorld/MuSiQue/GSM8K-Hard are still the gap, not river crossing/Rush Hour.
 - **Tuning gap worth naming honestly:** `ScoreWeights`' default values (regression penalty 1.5, confidence penalty 4.0, budget penalty 2.0) were chosen to be directionally sensible, not fit to data. Phase 6 would be a natural place to actually tune them, or at least justify them empirically, rather than leaving them as reasonable-looking defaults.

@@ -355,6 +355,12 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 
 **It is generated, not hand-authored.** `demo/template.html` is the hand-written page (layout, styling, JS logic) with a placeholder where the data goes. Running `python experiments/export_demo.py` re-executes the real pipeline (baseline graph build, validated graph build, an experience-primed graph build, the Phase 2 stress test, the Phase 5 timing comparison, and the river crossing / Rush Hour builders) and bakes the fresh output into `demo/index.html`. **Whenever the pipeline changes** (as it did for Phase 4 — the solver-cost numbers on the page jumped from single digits into the hundreds because of the new scoring formula), rerun this script before presenting, or the demo will show stale numbers that no longer match the code. Do not hand-edit `demo/index.html` directly; edit `demo/template.html` instead.
 
+**Opening it — two ways, and a real bug found by testing both:**
+- Double-click `demo/index.html` (or open it via `file://`) — no server, no setup. This is what we tested first, and it looked fine.
+- Serve it locally instead (`.claude/launch.json` defines a `demo` config: `python -m http.server 8000 --directory demo`, or run that command directly) if you want a `localhost` URL — e.g. to open it on another device on the same network, or to avoid a browser's occasional extra restrictions on `file://` pages.
+
+Testing the second option surfaced a real bug the first one was silently hiding: `demo/template.html` never declared `<meta charset="utf-8">`. Chrome guesses UTF-8 correctly for local `file://` pages regardless, but Python's `http.server` doesn't send a charset in its `Content-Type` header, so every non-ASCII character (`·`, `✓`, `◀`) rendered as mojibake once served over plain HTTP. Fixed by adding the meta tag — a one-line fix, but one that would only ever have been caught by actually serving the page the second way, not by eyeballing it as a local file.
+
 ---
 
 ## 12. Is this reinforcement learning?

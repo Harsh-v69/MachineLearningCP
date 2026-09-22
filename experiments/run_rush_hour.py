@@ -14,6 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tape.envs.rush_hour import LEVEL_CLASSIC
+from tape.envs.rush_hour_validator import RowGridlockValidator
 from tape.executor import run_episode
 from tape.llm import AdversarialMockLLMClient, MockLLMClient
 from tape.metrics import aggregate
@@ -26,15 +27,22 @@ def main() -> None:
     parser.add_argument("--max-depth", type=int, default=20)
     parser.add_argument("--llm", choices=["mock", "adversarial"], default="mock")
     parser.add_argument("--path-selection", choices=["cp_sat", "astar", "adaptive"], default="adaptive")
+    parser.add_argument("--validator", choices=["none", "row-gridlock"], default="none",
+                         help="Phase 2: reject provably-sealed rows, downweight suspicious-but-unproven stuck blockers")
     args = parser.parse_args()
 
     level = LEVEL_CLASSIC
-    make_llm = AdversarialMockLLMClient if args.llm == "adversarial" else MockLLMClient
+    validator = RowGridlockValidator() if args.validator == "row-gridlock" else None
+
+    def make_llm(seed: int):
+        if args.llm == "adversarial":
+            return AdversarialMockLLMClient(seed=seed)
+        return MockLLMClient(seed=seed, validator=validator)
 
     episodes = [
         run_episode(
-            level, make_llm(seed=i), n_candidates=args.candidates, max_depth=args.max_depth,
-            path_selection=args.path_selection,
+            level, make_llm(i), n_candidates=args.candidates, max_depth=args.max_depth,
+            validator=validator, path_selection=args.path_selection,
         )
         for i in range(args.episodes)
     ]

@@ -50,7 +50,8 @@ MachineLearningCP/
 │   │   ├── sokoban.py                   # benchmark 1 (Phase 1)
 │   │   ├── river_crossing.py            # benchmark 2 (§8.1): missionaries and cannibals
 │   │   ├── river_crossing_validator.py  # its Phase 2 validator: RiverSafetyValidator
-│   │   └── rush_hour.py                 # benchmark 3 (§8.2): sliding-vehicle traffic jam
+│   │   ├── rush_hour.py                 # benchmark 3 (§8.2): sliding-vehicle traffic jam
+│   │   └── rush_hour_validator.py       # its Phase 2 validator: RowGridlockValidator (§8.2.1)
 │   ├── llm.py                  # candidate plan generation: MockLLMClient, AdversarialMockLLMClient, GeminiClient
 │   ├── graph.py                # plan graph construction + validation/scoring hooks
 │   ├── solver.py                # CP-SAT path selection (OR-Tools)
@@ -67,7 +68,7 @@ MachineLearningCP/
 │   ├── stress_test.py            # Phase 2 adversarial stress test (see §4.1)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
 ├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §11)
-└── tests/                        # 54 tests, all passing (see §9)
+└── tests/                        # 60 tests, all passing (see §9)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -261,15 +262,27 @@ python experiments/run_river_crossing.py --llm adversarial --episodes 20 --candi
 
 `complexity(state)` returns the vehicle count. Getting the target vehicle out almost always means moving one or more blockers out of its way, in the right order — independently-movable pieces whose routes can conflict, the same shape of problem as Sokoban's multiple boxes — so it correctly routes to CP-SAT via the *same* adaptive rule already used for the other two benchmarks, no special-casing needed.
 
-**Honest scope limitation:** there is no bespoke Phase 2 validator for Rush Hour. A real gridlock-detection rule (is a vehicle permanently boxed in, accounting for what its blocking neighbors could still do) needs real lookahead to be sound; a shallow one-level local check risks being either useless (catches nothing real) or unsound (falsely rejects a solvable position). Rather than ship a fake validator for the sake of symmetry with the other two benchmarks, this is left undone and named here directly.
-
 **Verified against a hand-worked solution:** the demo board has a vertical blocker (`B`) directly in the target's exit row, and an uninvolved decoy vehicle (`A`) that never needs to move (same as real Rush Hour boards usually have pieces that are irrelevant to the solution). BFS confirms the optimal solution is exactly 6 actions — move `B` down twice to clear the row, then slide the target right four times — matching a hand-traced solution, not just "the code agrees with itself."
 
 8 tests (`tests/test_rush_hour.py`), including two that confirm level construction actually rejects malformed boards (a disconnected same-letter run; a vertical target vehicle).
 
+#### 8.2.1 `RowGridlockValidator`
+
+**Why this needed more care than Sokoban's corner check:** gridlock in Rush Hour is *not* locally decidable in general. A vehicle with zero legal moves right now can still be freed several moves later by an unrelated vehicle elsewhere on the board moving out of the way first — unlike Sokoban, where walls never move, so "boxed by two walls" really is permanent. A naive "is anything stuck" rule would be unsound: Rush Hour puzzles routinely *start* with the target vehicle blocked (that's the puzzle), so such a rule would reject the opening move of nearly every solvable board.
+
+**What was actually built** (`src/tape/envs/rush_hour_validator.py`), two honestly-different tiers instead of one guess:
+
+- **Hard reject, provably sound:** a *sealed row* — every cell in the target's row is occupied, and every vehicle contributing to that row is horizontal (none vertical). This is a genuine certificate: sliding needs an empty cell in the same row, none exists, and none ever can appear, because a vertical vehicle is the only kind of neighbor that could vacate a row-cell by leaving the row entirely. If the row is packed with only horizontal vehicles, nothing in it can ever move again, period.
+- **Soft "uncertain" (confidence 0.5, not a reject):** the target is blocked, and that specific blocking vehicle currently has zero legal moves of its own. This is a real, worth-distrusting signal — but explicitly *not* proof of a permanent deadlock, since a third vehicle might still rescue the blocker later. Kept as a confidence penalty, never a hard reject, exactly matching how Sokoban's own "box against one wall" case is treated.
+
+**Verified rigorously, not just spot-checked:** replaying the known 6-move optimal solution produces zero rejections and zero confidence penalties end to end (`test_optimal_solution_never_gets_rejected_or_downweighted`) — including at the very first state, where the target genuinely has no legal move (blocked by `B`) but `B` itself can still move, so neither tier fires. A constructed sealed-row board (`XXCCCC` exactly filling a 6-wide row) triggers the hard reject; the *same* occupancy pattern with one vehicle made vertical instead of horizontal does **not** trigger it (confirming the rule keys on orientation, not just "no gaps"), and correctly falls through to the soft "uncertain" tier instead, since the blocked target's blocker also has no move in that specific constructed case.
+
+6 tests (`tests/test_rush_hour_validator.py`). `--validator row-gridlock` on the CLI.
+
 **Run it:**
 ```bash
 python experiments/run_rush_hour.py --episodes 20
+python experiments/run_rush_hour.py --episodes 20 --validator row-gridlock
 ```
 
 ### 8.3 What "any benchmark" means now, honestly
@@ -278,7 +291,7 @@ Three benchmarks (Sokoban, river crossing, Rush Hour) now share Phases 1–5 unc
 
 ---
 
-## 9. Test coverage (54 tests, all passing)
+## 9. Test coverage (60 tests, all passing)
 
 ```
 tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -293,6 +306,7 @@ tests/test_hard_level.py     3  — the tougher Sokoban level: BFS-verified 29-m
 tests/test_path_selector.py 7  — A* finds the same-cost optimal path CP-SAT does, returns None when infeasible, decide_method routes single-box to A* and multi-box to CP-SAT, adaptive selection solves both correctly
 tests/test_river_crossing.py 6  — matches the textbook 11-move answer, step() doesn't self-enforce safety, validator rejects/accepts correctly, complexity is always 1, full pipeline solves it, and fails without an aware LLM
 tests/test_rush_hour.py      8  — 6-move hand-verified optimal solution, target blocked by a vehicle ahead, can't drive off the board, complexity is the vehicle count, full pipeline solves it via CP-SAT, malformed boards rejected
+tests/test_rush_hour_validator.py 6  — zero false rejects/downweights along the real solution, pipeline still solves with it active, hard-rejects a genuinely sealed row, does NOT reject the same pattern with a vertical vehicle instead, flags (not rejects) a suspicious-but-unproven double-lock, doesn't flag a blocker that can still move
 ```
 
 Run everything:
@@ -341,7 +355,32 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 
 ---
 
-## 12. What's left to reach 100% (Phase 6, not started)
+## 12. Is this reinforcement learning?
+
+No. This project is closer to classical AI planning (graph search plus constraint solving) with an LLM bolted on for candidate generation. Worth stating explicitly, since Phase 3's experience mechanism can look RL-ish at a glance if the teacher asks — it isn't, and it's worth being precise about why not, and about what actually replaces each piece an RL system would have.
+
+**Where it clearly isn't RL:**
+- No reward signal is being maximized. There is no objective function the system optimizes across episodes.
+- Nothing is learned in the parametric sense — the LLM's weights never update, and there is no policy network or value function being trained.
+- Path selection (A*/CP-SAT) is classical deterministic search/optimization, not a learned policy.
+- There is no exploration-exploitation tradeoff being managed, which is central to almost every RL formulation.
+
+**What replaces each of those four pillars here:**
+
+| Instead of... | We do... |
+|---|---|
+| Maximizing a reward signal over episodes | A fixed, hand-designed cost function (`score_transition()` in `scoring.py`: regression + confidence penalty + budget penalty) computed once per planning round and minimized in that one shot. No accumulation across episodes, no discounting, no return being optimized — each round is a fresh minimization problem. |
+| Learning parameters from experience | Direct frequency counting. `ExperienceStore` (`experience.py`) keeps a per-`(state, action)` success/failure tally in sqlite and computes confidence as `(successes + 1) / (total + 2)` — Laplace-smoothed lookup, not gradient descent. Nothing generalizes to unseen states; it is memorization, not function approximation. |
+| A learned policy choosing actions | Classical deterministic search over an explicitly built graph. `astar_select_path()` and `select_path()` (CP-SAT) both search the *same* plan graph to optimality given its current edge costs, recomputed fresh every round. Swapping the graph's costs doesn't require "relearning" anything — the search just resolves. |
+| Managing exploration vs. exploitation | The LLM samples multiple candidate plans per round (`generate_candidate_plans(..., n)` in `llm.py`) — that's where behavioral diversity comes from, not a bandit-style epsilon-greedy or UCB strategy. When execution diverges from the plan, replanning is unconditional and deterministic (the mismatch check in `executor.py`), not a policy deciding whether to explore further. |
+
+**The one RL-adjacent piece, and why it still isn't RL:** Phase 3's `ExperienceStore` records per-transition success/failure counts and uses that to bias future planning — a loose cousin of how tabular Q-learning updates value estimates from past outcomes. But it's exact-match memorization of specific `(state, action)` pairs with frequency counting, not a value function that generalizes across states, and there is no reward being propagated backward through a trajectory (no Bellman-style credit assignment).
+
+**The honest framing for a report or in front of the teacher:** this is planning-based, not learning-based. An LLM proposes candidate plans, those become a graph, a validator and a hand-written scoring function judge the graph, and a classical solver (A* or CP-SAT) finds the optimal path through it — the same intellectual lineage as A* and constraint programming, with the LLM replacing hand-written plan generation, not a trained agent replacing a hand-written policy.
+
+---
+
+## 13. What's left to reach 100% (Phase 6, not started)
 
 - **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. Phase 5 vs. combined across all implemented levels *and now all three benchmarks* (Sokoban, river crossing, Rush Hour), with the aggregate metrics already being tracked in `metrics.py` and `EpisodeResult.path_selection_methods`.
 - **Scope gap to flag to the teacher directly:** TAPE's own four named benchmarks are ALFWorld, MuSiQue, GSM8K-Hard, and Sokoban. Only Sokoban is implemented; river crossing and Rush Hour (§8) are additional benchmarks that prove the architecture generalizes, not substitutes for TAPE's own suite. If the final deliverable specifically needs generalization against TAPE's own benchmarks, ALFWorld/MuSiQue/GSM8K-Hard are still the gap, not river crossing/Rush Hour.

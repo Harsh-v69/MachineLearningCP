@@ -75,6 +75,17 @@ class RushHourLevel:
                 cells[cell] = vid
         return cells
 
+    def occupied_cells(self, state: State) -> dict[tuple[int, int], str]:
+        """Public form of `_occupied`, for validators that need to reason
+        about the board without duplicating collision logic."""
+        return self._occupied(state)
+
+    def orientation_of(self, vid: str) -> str:
+        return self._orientation[vid]
+
+    def length_of(self, vid: str) -> int:
+        return self._length[vid]
+
     def _cells_of(self, vid: str, row: int, col: int) -> list[tuple[int, int]]:
         length = self._length[vid]
         if self._orientation[vid] == "H":

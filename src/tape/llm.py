@@ -20,7 +20,7 @@ import urllib.request
 from collections import deque
 from typing import Protocol
 
-from tape.envs.sokoban import ACTIONS, SokobanLevel, State
+from tape.env_base import Environment, State
 
 GEMINI_ENDPOINT = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -30,15 +30,11 @@ GEMINI_ENDPOINT = (
 
 class LLMClient(Protocol):
     def generate_candidate_plans(
-        self, level: SokobanLevel, state: State, n: int, max_depth: int
+        self, level: Environment, state: State, n: int, max_depth: int
     ) -> list[list[str]]: ...
 
 
-def _manhattan(a: tuple[int, int], b: tuple[int, int]) -> int:
-    return abs(a[0] - b[0]) + abs(a[1] - b[1])
-
-
-def _bfs_plan(level: SokobanLevel, start: State, max_depth: int) -> list[str]:
+def _bfs_plan(level: Environment, start: State, max_depth: int) -> list[str]:
     """Shortest solving action sequence within max_depth, or [] if none.
     Used as one "good" candidate among the mock LLM's proposals -- a real
     LLM occasionally gets it exactly right too."""
@@ -50,7 +46,7 @@ def _bfs_plan(level: SokobanLevel, start: State, max_depth: int) -> list[str]:
             return path
         if len(path) >= max_depth:
             continue
-        for a in ACTIONS:
+        for a in level.ACTIONS:
             nxt, moved = level.step(cur, a)
             if moved and nxt not in seen:
                 seen.add(nxt)
@@ -70,28 +66,25 @@ class MockLLMClient:
         self._rng = random.Random(seed)
 
     def generate_candidate_plans(
-        self, level: SokobanLevel, state: State, n: int, max_depth: int
+        self, level: Environment, state: State, n: int, max_depth: int
     ) -> list[list[str]]:
         plans = [_bfs_plan(level, state, max_depth)]
         for _ in range(max(0, n - 1)):
             plans.append(self._noisy_candidate(level, state, max_depth))
         return plans
 
-    def _noisy_candidate(self, level: SokobanLevel, state: State, max_depth: int) -> list[str]:
+    def _noisy_candidate(self, level: Environment, state: State, max_depth: int) -> list[str]:
         actions: list[str] = []
         cur = state
         for _ in range(max_depth):
             if level.is_goal(cur):
                 break
             scored = []
-            for a in ACTIONS:
+            for a in level.ACTIONS:
                 nxt, moved = level.step(cur, a)
                 if not moved:
                     continue
-                dist = sum(
-                    min(_manhattan(b, g) for g in level.goals) for b in nxt.boxes
-                )
-                scored.append((dist, a, nxt))
+                scored.append((level.heuristic(nxt), a, nxt))
             if not scored:
                 break
             scored.sort(key=lambda t: t[0])
@@ -115,17 +108,17 @@ class AdversarialMockLLMClient:
         self._rng = random.Random(seed)
 
     def generate_candidate_plans(
-        self, level: SokobanLevel, state: State, n: int, max_depth: int
+        self, level: Environment, state: State, n: int, max_depth: int
     ) -> list[list[str]]:
         return [self._one_candidate(level, state, max_depth) for _ in range(n)]
 
-    def _one_candidate(self, level: SokobanLevel, state: State, max_depth: int) -> list[str]:
+    def _one_candidate(self, level: Environment, state: State, max_depth: int) -> list[str]:
         actions: list[str] = []
         cur = state
         for _ in range(max_depth):
             if level.is_goal(cur):
                 break
-            valid = [a for a in ACTIONS if level.step(cur, a)[1]]
+            valid = [a for a in level.ACTIONS if level.step(cur, a)[1]]
             if not valid:
                 break
             action = self._rng.choice(valid)
@@ -142,21 +135,21 @@ class GeminiClient:
         self.model = model
 
     def generate_candidate_plans(
-        self, level: SokobanLevel, state: State, n: int, max_depth: int
+        self, level: Environment, state: State, n: int, max_depth: int
     ) -> list[list[str]]:
         prompt = self._build_prompt(level, state, n, max_depth)
         text = self._call(prompt)
-        return self._parse(text)
+        return self._parse(text, level.ACTIONS)
 
-    def _build_prompt(self, level: SokobanLevel, state: State, n: int, max_depth: int) -> str:
+    def _build_prompt(self, level: Environment, state: State, n: int, max_depth: int) -> str:
+        actions = ", ".join(f'"{a}"' for a in level.ACTIONS)
         return (
-            "You are solving a Sokoban puzzle. '#'=wall, '@'=player, '$'=box, "
-            "'.'=goal, '*'=box on goal, '+'=player on goal.\n"
+            "You are solving a puzzle. Here is its current state:\n"
             f"{level.render(state)}\n\n"
             f"Propose {n} different candidate action sequences (each a list of "
-            "moves from {U,D,L,R}) that could push every box onto a goal, "
+            f"moves, each move one of {{{actions}}}) that could reach the goal, "
             f"each at most {max_depth} moves. Reply with ONLY a JSON array of "
-            'arrays, e.g. [["U","R","R"],["D","L"]].'
+            "arrays of move strings."
         )
 
     def _call(self, prompt: str) -> str:
@@ -169,7 +162,7 @@ class GeminiClient:
             data = json.loads(resp.read())
         return data["candidates"][0]["content"]["parts"][0]["text"]
 
-    def _parse(self, text: str) -> list[list[str]]:
+    def _parse(self, text: str, actions: tuple[str, ...]) -> list[list[str]]:
         match = re.search(r"\[.*\]", text, re.DOTALL)
         if not match:
             return []
@@ -177,4 +170,4 @@ class GeminiClient:
             raw = json.loads(match.group(0))
         except json.JSONDecodeError:
             return []
-        return [[a for a in seq if a in ACTIONS] for seq in raw if isinstance(seq, list)]
+        return [[a for a in seq if a in actions] for seq in raw if isinstance(seq, list)]

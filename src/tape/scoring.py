@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from tape.envs.sokoban import SokobanLevel, State
+from tape.env_base import Environment, State
 
 
 @dataclass
@@ -38,19 +38,15 @@ class TransitionScore:
     cost: int  # combined edge weight (integer -- CP-SAT requires integer coefficients)
 
 
-def goal_distance(level: SokobanLevel, state: State) -> int:
-    """Sum, over every box not already on a goal, of its distance to the
-    nearest goal. 0 means every box is on a goal (the puzzle is solved)."""
-    if not state.boxes:
-        return 0
-    return sum(
-        min(abs(b[0] - g[0]) + abs(b[1] - g[1]) for g in level.goals)
-        for b in state.boxes
-    )
+def goal_distance(level: Environment, state: State) -> int:
+    """Back-compat wrapper: every environment now owns its own heuristic
+    (Sokoban's is Manhattan distance of boxes to goals; other benchmarks
+    define their own notion of "distance to solved")."""
+    return level.heuristic(state)
 
 
 def score_transition(
-    level: SokobanLevel,
+    level: Environment,
     from_state: State,
     to_state: State,
     step_index: int,
@@ -58,8 +54,8 @@ def score_transition(
     confidence: float,
     weights: ScoreWeights = ScoreWeights(),
 ) -> TransitionScore:
-    before = goal_distance(level, from_state)
-    after = goal_distance(level, to_state)
+    before = level.heuristic(from_state)
+    after = level.heuristic(to_state)
     regression = max(0, after - before)
     budget_used_fraction = min(1.0, (step_index + 1) / max_depth) if max_depth > 0 else 1.0
 

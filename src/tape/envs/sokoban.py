@@ -28,6 +28,8 @@ class State:
 
 
 class SokobanLevel:
+    ACTIONS = ACTIONS
+
     def __init__(self, rows: Iterable[str]):
         rows = list(rows)
         self.height = len(rows)
@@ -65,6 +67,19 @@ class SokobanLevel:
 
     def is_goal(self, state: State) -> bool:
         return state.boxes == self.goals
+
+    def heuristic(self, state: State) -> int:
+        """Sum, over every box not already on a goal, of its Manhattan
+        distance to the nearest goal. 0 means every box is on a goal."""
+        if not state.boxes:
+            return 0
+        return sum(
+            min(abs(b[0] - g[0]) + abs(b[1] - g[1]) for g in self.goals)
+            for b in state.boxes
+        )
+
+    def complexity(self, state: State) -> int:
+        return len(state.boxes)
 
     def is_valid_action(self, state: State, action: str) -> bool:
         return self.step(state, action)[1]

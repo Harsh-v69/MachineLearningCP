@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 import networkx as nx
 
-from tape.envs.sokoban import SokobanLevel, State
+from tape.env_base import Environment, State
 from tape.experience import ExperienceStore
 from tape.scoring import ScoreWeights, score_transition
 from tape.validator import GraphValidator
@@ -37,7 +37,7 @@ class PlanGraphResult:
 
 
 def build_plan_graph(
-    level: SokobanLevel, start: State, candidate_plans: list[list[str]]
+    level: Environment, start: State, candidate_plans: list[list[str]]
 ) -> PlanGraphResult:
     graph = nx.DiGraph()
     graph.add_node(start)
@@ -62,7 +62,7 @@ def build_plan_graph(
 
 
 def build_validated_plan_graph(
-    level: SokobanLevel,
+    level: Environment,
     start: State,
     candidate_plans: list[list[str]],
     validator: GraphValidator,

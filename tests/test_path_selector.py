@@ -44,13 +44,13 @@ def test_astar_returns_none_when_infeasible():
 def test_decide_method_prefers_astar_for_single_box_levels():
     for level in (LEVEL_TRIVIAL, LEVEL_SIMPLE):
         plan_graph = build_plan_graph(level, level.initial_state, [["R"]])
-        assert decide_method(plan_graph) == ASTAR
+        assert decide_method(level, plan_graph) == ASTAR
 
 
 def test_decide_method_prefers_cp_sat_for_multi_box_levels():
     level = LEVEL_MULTI
     plan_graph = build_plan_graph(level, level.initial_state, [["U"]])
-    assert decide_method(plan_graph) == CP_SAT
+    assert decide_method(level, plan_graph) == CP_SAT
 
 
 def test_select_path_adaptive_solves_single_box_level_with_astar():

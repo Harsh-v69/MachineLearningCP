@@ -17,7 +17,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-from tape.envs.sokoban import State
+from tape.env_base import State
 
 
 @dataclass
@@ -35,7 +35,10 @@ class TransitionStats:
 
 
 def _state_key(state: State) -> str:
-    return f"{state.player}|{sorted(state.boxes)}"
+    """A stable string key for any hashable state -- frozen dataclasses,
+    frozensets, and tuples all have deterministic reprs, so this works
+    across every environment without knowing its field names."""
+    return repr(state)
 
 
 class ExperienceStore:

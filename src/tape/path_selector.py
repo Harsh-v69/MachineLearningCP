@@ -8,18 +8,20 @@ every task, with no way to adapt.
 
 This module adds a second path-selection method, A* using the Phase 4
 score as its heuristic, and a `decide_method` rule that picks between the
-two based on a property of the task itself: a single-box Sokoban level is
-just a shortest-path problem (A* suffices), while a multi-box level needs
-the boxes' pushes coordinated jointly, exactly the kind of hard,
-interacting constraint CP-SAT is for. `select_path_adaptive` is the
-one entry point that actually chooses.
+two based on a property of the task itself, reported by the environment's
+own `complexity(state)`: a puzzle with one independently-movable piece
+(a single Sokoban box; river crossing's one boat) is just a shortest-path
+problem (A* suffices), while more than one (multiple boxes; Rush Hour's
+several vehicles) need those pieces coordinated jointly, exactly the kind
+of hard, interacting constraint CP-SAT is for. `select_path_adaptive` is
+the one entry point that actually chooses.
 """
 from __future__ import annotations
 
 import heapq
 import itertools
 
-from tape.envs.sokoban import SokobanLevel, State
+from tape.env_base import Environment, State
 from tape.graph import PlanGraphResult
 from tape.scoring import goal_distance
 from tape.solver import PlanSolution, select_path
@@ -28,7 +30,7 @@ ASTAR = "astar"
 CP_SAT = "cp_sat"
 
 
-def astar_select_path(level: SokobanLevel, plan_graph: PlanGraphResult) -> PlanSolution | None:
+def astar_select_path(level: Environment, plan_graph: PlanGraphResult) -> PlanSolution | None:
     """A* over the plan graph: g-cost is the sum of edge costs (the same
     Phase 4 scores CP-SAT minimizes), h-cost is `goal_distance` scaled to
     match those costs' units. Finds the same optimal-cost path CP-SAT
@@ -76,20 +78,21 @@ def astar_select_path(level: SokobanLevel, plan_graph: PlanGraphResult) -> PlanS
     return None
 
 
-def decide_method(plan_graph: PlanGraphResult) -> str:
-    """A single box is a pure shortest-path problem; A* handles it fine.
-    More than one box means the pushes have to be coordinated jointly
-    (progress on one box's route can conflict with another's), which is
-    exactly the kind of hard combinatorial constraint CP-SAT exists for."""
-    if len(plan_graph.start.boxes) > 1:
+def decide_method(level: Environment, plan_graph: PlanGraphResult) -> str:
+    """One independently-movable piece is a pure shortest-path problem;
+    A* handles it fine. More than one means their moves have to be
+    coordinated jointly (progress on one piece's route can conflict with
+    another's), which is exactly the kind of hard combinatorial
+    constraint CP-SAT exists for."""
+    if level.complexity(plan_graph.start) > 1:
         return CP_SAT
     return ASTAR
 
 
 def select_path_adaptive(
-    level: SokobanLevel, plan_graph: PlanGraphResult
+    level: Environment, plan_graph: PlanGraphResult
 ) -> tuple[PlanSolution | None, str]:
-    method = decide_method(plan_graph)
+    method = decide_method(level, plan_graph)
     if method == ASTAR:
         return astar_select_path(level, plan_graph), ASTAR
     return select_path(plan_graph), CP_SAT

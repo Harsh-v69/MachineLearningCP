@@ -12,7 +12,7 @@ import random
 import time
 from dataclasses import dataclass, field
 
-from tape.envs.sokoban import SokobanLevel, State
+from tape.env_base import Environment, State
 from tape.experience import ExperienceStore
 from tape.graph import build_plan_graph, build_validated_plan_graph
 from tape.llm import LLMClient
@@ -43,7 +43,7 @@ class EpisodeResult:
 
 
 def run_episode(
-    level: SokobanLevel,
+    level: Environment,
     llm: LLMClient,
     start: State | None = None,
     n_candidates: int = 6,

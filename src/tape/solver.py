@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import networkx as nx
 from ortools.sat.python import cp_model
 
-from tape.envs.sokoban import State
+from tape.env_base import State
 from tape.graph import PlanGraphResult
 
 _SINK = object()

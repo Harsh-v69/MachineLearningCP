@@ -1,6 +1,18 @@
 # Progress: TAPE Extension — Adaptive Graph Validation & Solver Generalization
 
-**Overall status: ~90% complete (Phases 1–5 of 6), well ahead of the mid-semester checkpoint, now verified across three benchmarks (Sokoban, river crossing, Rush Hour) instead of one.**
+**Overall status: all six phases have working code and results (about 97% of the plan). Phases 1 to 5 are the pipeline. Phase 6 (evaluation) has its core experiments done: ablation, memory test, weight tuning, proposer-quality sweep, and the Boxoban benchmark. The guide ruled out LLMs, so real-LLM runs and TAPE's LLM-native benchmarks are dropped (Sec 15). 66 tests pass, and everything is pushed to GitHub.**
+
+**Status at a glance**
+
+| Area | State |
+|---|---|
+| Pipeline (Phases 1 to 5) | Done, tested |
+| Benchmarks | Sokoban (4 hand-made levels), River Crossing, Rush Hour, and Boxoban (3000 real levels, three difficulty sets) |
+| Evaluation (Phase 6) | Ablation (Sec 14), experience store under state-dependent slip (14.1), ScoreWeights tuning (14.2), proposer sweep (14.3), Boxoban (Sec 16) |
+| Demo | Guided walkthrough `demo/index.html` with a project map, three playable games, and a results page (Sec 11) |
+| Main findings | The checker gives safety (River Crossing 0% to 100% safe) and better search (Boxoban solves 3 to 28 points more at the top budget). The adaptive solver cuts planning time where one piece moves. Memory helps on two games. Tuning found nothing better than defaults. |
+| Open | Paper writing, optional extra Boxoban files, a learned (non-LLM) proposer if the guide allows it |
+
 
 This document is meant to be read start to finish by a teammate who has not touched the code yet, and to be enough on its own to explain the project to the teacher. It covers what the project is, what's been built, why each piece exists, how to run it, and exactly what's left.
 
@@ -31,9 +43,9 @@ Our project builds five extensions addressing these gaps, on top of a faithful r
 | 3 — Self-Improving Graph | 15% | ✅ Done |
 | 4 — Dynamic Reachability/Utility Score | 15% | ✅ Done |
 | 5 — Adaptive Path Selection (A*/AO* vs solver) | 15% | ✅ Done |
-| 6 — Evaluation & Ablations | 10% | ⏳ Not started |
+| 6 — Evaluation & Ablations | 10% | ✅ Core done (Sec 14 to 16); optional extras open |
 
-**Phases 1–5 sum to 90%, which is where the project currently stands.**
+**Phases 1 to 5 sum to 90%. Phase 6's core is done; what is left is listed in Sec 13.**
 
 ---
 
@@ -42,17 +54,21 @@ Our project builds five extensions addressing these gaps, on top of a faithful r
 ```
 MachineLearningCP/
 ├── ML_CP.docx                 # original project proposal (source of truth for scope)
-├── requirements.txt           # networkx, ortools, google-generativeai, pytest
+├── requirements.txt           # networkx, ortools, pytest (the Gemini client uses urllib, no SDK)
+├── data/boxoban/              # three Boxoban level files, 1000 levels each (Sec 16)
+├── results/                   # tables written by the Phase 6 experiments (ablation, memory, tuning, sweeps, Boxoban)
 ├── .env.example                # GEMINI_API_KEY (copy to .env, fill in, do not commit)
 ├── src/tape/
 │   ├── env_base.py              # the Environment protocol every benchmark implements (see §8.0)
 │   ├── envs/
 │   │   ├── sokoban.py                   # benchmark 1 (Phase 1)
+│   │   ├── boxoban.py                   # loader for the public Boxoban level files (Sec 16)
 │   │   ├── river_crossing.py            # benchmark 2 (§8.1): missionaries and cannibals
 │   │   ├── river_crossing_validator.py  # its Phase 2 validator: RiverSafetyValidator
 │   │   ├── rush_hour.py                 # benchmark 3 (§8.2): sliding-vehicle traffic jam
 │   │   └── rush_hour_validator.py       # its Phase 2 validator: RowGridlockValidator (§8.2.1)
-│   ├── llm.py                  # candidate plan generation: MockLLMClient, AdversarialMockLLMClient, GeminiClient
+│   ├── llm.py                  # candidate plan generation: MockLLMClient, AdversarialMockLLMClient, QualityProposer, GeminiClient (unused)
+│   ├── search_proposer.py       # weighted A* proposer for levels too big for BFS (Sec 16)
 │   ├── graph.py                # plan graph construction + validation/scoring hooks
 │   ├── solver.py                # CP-SAT path selection (OR-Tools)
 │   ├── executor.py             # constrained execution + mismatch-triggered replanning
@@ -66,9 +82,14 @@ MachineLearningCP/
 │   ├── run_river_crossing.py     # CLI: same pipeline, river crossing
 │   ├── run_rush_hour.py          # CLI: same pipeline, Rush Hour
 │   ├── stress_test.py            # Phase 2 adversarial stress test (see §4.1)
+│   ├── run_ablation.py           # Phase 6: 5 configs x 6 benchmarks x 2 proposers (Sec 14)
+│   ├── run_experience_test.py    # Phase 6: experience store under state-dependent slip (Sec 14.1)
+│   ├── tune_weights.py           # Phase 6: ScoreWeights grid search with held-out check (Sec 14.2)
+│   ├── run_proposer_sweep.py     # Phase 6: benefit vs proposer quality (Sec 14.3)
+│   ├── run_boxoban.py            # Phase 6: Boxoban benchmark (Sec 16)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
-├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §11)
-└── tests/                        # 63 tests, all passing (see §9)
+├── demo/                         # template.html (hand-written) and index.html (generated), see §11
+└── tests/                        # 66 tests, all passing (see §9)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -291,7 +312,7 @@ Three benchmarks (Sokoban, river crossing, Rush Hour) now share Phases 1–5 unc
 
 ---
 
-## 9. Test coverage (63 tests, all passing)
+## 9. Test coverage (66 tests, all passing)
 
 ```
 tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -306,6 +327,8 @@ tests/test_hard_level.py     3  — the tougher Sokoban level: BFS-verified 29-m
 tests/test_path_selector.py 7  — A* finds the same-cost optimal path CP-SAT does, returns None when infeasible, decide_method routes single-box to A* and multi-box to CP-SAT, adaptive selection solves both correctly
 tests/test_river_crossing.py 6  — matches the textbook 11-move answer, step() doesn't self-enforce safety, validator rejects/accepts correctly, complexity is always 1, full pipeline solves it, and fails without an aware LLM
 tests/test_rush_hour.py      8  — 6-move hand-verified optimal solution, target blocked by a vehicle ahead, can't drive off the board, complexity is the vehicle count, full pipeline solves it via CP-SAT, malformed boards rejected
+tests/test_export_demo.py     3  — for each game the demo data is sound: the good plan solves, the checker flags the bad plan, replanning after a slip produces a path
+tests/test_boxoban.py         3  — level blocks parse, the real file has 1000 ten-by-ten four-box levels, the search proposer solves a real level and pruning never expands more nodes
 tests/test_rush_hour_validator.py 6  — zero false rejects/downweights along the real solution, pipeline still solves with it active, hard-rejects a genuinely sealed row, does NOT reject the same pattern with a vertical vehicle instead, flags (not rejects) a suspicious-but-unproven double-lock, doesn't flag a blocker that can still move
 ```
 
@@ -381,11 +404,15 @@ No. This project is closer to classical AI planning (graph search plus constrain
 
 ---
 
-## 13. What's left to reach 100% (Phase 6 first pass done, see Sec 14)
+## 13. What's left
 
-- **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. Phase 5 vs. combined across all implemented levels *and now all three benchmarks* (Sokoban, river crossing, Rush Hour), with the aggregate metrics already being tracked in `metrics.py` and `EpisodeResult.path_selection_methods`.
-- **Scope gap to flag to the teacher directly:** TAPE's own four named benchmarks are ALFWorld, MuSiQue, GSM8K-Hard, and Sokoban. Only Sokoban is implemented; river crossing and Rush Hour (§8) are additional benchmarks that prove the architecture generalizes, not substitutes for TAPE's own suite. If the final deliverable specifically needs generalization against TAPE's own benchmarks, ALFWorld/MuSiQue/GSM8K-Hard are still the gap, not river crossing/Rush Hour.
-- **Tuning gap worth naming honestly:** `ScoreWeights`' default values (regression penalty 1.5, confidence penalty 4.0, budget penalty 2.0) were chosen to be directionally sensible, not fit to data. Phase 6 would be a natural place to actually tune them, or at least justify them empirically, rather than leaving them as reasonable-looking defaults.
+Done since the last version of this section: the Phase 6 core (ablation, state-dependent memory test, ScoreWeights tuning, proposer-quality sweep) and the Boxoban benchmark. Remaining, in rough order of value:
+
+- **Write the paper.** The claim the data supports is narrow (Sec 14.3): the layer gives safety and fewer wasted replans, and the checker makes a search proposer solve more real levels (Sec 16). It does not raise the goal-reach rate when the proposer is already decent, and merging plans did not shorten paths.
+- **A learned, non-LLM proposer** (imitation or RL policy) for more realistic proposer errors than our synthetic ones. Ask the guide whether learned models are allowed.
+- **More Boxoban:** other files in each set, and a second checker rule beyond dead corners (for example frozen boxes) to see whether the gain grows.
+- **Scope gap to state plainly:** TAPE's ALFWorld, MuSiQue and GSM8K-Hard need an LLM and are dropped by the guide's decision. River Crossing, Rush Hour and Boxoban show the architecture generalizes; they are not substitutes for TAPE's own suite, so numbers are not comparable to the paper.
+- **Known weaknesses:** proposers are synthetic, the experience store only helps when candidates contain a detour, and `ScoreWeights` defaults were kept because tuning found nothing better (a null result, not a proof they are optimal).
 
 ---
 

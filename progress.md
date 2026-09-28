@@ -412,7 +412,7 @@ No. This project is closer to classical AI planning (graph search plus constrain
 - **Under the adversarial LLM the validator prunes bad transitions but cannot rescue a plan**: River Crossing 0% safe success in every config because no candidate is safe. Validators filter, they do not plan.
 - All results use mock LLMs, not a real model. Real-LLM runs (Gemini client exists) are still to do.
 
-**Still open for Phase 6:** tuning `ScoreWeights`, real-LLM runs, TAPE's own benchmarks (ALFWorld, MuSiQue, GSM8K-Hard).
+**Still open for Phase 6:** real-LLM runs, TAPE's own benchmarks (ALFWorld, MuSiQue, GSM8K-Hard).
 
 ### 14.1 Experience store under state-dependent slip
 
@@ -430,3 +430,16 @@ No. This project is closer to classical AI planning (graph search plus constrain
 - Rush Hour leans the same way but is not distinguishable from noise.
 - Two-box Sokoban shows no help (slightly worse). Our reading, not tested: with more possible routes, the 30 mock candidates rarely contain a detour around a learned hazard, and the store can only re-weight edges that already exist in the plan graph.
 - So Phase 3 is supported when failures are state-dependent and the candidates contain an alternative route, and not otherwise. This is still mock LLMs and synthetic hazards; a claim about real environments needs real failure data.
+
+### 14.2 Tuning ScoreWeights
+
+`python experiments/tune_weights.py` (table: `results/weight_tuning.md`). Grid of 80 weight triples (regression x confidence x budget penalty) in the state-dependent-slip setting with validator + experience store. Objective = replans + 3*(1 - success), averaged over the 4 benchmarks, lower is better. Fit on 8 train seeds; the top 3 and the defaults were then re-run on 16 unseen held-out seeds.
+
+| config (regression, confidence, budget) | train objective | held-out objective | held-out diff vs default |
+|---|---|---|---|
+| (0, 16, 2) best on train | 3.906 | 4.298 | +0.122 +/- 0.111 (worse) |
+| (3, 4, 0) | 3.961 | 4.098 | -0.078 +/- 0.123 (noise) |
+| (0, 16, 4) | 3.967 | 4.287 | +0.112 +/- 0.167 (noise) |
+| **default (1.5, 4, 2)** | 4.219 (rank 23/80) | 4.176 | 0 |
+
+**Result: tuning found no defensible improvement.** The best train point did not hold up on held-out seeds, and none of the three candidates beats the defaults beyond one standard error. So we keep the defaults, and can now say they were checked rather than merely assumed: within this setting the cost is fairly flat over a wide range of weights (train objectives 3.9 to 4.2 for most of the grid; the worst corner is 5.1). Caveats: mock LLM, synthetic hazards, and only 8 train seeds, so the grid ranking itself is noisy. `run_episode` now accepts `weights=` so this can be re-run against real-LLM candidates.

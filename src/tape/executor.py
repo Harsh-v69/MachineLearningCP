@@ -17,6 +17,7 @@ from tape.experience import ExperienceStore
 from tape.graph import build_plan_graph, build_validated_plan_graph
 from tape.llm import LLMClient
 from tape.path_selector import ASTAR, CP_SAT, astar_select_path, select_path_adaptive
+from tape.scoring import ScoreWeights
 from tape.solver import select_path
 from tape.validator import GraphValidator
 
@@ -57,6 +58,7 @@ def run_episode(
     level_id: str = "default",
     path_selection: str = CP_SAT,
     auditor: GraphValidator | None = None,
+    weights: ScoreWeights = ScoreWeights(),
     slip_fn=None,  # (state, action) -> slip probability; overrides slip_prob (state-dependent failures)
 ) -> EpisodeResult:
     rng = rng or random.Random()
@@ -70,7 +72,7 @@ def run_episode(
         if validator is not None:
             plan_graph = build_validated_plan_graph(
                 level, state, candidates, validator, experience=experience,
-                level_id=level_id, max_depth=max_depth,
+                level_id=level_id, max_depth=max_depth, weights=weights,
             )
         else:
             plan_graph = build_plan_graph(level, state, candidates)

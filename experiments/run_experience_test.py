@@ -34,7 +34,7 @@ def make_slip_fn(salt: int, hazard_frac: float, hazard_p: float):
     return slip
 
 
-def run(bench: str, use_exp: bool, salt: int, episodes: int, frac: float, p: float, cands: int) -> list:
+def run(bench: str, use_exp: bool, salt: int, episodes: int, frac: float, p: float, cands: int, weights=None) -> list:
     level, vfactory, depth = BENCHMARKS[bench]
     validator = vfactory()
     store = ExperienceStore() if use_exp else None
@@ -43,7 +43,7 @@ def run(bench: str, use_exp: bool, salt: int, episodes: int, frac: float, p: flo
     return [run_episode(level, MockLLMClient(seed=i, validator=validator), n_candidates=cands,
                         max_depth=depth, max_replans=8, rng=rng, validator=validator,
                         experience=store, level_id=bench, path_selection="cp_sat",
-                        slip_fn=slip) for i in range(episodes)]
+                        slip_fn=slip, **({'weights': weights} if weights else {})) for i in range(episodes)]
 
 
 def main() -> None:

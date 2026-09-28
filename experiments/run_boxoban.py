@@ -65,13 +65,15 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--levels", type=int, default=100)
     ap.add_argument("--file", default=None)
+    ap.add_argument("--out", default="boxoban.md")
+    ap.add_argument("--workers", type=int, default=10)  # each search holds large state sets; 40 workers ran out of resources
     a = ap.parse_args()
     from tape.envs.boxoban import DEFAULT_FILE
     path = a.file or str(DEFAULT_FILE)
-    with ProcessPoolExecutor(max_workers=20) as ex:
+    with ProcessPoolExecutor(max_workers=a.workers) as ex:
         rows = list(ex.map(one_level, [(i, path) for i in range(a.levels)], chunksize=2))
     n = len(rows)
-    L = [f"# Boxoban benchmark ({n} levels, 10x10, 4 boxes, medium/valid/000)\n",
+    L = [f"# Boxoban benchmark ({n} levels, 10x10, 4 boxes, {Path(path).stem})\n",
          "Proposer: weighted A* with weights 1, 2, 4, 8 and a per-search node budget.\n",
          "## Solve rate by node budget (any of the four searches finds a plan)\n",
          "| budget | plain | prune | levels only prune solves | levels only plain solves |", "|---|---|---|---|---|"]
@@ -93,7 +95,7 @@ def main() -> None:
              f"{len(better)} levels{saved} and longer on {worse}.")
     text = "\n".join(L) + "\n"
     (ROOT / "results").mkdir(exist_ok=True)
-    (ROOT / "results" / "boxoban.md").write_text(text, encoding="utf-8")
+    (ROOT / "results" / a.out).write_text(text, encoding="utf-8")
     print(text)
 
 

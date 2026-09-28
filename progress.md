@@ -478,11 +478,11 @@ Context: the original TAPE paper uses an LLM to propose candidate plans. Our gui
 
 ## 16. Boxoban benchmark (standard external levels)
 
-Boxoban is DeepMind's public Sokoban level set (`github.com/google-deepmind/boxoban-levels`). We use `medium/valid/000.txt`: 1000 levels, 10x10, 4 boxes each, stored at `data/boxoban/medium_valid_000.txt`. It uses the same character grammar as our own levels, so `tape.envs.boxoban.load_boxoban()` turns each block into a `SokobanLevel`. This is the first benchmark we did not write ourselves.
+Boxoban is DeepMind's public Sokoban level set (`github.com/google-deepmind/boxoban-levels`). We use one file from each of its three difficulty sets (`unfiltered/valid/000.txt`, `medium/valid/000.txt`, `hard/000.txt`): 1000 levels each, 10x10, 4 boxes, stored in `data/boxoban/`. It uses the same character grammar as our own levels, so `tape.envs.boxoban.load_boxoban()` turns each block into a `SokobanLevel`. This is the first benchmark we did not write ourselves.
 
 **Proposer (no LLM):** blind BFS cannot solve 4-box levels, so `tape.search_proposer.WeightedAStarProposer` runs weighted A* (weights 1, 2, 4, 8) under a per-search node budget and returns the plans that finish. Optionally the Phase 2 corner-deadlock checker prunes the search.
 
-**Experiment:** `python experiments/run_boxoban.py --levels 200` (table: `results/boxoban.md`). Solve rate is the share of levels where any of the four searches finds a plan within the budget:
+**Experiment:** `python experiments/run_boxoban.py --levels 200 [--file data/boxoban/<set>.txt --out <name>.md]` (tables: `results/boxoban_unfiltered.md`, `results/boxoban.md` for medium, `results/boxoban_hard.md`). Use `--workers` to limit processes; 40 at once ran out of resources. Solve rate is the share of the first 200 levels where any of the four searches finds a plan within the budget. Medium set:
 
 | nodes per search | no pruning | with checker |
 |---|---|---|
@@ -492,9 +492,19 @@ Boxoban is DeepMind's public Sokoban level set (`github.com/google-deepmind/boxo
 | 20,000 | 57% | 82% |
 | 30,000 | 70% | 88% |
 
+All three sets, same setup (no pruning vs with checker):
+
+| nodes per search | unfiltered | medium | hard |
+|---|---|---|---|
+| 2,000 | 51% vs 58% | 14% vs 22% | 6% vs 14% |
+| 5,000 | 70% vs 82% | 26% vs 41% | 16% vs 32% |
+| 10,000 | 84% vs 90% | 43% vs 64% | 30% vs 57% |
+| 20,000 | 90% vs 96% | 57% vs 82% | 49% vs 74% |
+| 30,000 | 95% vs 98% | 70% vs 88% | 57% vs 84% |
+
 **Reading it:**
-- The checker solves more levels at every budget, and in no case did no-pruning solve a level the checker missed (0 of 200 at every budget). The intervals at 20,000 and 30,000 nodes do not overlap.
-- It also expands 25% fewer nodes per level (69,002 vs 91,606 at the full budget).
+- The checker solves more levels at every budget in every set, and in no case did no-pruning solve a level the checker missed (0 of 200 in all 15 cells). The gain is largest where levels are harder: at 10,000 nodes it is 6 points on unfiltered, 21 on medium, 27 on hard. On unfiltered, most levels are easy enough that both arms solve them, and the intervals overlap at 30,000 nodes.
+- It also expands fewer nodes per level at the full budget: 19% fewer on unfiltered, 25% on medium, 27% on hard.
 - **This is not a new idea.** Pruning dead corners is standard in Sokoban solvers. What the result shows is that our Phase 2 checker works as that pruner on real external levels, not just on levels we wrote.
-- **Merging did not shorten paths.** On 176 solved levels the merged path was never shorter than the best single plan and was longer on 2. The pipeline picks the cheapest path by Phase 4 cost (progress, trust, budget), not by move count, so a longer path can win. We report this as measured.
-- Limits: 200 of the 1000 levels in one file, one checker rule, a search-based proposer we wrote. The other Boxoban difficulty sets (`unfiltered`, `hard`) were not run.
+- **Merging did not shorten paths.** Across all three sets (unfiltered 197 solved, medium 176, hard 167) the merged path was never shorter than the best single plan, and was longer on 6, 2 and 0 levels. The pipeline picks the cheapest path by Phase 4 cost (progress, trust, budget), not by move count, so a longer path can win. We report this as measured.
+- Limits: first 200 of 1000 levels in one file per set, one checker rule, a search-based proposer we wrote. The `train` splits were not used.

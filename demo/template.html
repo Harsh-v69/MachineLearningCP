@@ -461,7 +461,7 @@ const MAP = [
      return [`Safety: River Crossing goes from ${(r.river.baseline * 100).toFixed(0)}% to ${(r.river.validated * 100).toFixed(0)}% safe with the checker.`,
        `Speed: ${sp.name} planning drops from ${sp.base.toFixed(0)} ms to ${sp.adaptive.toFixed(0)} ms.`,
        `Memory: clearly fewer replans on ${helped} of ${r.memory.length} games.`,
-       `Boxoban: ${r.boxoban.rows.at(-1).prune}% of ${r.boxoban.levels} real levels solved with the checker, ${r.boxoban.rows.at(-1).plain}% without.`,"Tuning the cost weights found nothing better than the defaults."];
+       `Boxoban: with the checker ${Math.min(...r.boxoban.map(b => b.rows.at(-1).prune))}% to ${Math.max(...r.boxoban.map(b => b.rows.at(-1).prune))}% of real levels solved across three sets, ${Math.min(...r.boxoban.map(b => b.rows.at(-1).plain))}% to ${Math.max(...r.boxoban.map(b => b.rows.at(-1).plain))}% without.`, "Tuning the cost weights found nothing better than the defaults."];
    }},
   {tag: "Across all", title: "Pipeline changes", short: "Since the original paper", side: true, go: "propose", goText: "Walk the pipeline",
    points: () => ["No LLM. The proposer is a plug-in with a quality dial.", "One Environment interface serves every game.", "Checkers are per game plug-ins.", "Solver choice depends on how many pieces move."]}
@@ -611,6 +611,12 @@ function mountRun(gid) {
   mark = bindChips($("#right"), player); mark(0);
 }
 
+let boxSet = 1;
+function boxRows(i) {
+  return D.results.boxoban[i].rows.map(x => `<div class="duo"><span style="font-size:14px">${x.budget} nodes per search</span>
+    <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">no pruning</span><div class="bar"><span style="width:${x.plain}%"></span></div><span class="v">${x.plain}%</span></div>
+    <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">with checker</span><div class="bar"><span class="acc" style="width:${x.prune}%"></span></div><span class="v">${x.prune}%</span></div></div>`).join("");
+}
 function viewResults() {
   const R = D.results, ms = Math.max(...R.speed.map(x => x.base));
   const lo = -1.0, hi = 0.3, W = 460, rowH = 34, H = R.memory.length * rowH + 44;
@@ -634,10 +640,9 @@ function viewResults() {
       <div class="rows">${R.speed.map(x => `<div class="duo"><span style="font-size:14px">${esc(x.name)}</span>
         <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">always CP-SAT</span><div class="bar"><span style="width:${x.base / ms * 100}%"></span></div><span class="v">${x.base.toFixed(1)} ms</span></div>
         <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">adaptive</span><div class="bar"><span class="acc" style="width:${Math.max(1, x.adaptive / ms * 100)}%"></span></div><span class="v">${x.adaptive.toFixed(1)} ms</span></div></div>`).join("")}</div></div>
-    <div class="res"><div><h3>Real levels</h3><p class="claim">Boxoban is a public set of 10 by 10 Sokoban levels with four boxes. Share of ${R.boxoban.levels} levels solved within a search budget. Pruning dead corners during the search solves more at every budget.</p></div>
-      <div class="rows">${R.boxoban.rows.map(x => `<div class="duo"><span style="font-size:14px">${x.budget} nodes per search</span>
-        <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">no pruning</span><div class="bar"><span style="width:${x.plain}%"></span></div><span class="v">${x.plain}%</span></div>
-        <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">with checker</span><div class="bar"><span class="acc" style="width:${x.prune}%"></span></div><span class="v">${x.prune}%</span></div></div>`).join("")}</div></div>
+    <div class="res"><div><h3>Real levels</h3><p class="claim">Boxoban is a public set of 10 by 10 Sokoban levels with four boxes, in three difficulty sets. Share of ${R.boxoban[0].levels} levels per set solved within a search budget. Pruning dead corners during the search solves more at every budget, in every set.</p>
+      <div class="seg" role="group" aria-label="Boxoban set" style="margin-top:12px">${R.boxoban.map((b, i) => `<button data-bset="${i}" aria-pressed="${i === boxSet}">${b.name}</button>`).join("")}</div></div>
+      <div class="rows" id="boxrows">${boxRows(boxSet)}</div></div>
     <div class="res"><div><h3>Memory</h3><p class="claim">Change in replans per episode when the system remembers failed moves. Left of zero is better. Bars show one standard error.</p></div>
       <svg class="forest" viewBox="0 0 ${W} ${H}" role="img" aria-label="Replan change per game">${mem}
         <line x1="${X(0)}" x2="${X(0)}" y1="6" y2="${H - 26}" stroke="var(--muted)" stroke-dasharray="4 4"/>
@@ -698,6 +703,13 @@ function render() {
 }
 
 document.addEventListener("click", e => {
+  const bs = e.target.closest("[data-bset]");
+  if (bs) {
+    boxSet = +bs.dataset.bset;
+    document.querySelectorAll("[data-bset]").forEach(b => b.setAttribute("aria-pressed", b === bs));
+    $("#boxrows").innerHTML = boxRows(boxSet);
+    return;
+  }
   const nd = e.target.closest("[data-node]");
   if (nd) {
     nodeIdx = +nd.dataset.node;

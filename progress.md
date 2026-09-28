@@ -482,29 +482,20 @@ Boxoban is DeepMind's public Sokoban level set (`github.com/google-deepmind/boxo
 
 **Proposer (no LLM):** blind BFS cannot solve 4-box levels, so `tape.search_proposer.WeightedAStarProposer` runs weighted A* (weights 1, 2, 4, 8) under a per-search node budget and returns the plans that finish. Optionally the Phase 2 corner-deadlock checker prunes the search.
 
-**Experiment:** `python experiments/run_boxoban.py --levels 200 [--file data/boxoban/<set>.txt --out <name>.md]` (tables: `results/boxoban_unfiltered.md`, `results/boxoban.md` for medium, `results/boxoban_hard.md`). Use `--workers` to limit processes; 40 at once ran out of resources. Solve rate is the share of the first 200 levels where any of the four searches finds a plan within the budget. Medium set:
-
-| nodes per search | no pruning | with checker |
-|---|---|---|
-| 2,000 | 14% | 22% |
-| 5,000 | 26% | 41% |
-| 10,000 | 43% | 64% |
-| 20,000 | 57% | 82% |
-| 30,000 | 70% | 88% |
-
-All three sets, same setup (no pruning vs with checker):
+**Experiment:** `python experiments/run_boxoban.py --levels 1000 [--file data/boxoban/<set>.txt --out <name>.md]` (tables: `results/boxoban_unfiltered.md`, `results/boxoban.md` for medium, `results/boxoban_hard.md`). Use `--workers` to limit processes; 40 at once ran out of resources. All 1000 levels of each file were run (3000 levels, about 18 minutes). Solve rate is the share of levels where any of the four searches finds a plan within the node budget. No pruning vs with the checker:
 
 | nodes per search | unfiltered | medium | hard |
 |---|---|---|---|
-| 2,000 | 51% vs 58% | 14% vs 22% | 6% vs 14% |
-| 5,000 | 70% vs 82% | 26% vs 41% | 16% vs 32% |
-| 10,000 | 84% vs 90% | 43% vs 64% | 30% vs 57% |
-| 20,000 | 90% vs 96% | 57% vs 82% | 49% vs 74% |
-| 30,000 | 95% vs 98% | 70% vs 88% | 57% vs 84% |
+| 2,000 | 57% vs 65% | 14% vs 23% | 6% vs 13% |
+| 5,000 | 73% vs 82% | 29% vs 45% | 16% vs 29% |
+| 10,000 | 84% vs 92% | 46% vs 65% | 27% vs 49% |
+| 20,000 | 92% vs 96% | 61% vs 82% | 44% vs 70% |
+| 30,000 | 95% vs 98% | 71% vs 88% | 54% vs 82% |
 
 **Reading it:**
-- The checker solves more levels at every budget in every set, and in no case did no-pruning solve a level the checker missed (0 of 200 in all 15 cells). The gain is largest where levels are harder: at 10,000 nodes it is 6 points on unfiltered, 21 on medium, 27 on hard. On unfiltered, most levels are easy enough that both arms solve them, and the intervals overlap at 30,000 nodes.
-- It also expands fewer nodes per level at the full budget: 19% fewer on unfiltered, 25% on medium, 27% on hard.
+- The checker solves more levels at every budget in every set. The 95% intervals do not overlap in any of the 15 cells, and no-pruning never solved a level the checker missed (0 of 1000 in all 15 cells).
+- The gain is largest where levels are harder: at 10,000 nodes it is 8 points on unfiltered, 19 on medium, 22 on hard. At 30,000 nodes it is 3, 17 and 28 points.
+- It also expands fewer nodes per level at the full budget: 20% fewer on unfiltered, 25% on medium, 23% on hard.
 - **This is not a new idea.** Pruning dead corners is standard in Sokoban solvers. What the result shows is that our Phase 2 checker works as that pruner on real external levels, not just on levels we wrote.
-- **Merging did not shorten paths.** Across all three sets (unfiltered 197 solved, medium 176, hard 167) the merged path was never shorter than the best single plan, and was longer on 6, 2 and 0 levels. The pipeline picks the cheapest path by Phase 4 cost (progress, trust, budget), not by move count, so a longer path can win. We report this as measured.
-- Limits: first 200 of 1000 levels in one file per set, one checker rule, a search-based proposer we wrote. The `train` splits were not used.
+- **Merging did not shorten paths.** Across all three sets (unfiltered 981 solved, medium 882, hard 817) the merged path was shorter than the best single plan on 1 level in total (2 moves saved) and longer on 19, 9 and 5 levels. The pipeline picks the cheapest path by Phase 4 cost (progress, trust, budget), not by move count, so a longer path can win. We report this as measured.
+- Limits: one file per set (`000.txt`; the `valid` split for unfiltered and medium), one checker rule, a search-based proposer we wrote. The `train` splits were not used, and other files in each set were not run. A first run on only the first 200 levels of each file gave the same picture, with wider intervals.

@@ -34,6 +34,7 @@ class EpisodeResult:
     invalid_transitions: int = 0
     validator_rejections: int = 0
     path_selection_methods: list[str] = field(default_factory=list)
+    audit_violations: int = 0  # executed moves the (independent) auditor rejects; Phase 6 ground-truth safety
 
     @property
     def invalid_transition_rate(self) -> float:
@@ -55,6 +56,7 @@ def run_episode(
     experience: ExperienceStore | None = None,
     level_id: str = "default",
     path_selection: str = CP_SAT,
+    auditor: GraphValidator | None = None,
 ) -> EpisodeResult:
     rng = rng or random.Random()
     state = start or level.initial_state
@@ -96,6 +98,8 @@ def run_episode(
                 actual_next, moved = state, False  # simulated real-world slip
             result.total_actions += 1
             state = actual_next
+            if auditor is not None and moved and not auditor.validate(level, from_state, action, actual_next).accept:
+                result.audit_violations += 1
 
             matched = actual_next == predicted_next
             if experience is not None:

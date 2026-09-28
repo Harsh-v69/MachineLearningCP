@@ -388,8 +388,28 @@ No. This project is closer to classical AI planning (graph search plus constrain
 
 ---
 
-## 13. What's left to reach 100% (Phase 6, not started)
+## 13. What's left to reach 100% (Phase 6 first pass done, see Sec 14)
 
 - **Phase 6 — Evaluation & ablations:** run baseline vs. Phase 2 vs. Phase 3 vs. Phase 4 vs. Phase 5 vs. combined across all implemented levels *and now all three benchmarks* (Sokoban, river crossing, Rush Hour), with the aggregate metrics already being tracked in `metrics.py` and `EpisodeResult.path_selection_methods`.
 - **Scope gap to flag to the teacher directly:** TAPE's own four named benchmarks are ALFWorld, MuSiQue, GSM8K-Hard, and Sokoban. Only Sokoban is implemented; river crossing and Rush Hour (§8) are additional benchmarks that prove the architecture generalizes, not substitutes for TAPE's own suite. If the final deliverable specifically needs generalization against TAPE's own benchmarks, ALFWorld/MuSiQue/GSM8K-Hard are still the gap, not river crossing/Rush Hour.
 - **Tuning gap worth naming honestly:** `ScoreWeights`' default values (regression penalty 1.5, confidence penalty 4.0, budget penalty 2.0) were chosen to be directionally sensible, not fit to data. Phase 6 would be a natural place to actually tune them, or at least justify them empirically, rather than leaving them as reasonable-looking defaults.
+
+---
+
+## 14. Phase 6: ablation results (first pass)
+
+`python experiments/run_ablation.py --episodes 30` runs 5 configs (baseline, +validator, +validator+experience, +adaptive, full) x 6 benchmarks x 2 LLM conditions (goal-biased mock, adversarial random) at slip 0.15. Full tables with 95% Wilson intervals: `results/ablation.md` / `.csv`. It is 30 episodes per cell, so intervals are wide (a 100% cell means only "at least 89%").
+
+**Metric note:** we report *safe success* (goal reached AND no executed move rejected by an independent domain auditor, `run_episode(auditor=...)`) next to raw success. Without it, River Crossing's baseline looks perfect (100%) while walking through unsafe states, because that environment does not enforce safety itself.
+
+**What the data supports:**
+1. **Validators matter where the environment permits illegal-but-legal-looking moves.** River Crossing goal-biased: baseline 0% safe success, +validator 100% (raw success is 100% in both). This is the clearest result.
+2. **Adaptive solver cuts planning time at identical quality.** Same success and same action count, but planning drops: trivial 16.9 -> 0.2 ms, simple 52 -> 7.6 ms, river 62 -> 3.6 ms (baseline vs +adaptive). On the hard level the gain is small (4.3 s vs 3.8 s) because time is dominated by candidate generation.
+3. **Sokoban hard is the real difficulty:** about 53% success for every config. None of our extensions changes it.
+
+**What the data does NOT support (say this if asked):**
+- **The experience store (Phase 3) shows no measurable benefit here.** Differences (e.g. multi 97% vs 100%) are within noise. Likely cause: our slip is uniformly random, so there is no state-dependent failure pattern for the store to learn. A fair test needs state-dependent slips.
+- **Under the adversarial LLM the validator prunes bad transitions but cannot rescue a plan**: River Crossing 0% safe success in every config because no candidate is safe. Validators filter, they do not plan.
+- All results use mock LLMs, not a real model. Real-LLM runs (Gemini client exists) are still to do.
+
+**Still open for Phase 6:** state-dependent slip to test the experience store fairly, tuning `ScoreWeights`, real-LLM runs, TAPE's own benchmarks (ALFWorld, MuSiQue, GSM8K-Hard).

@@ -57,6 +57,7 @@ def run_episode(
     level_id: str = "default",
     path_selection: str = CP_SAT,
     auditor: GraphValidator | None = None,
+    slip_fn=None,  # (state, action) -> slip probability; overrides slip_prob (state-dependent failures)
 ) -> EpisodeResult:
     rng = rng or random.Random()
     state = start or level.initial_state
@@ -94,7 +95,7 @@ def run_episode(
         for action, predicted_next in zip(solution.actions, solution.node_path[1:]):
             from_state = state
             actual_next, moved = level.step(state, action)
-            if moved and rng.random() < slip_prob:
+            if moved and rng.random() < (slip_fn(from_state, action) if slip_fn else slip_prob):
                 actual_next, moved = state, False  # simulated real-world slip
             result.total_actions += 1
             state = actual_next

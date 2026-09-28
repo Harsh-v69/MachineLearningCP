@@ -408,8 +408,25 @@ No. This project is closer to classical AI planning (graph search plus constrain
 3. **Sokoban hard is the real difficulty:** about 53% success for every config. None of our extensions changes it.
 
 **What the data does NOT support (say this if asked):**
-- **The experience store (Phase 3) shows no measurable benefit here.** Differences (e.g. multi 97% vs 100%) are within noise. Likely cause: our slip is uniformly random, so there is no state-dependent failure pattern for the store to learn. A fair test needs state-dependent slips.
+- **The experience store (Phase 3) shows no measurable benefit under uniform-random slip.** Differences (e.g. multi 97% vs 100%) are within noise, because there is no state-dependent failure pattern to learn. The follow-up test in Sec 14.1 uses state-dependent slips.
 - **Under the adversarial LLM the validator prunes bad transitions but cannot rescue a plan**: River Crossing 0% safe success in every config because no candidate is safe. Validators filter, they do not plan.
 - All results use mock LLMs, not a real model. Real-LLM runs (Gemini client exists) are still to do.
 
-**Still open for Phase 6:** state-dependent slip to test the experience store fairly, tuning `ScoreWeights`, real-LLM runs, TAPE's own benchmarks (ALFWorld, MuSiQue, GSM8K-Hard).
+**Still open for Phase 6:** tuning `ScoreWeights`, real-LLM runs, TAPE's own benchmarks (ALFWorld, MuSiQue, GSM8K-Hard).
+
+### 14.1 Experience store under state-dependent slip
+
+`python experiments/run_experience_test.py --runs 20 --episodes 30` (full table: `results/experience_test.md`). A fixed ~25% of (state, action) pairs are "hazards" that slip with probability 0.7; everything else never slips. Both arms use the validator and see identical hazards and seeds per run, so we report a paired difference (+experience minus validator only) with its standard error over 20 runs. Negative replans = the store helps. 30 candidates per planning round.
+
+| benchmark | late-half replans diff (mean +/- SE) | success diff |
+|---|---|---|
+| sokoban-simple | -0.56 +/- 0.18 | +5.5% |
+| river-crossing | -0.54 +/- 0.15 | +5.0% |
+| rush-hour | -0.17 +/- 0.11 | +1.2% |
+| sokoban-multi | +0.06 +/- 0.03 | -0.2% |
+
+**Reading it honestly:**
+- On simple Sokoban and River Crossing the store cuts replans by about 13% (roughly 3 standard errors) and raises success by about 5 points. That is real but modest.
+- Rush Hour leans the same way but is not distinguishable from noise.
+- Two-box Sokoban shows no help (slightly worse). Our reading, not tested: with more possible routes, the 30 mock candidates rarely contain a detour around a learned hazard, and the store can only re-weight edges that already exist in the plan graph.
+- So Phase 3 is supported when failures are state-dependent and the candidates contain an alternative route, and not otherwise. This is still mock LLMs and synthetic hazards; a claim about real environments needs real failure data.

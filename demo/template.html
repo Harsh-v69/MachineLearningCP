@@ -1,901 +1,668 @@
 <meta charset="utf-8">
-<title>Corner Deadlock Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&display=swap">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Public+Sans:wght@400;500;600&display=swap');
-
 :root{
-  --bg:#f3f1e9; --surface:#fbfaf5; --ink:#191a16; --muted:#68675c; --line:#c7c3b3; --line-strong:#191a16;
-  --ok:#1f4e79; --ok-soft:#dde6ee;
-  --warn:#8a5a12; --warn-soft:#f1e3c6;
-  --danger:#8f2a20; --danger-soft:#f2ded9;
-  --wall:#2b2a25; --floor:#fbfaf5; --player:#191a16;
-  --baseline-tag:#68675c; --validated-tag:#1f4e79; --experience-tag:#6b3fa0;
-  --experience-soft:#e9ddf3;
-  --grid-line: rgba(25,26,22,0.05);
+  --ground:#E7ECEF; --surface:#F5F8FA; --sunken:#DAE2E7; --ink:#13202B; --muted:#55666F; --rule:#C3CED5;
+  --accent:#2B59FF; --accent-ink:#FFFFFF; --ok:#26875A; --warn:#D98319; --bad:#D23F2F;
+  --wall:#2A3A47; --crate:#C9822F; --v1:#7C8B96; --v2:#A0AEB8; --v3:#5F707C; --v4:#93A1AB;
+  --plan-a:#2B59FF; --plan-b:#D98319;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"DM Mono",ui-monospace,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#101114; --surface:#17181c; --ink:#e7e5da; --muted:#8f8d80; --line:#33342f; --line-strong:#e7e5da;
-    --ok:#6ea3d0; --ok-soft:#1c2833;
-    --warn:#d1a24e; --warn-soft:#332711;
-    --danger:#d97b6c; --danger-soft:#341e1a;
-    --wall:#050506; --floor:#1d1e22; --player:#e7e5da;
-    --baseline-tag:#8f8d80; --validated-tag:#6ea3d0; --experience-tag:#b48fe0;
-    --experience-soft:#2a2038;
-    --grid-line: rgba(231,229,218,0.05);
+    --ground:#0E151B; --surface:#16212A; --sunken:#0A1015; --ink:#E7EEF3; --muted:#93A4B1; --rule:#2A3945;
+    --accent:#7F9BFF; --accent-ink:#0E151B; --ok:#4FBF88; --warn:#EDA13E; --bad:#F0705F;
+    --wall:#3B4D5B; --crate:#D9994A; --v1:#6D7C87; --v2:#8B99A4; --v3:#556571; --v4:#7A8994;
+    --plan-a:#7F9BFF; --plan-b:#EDA13E; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#101114; --surface:#17181c; --ink:#e7e5da; --muted:#8f8d80; --line:#33342f; --line-strong:#e7e5da;
-  --ok:#6ea3d0; --ok-soft:#1c2833;
-  --warn:#d1a24e; --warn-soft:#332711;
-  --danger:#d97b6c; --danger-soft:#341e1a;
-  --wall:#050506; --floor:#1d1e22; --player:#e7e5da;
-  --baseline-tag:#8f8d80; --validated-tag:#6ea3d0; --experience-tag:#b48fe0;
-  --experience-soft:#2a2038;
-  --grid-line: rgba(231,229,218,0.05);
+  --ground:#0E151B; --surface:#16212A; --sunken:#0A1015; --ink:#E7EEF3; --muted:#93A4B1; --rule:#2A3945;
+  --accent:#7F9BFF; --accent-ink:#0E151B; --ok:#4FBF88; --warn:#EDA13E; --bad:#F0705F;
+  --wall:#3B4D5B; --crate:#D9994A; --v1:#6D7C87; --v2:#8B99A4; --v3:#556571; --v4:#7A8994;
+  --plan-a:#7F9BFF; --plan-b:#EDA13E; color-scheme:dark;
 }
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:400 16px/1.5 var(--body)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-0.02em}
+p{margin:0}
+.mono{font-family:var(--mono)}
+.tag{font:500 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 
-*{box-sizing:border-box;}
-body{
-  background-color:var(--bg); color:var(--ink); font-family:'Public Sans', system-ui, sans-serif; line-height:1.55;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size:28px 28px;
-}
-.wrap{max-width:1040px; margin:0 auto; padding:40px 20px 76px;}
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.rail{position:sticky;top:0;align-self:start;height:100vh;padding:32px 20px 24px 28px;display:flex;flex-direction:column;gap:22px;border-right:1px solid var(--rule)}
+.brand{font:700 22px/1 var(--display);letter-spacing:-.02em}
+.brand small{display:block;margin-top:6px;font:400 12px/1.3 var(--body);color:var(--muted);letter-spacing:0}
+.route{list-style:none;margin:0;padding:0 0 0 14px;border-left:2px solid var(--rule);display:flex;flex-direction:column;gap:2px}
+.route li{position:relative}
+.route button{all:unset;box-sizing:border-box;display:block;width:100%;padding:7px 8px 7px 14px;cursor:pointer;border-radius:4px;font-size:15px;color:var(--muted)}
+.route button:hover{color:var(--ink)}
+.route button:focus-visible{outline:2px solid var(--accent)}
+.route li::before{content:"";position:absolute;left:-21px;top:15px;width:10px;height:10px;border-radius:50%;background:var(--ground);border:2px solid var(--rule)}
+.route li.done::before{background:var(--ink);border-color:var(--ink)}
+.route li.cur::before{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
+.route li.cur button{color:var(--ink);font-weight:600}
+.route .group{padding:14px 0 4px 14px}
+.route .sub button{padding-left:14px}
+.route .sub .tag{display:block;margin-top:1px;font-size:10.5px}
+.rail-foot{margin-top:auto;font-size:12px;color:var(--muted);line-height:1.45}
 
-.eyebrow{
-  font-family:'JetBrains Mono', monospace; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--ok); margin:0 0 12px; font-weight:700;
-}
-h1{
-  font-family:'JetBrains Mono', monospace; font-weight:800; font-size:clamp(22px,3.4vw,32px); line-height:1.2;
-  margin:0 0 12px; text-wrap:balance; max-width:26ch; letter-spacing:-.01em;
-}
-.dek{color:var(--muted); font-size:15px; max-width:68ch; margin:0 0 28px;}
-h2{
-  font-family:'JetBrains Mono', monospace; font-weight:700; font-size:16px; margin:0 0 6px;
-  text-transform:uppercase; letter-spacing:.03em;
-}
-.section-note{color:var(--muted); font-size:13.5px; margin:0 0 16px; max-width:72ch;}
+main{padding:40px clamp(16px,4vw,56px) 48px;max-width:1140px;width:100%}
+.view{animation:in .22s ease-out}
+@keyframes in{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.eyebrow{margin-bottom:10px}
+h1{font-size:clamp(34px,5.2vw,58px);line-height:1.02;max-width:15ch}
+h2{font-size:clamp(26px,3.4vw,38px);line-height:1.08}
+.lede{margin-top:14px;font-size:18px;color:var(--muted);max-width:52ch}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:6px;border:1.5px solid var(--ink);background:transparent;font-weight:600}
+.btn:hover{background:var(--sunken)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn[disabled]{opacity:.4;cursor:default}
+.btn.small{padding:6px 12px;font-size:14px}
 
-/* controls */
-.controls{
-  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
-  background:var(--surface); border:1px solid var(--line-strong); border-radius:3px;
-  padding:12px 14px; margin-bottom:24px;
-}
-.seg{display:flex; border:1px solid var(--line-strong); border-radius:3px; overflow:hidden;}
-.seg button{
-  font-family:'JetBrains Mono', monospace; font-size:12px; padding:8px 13px; border:none;
-  background:var(--surface); color:var(--muted); cursor:pointer; border-right:1px solid var(--line);
-}
-.seg button:last-child{border-right:none;}
-.seg button.active{background:var(--ok); color:#fbfaf5; font-weight:700;}
-.btn{
-  font-family:'JetBrains Mono', monospace; font-size:12px; padding:8px 13px; border-radius:3px;
-  border:1px solid var(--line-strong); background:var(--surface); color:var(--ink); cursor:pointer;
-}
-.btn:hover{background:var(--ok-soft); border-color:var(--ok);}
-.btn.primary{background:var(--ink); color:var(--bg); border-color:var(--line-strong);}
-.spacer{flex:1;}
-.step-counter{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted);}
+/* intro */
+.flow{display:flex;flex-wrap:wrap;gap:0;margin:38px 0 34px;padding:0;list-style:none}
+.flow li{position:relative;padding:14px 26px 14px 18px;background:var(--surface);border:1px solid var(--rule);margin-right:-1px;min-width:132px}
+.flow li b{display:block;font:700 18px/1.1 var(--display)}
+.flow li span{display:block;margin-top:4px;font-size:13px;color:var(--muted)}
+.flow li:first-child{border-radius:8px 0 0 8px}.flow li:last-child{border-radius:0 8px 8px 0}
+.note{margin-top:26px;font-size:13.5px;color:var(--muted);max-width:60ch}
 
-/* three-column panels */
-.panels{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:28px; align-items:start;}
-@media (max-width:980px){ .panels{grid-template-columns:1fr 1fr;} }
-@media (max-width:640px){ .panels{grid-template-columns:1fr;} }
-.panel{background:var(--surface); border:1px solid var(--line-strong); border-radius:3px; padding:14px;}
-.panel-head{display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
-.tag{
-  font-family:'JetBrains Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
-  padding:3px 7px; border-radius:2px; font-weight:700; border:1px solid currentColor;
-}
-.tag.baseline{background:transparent; color:var(--baseline-tag);}
-.tag.validated{background:transparent; color:var(--validated-tag);}
-.tag.experience{background:transparent; color:var(--experience-tag);}
-.panel-title{font-family:'JetBrains Mono', monospace; font-weight:700; font-size:12.5px;}
+/* games */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:28px}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:14px;padding:16px;background:var(--surface);border:1.5px solid var(--rule);border-radius:10px}
+.tile:hover{border-color:var(--ink)}
+.tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tile .thumb{background:var(--sunken);border-radius:6px;padding:10px;display:grid;place-items:center;height:190px}
+.tile .thumb svg{max-height:170px;width:auto;max-width:100%}
+.tile h3{font-size:22px}
+.tile p{font-size:14.5px;color:var(--muted)}
+.tile .risk{font-size:13.5px;color:var(--ink);padding-top:10px;border-top:1px dashed var(--rule)}
 
-.chain{display:flex; align-items:center; gap:2px; overflow-x:auto; padding:6px 2px 14px; margin-bottom:8px;}
-.chain-node{
-  position:relative; flex:none; width:24px; height:24px; border-radius:2px; display:flex; align-items:center; justify-content:center;
-  font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:700; border:2px solid var(--line); color:var(--muted);
-  background:var(--surface); transition:transform .15s;
-}
-.chain-node.start{width:8px; height:8px; border-radius:1px; background:var(--ink); border:none;}
-.chain-node.ok{border-color:var(--ok); color:var(--ok); background:var(--ok-soft);}
-.chain-node.warning{border-color:var(--warn); color:var(--warn); background:var(--warn-soft);}
-.chain-node.danger{border-color:var(--danger); color:var(--danger); background:var(--danger-soft);}
-.chain-node.pending{opacity:.35;}
-.chain-node.current{transform:scale(1.3); box-shadow:0 0 0 3px var(--surface), 0 0 0 5px currentColor;}
-.chain-node.learned::after{
-  content:""; position:absolute; width:6px; height:6px; border-radius:50%;
-  background:var(--experience-tag); transform:translate(9px,-9px);
-}
-.chain-step{display:flex; align-items:center;}
-.chain-edge{width:12px; height:2px; background:var(--line);}
-.chain-edge.walked{background:var(--muted);}
+/* stage layout */
+.stagehead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px 24px;margin-bottom:22px}
+.stagehead p{margin-top:8px;color:var(--muted);max-width:58ch}
+.picked{font-size:14px;color:var(--muted)}
+.picked button{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.stage{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:28px;align-items:start}
+.boardwrap{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px}
+.boardwrap .stagebox{background:var(--sunken);border-radius:6px;padding:14px;display:grid;place-items:center;min-height:260px}
+.boardwrap svg{width:100%;height:auto;max-height:420px}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px}
+.controls input[type=range]{flex:1 1 120px;min-width:100px;accent-color:var(--accent)}
+.status{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px;min-height:28px}
+.pill{font:500 12px/1 var(--mono);padding:5px 8px;border-radius:99px;border:1px solid var(--rule);color:var(--muted)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.warn{color:var(--warn);border-color:var(--warn)}.pill.bad{color:var(--bad);border-color:var(--bad)}
+.panel{display:flex;flex-direction:column;gap:18px}
+.panel h3{font-size:19px}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:6px;overflow:hidden}
+.seg button{all:unset;box-sizing:border-box;cursor:pointer;padding:8px 16px;font-weight:600;font-size:14px}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--ground)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{all:unset;box-sizing:border-box;cursor:pointer;font:500 13px/1 var(--mono);padding:7px 9px;border-radius:5px;background:var(--surface);border:1px solid var(--rule)}
+.chip.cur{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.chip.ok{border-color:var(--ok)}.chip.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 16%,var(--surface))}
+.chip.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 16%,var(--surface))}
+.chip.cur.warn,.chip.cur.bad{color:var(--ink)}
+.verdict{padding:14px 16px;border-radius:8px;background:var(--surface);border:1px solid var(--rule);border-left:5px solid var(--rule)}
+.verdict.bad{border-left-color:var(--bad)}.verdict.warn{border-left-color:var(--warn)}.verdict.ok{border-left-color:var(--ok)}
+.verdict b{display:block;margin-bottom:2px}
+.verdict span{color:var(--muted);font-size:14.5px}
+.graphcard{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px;overflow-x:auto}
+.graphcard svg{display:block;min-width:520px;width:100%;height:auto}
+.graphcard.compact svg{min-width:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:13.5px;color:var(--muted)}
+.legend i{display:inline-block;width:20px;height:0;border-top:3px solid;vertical-align:middle;margin-right:6px}
+.facts{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:16px;font-size:15px}
+.facts b{font:700 22px/1 var(--display);margin-right:6px}
+.solvers{display:grid;gap:12px}
+.solver{padding:14px 16px;border:1.5px solid var(--rule);border-radius:8px;background:var(--surface)}
+.solver.chosen{border-color:var(--accent)}
+.solver header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.solver h3{font-size:18px}
+.solver .sub{font-size:13px;color:var(--muted)}
+.mark{font:500 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;background:var(--accent);color:var(--accent-ink);padding:4px 7px;border-radius:4px}
+.bar{height:10px;border-radius:5px;background:var(--sunken);margin-top:10px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--muted);border-radius:5px}
+.solver.chosen .bar span{background:var(--accent)}
+.solver .ms{margin-top:6px;font:500 13px/1 var(--mono);color:var(--muted)}
+.timeline{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.timeline li{display:grid;grid-template-columns:22px 1fr;gap:10px;font-size:15px}
+.timeline li i{width:12px;height:12px;border-radius:50%;margin-top:6px;background:var(--ok)}
+.timeline li.bad i{background:var(--bad)}.timeline li.acc i{background:var(--accent)}
 
-.grid-box{
-  display:grid; gap:1px; background:var(--line-strong); border:2px solid var(--line-strong); border-radius:2px;
-  overflow:hidden; aspect-ratio:1; max-width:280px; margin:0 auto 12px; transition:box-shadow .2s;
-}
-.grid-box.frozen{box-shadow:0 0 0 3px var(--danger-soft), 0 0 0 5px var(--danger);}
-.cell{position:relative; background:var(--floor);}
-.cell.wall{background:var(--wall);}
-.cell.goal::after{
-  content:""; position:absolute; inset:30%; border:2px solid var(--ok); opacity:.7;
-  clip-path:polygon(0 40%,40% 40%,40% 0,60% 0,60% 40%,100% 40%,100% 60%,60% 60%,60% 100%,40% 100%,40% 60%,0 60%);
-}
-.cell.box::after, .cell.box-on-goal::after{
-  content:""; position:absolute; inset:20%; border-radius:1px; background:var(--warn);
-}
-.cell.box-on-goal::after{background:var(--ok); clip-path:none; opacity:1;}
-.cell.player::before, .cell.player-on-goal::before{
-  content:""; position:absolute; inset:32%; border-radius:50%; background:var(--player);
-}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:34px;padding-top:18px;border-top:1px solid var(--rule)}
 
-.badge{
-  font-family:'JetBrains Mono', monospace; font-size:11.5px; padding:8px 10px; border-radius:2px; text-align:center;
-  border:1px solid transparent;
-}
-.badge.neutral{background:transparent; color:var(--muted); border-color:var(--line);}
-.badge.ok{background:var(--ok-soft); color:var(--ok); border-color:var(--ok);}
-.badge.warning{background:var(--warn-soft); color:var(--warn); border-color:var(--warn);}
-.badge.danger{background:var(--danger-soft); color:var(--danger); font-weight:700; border-color:var(--danger);}
+/* board svg */
+.b-wall{fill:var(--wall)}.b-floor{fill:var(--surface)}.b-goal{fill:none;stroke:var(--ok);stroke-width:3;stroke-dasharray:5 4}
+.b-box rect{fill:var(--crate);stroke:var(--ink);stroke-width:2}
+.b-box.on rect{fill:var(--ok)}
+.b-player circle{fill:var(--accent);stroke:var(--ink);stroke-width:2}
+.mv{transition:transform .32s ease}
+.b-veh rect{stroke:var(--ink);stroke-width:2}
+.b-veh text{font:500 13px var(--mono);fill:var(--surface);pointer-events:none}
+.b-grid{fill:var(--surface);stroke:var(--rule)}
+.b-exit{fill:var(--ok)}
+.b-bank{fill:var(--surface);stroke:var(--rule);stroke-width:2}.b-bank.danger{stroke:var(--bad);stroke-width:4;fill:color-mix(in srgb,var(--bad) 12%,var(--surface))}
+.b-river{fill:color-mix(in srgb,var(--accent) 22%,var(--sunken))}
+.b-boat{fill:var(--ink)}
+.b-m{fill:var(--accent);stroke:var(--ink);stroke-width:2}.b-c{fill:var(--crate);stroke:var(--ink);stroke-width:2}
+.b-txt{font:500 12px var(--mono);fill:var(--ink)}
+.b-label{font:500 13px var(--mono);fill:var(--muted)}
+.g-edge{fill:none;stroke-width:2.5}
+.g-node{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+.g-goal{fill:var(--ok);stroke:var(--ink);stroke-width:2}
+.g-stub{fill:var(--bad);stroke:var(--bad)}
+.g-lab{font:500 11px var(--mono);fill:var(--muted)}
 
-.learned-note{
-  font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--experience-tag);
-  background:var(--experience-soft); border:1px solid var(--experience-tag); border-radius:2px;
-  padding:5px 8px; text-align:center; margin-top:6px;
-}
-.score-row{
-  display:grid; grid-template-columns:repeat(2,1fr); gap:4px 8px; margin-top:8px;
-  font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted);
-}
-.score-row div span{color:var(--ink); font-weight:600;}
+/* results */
+.results{display:grid;gap:22px;margin-top:26px}
+.res{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:14px 32px;padding:22px 0;border-top:1px solid var(--rule)}
+.res h3{font-size:22px}
+.res .claim{margin-top:8px;color:var(--muted);max-width:40ch}
+.rows{display:grid;gap:10px}
+.rowbar{display:grid;grid-template-columns:120px minmax(0,1fr) 92px;gap:10px;align-items:center;font-size:14px}
+.rowbar .bar{margin:0;height:14px}
+.rowbar .v{font:500 13px var(--mono);color:var(--muted);text-align:right}
+.rowbar .bar span.acc{background:var(--accent)}.rowbar .bar span.good{background:var(--ok)}.rowbar .bar span.bad{background:var(--bad)}
+.duo{display:grid;gap:4px}
+.limits{margin-top:8px;padding:20px 22px;background:var(--surface);border:1px solid var(--rule);border-radius:10px}
+.limits ul{margin:10px 0 0;padding-left:20px;display:grid;gap:6px}
+.forest{width:100%;height:auto}
+.forest text{font:500 12px var(--mono);fill:var(--muted)}
+.forest .nm{fill:var(--ink);font:500 13px var(--body)}
 
-/* solver outcome */
-.solver-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:28px;}
-@media (max-width:980px){ .solver-grid{grid-template-columns:1fr 1fr;} }
-@media (max-width:640px){ .solver-grid{grid-template-columns:1fr;} }
-.solver-card{background:var(--surface); border:1px solid var(--line-strong); border-radius:3px; padding:16px;}
-.solver-card dl{display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13px; margin:10px 0 0;}
-.solver-card dt{color:var(--muted); font-family:'JetBrains Mono', monospace; font-size:11px;}
-.solver-card dd{margin:0; font-variant-numeric:tabular-nums; font-family:'JetBrains Mono', monospace;}
-.path-actions{font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--ink); word-break:break-all;}
-
-/* stress test */
-.stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px;}
-@media (max-width:720px){ .stat-row{grid-template-columns:1fr 1fr;} }
-.stat{background:var(--surface); border:1px solid var(--line-strong); border-radius:3px; padding:16px;}
-.stat .num{font-family:'JetBrains Mono', monospace; font-size:24px; font-weight:800; color:var(--ok); font-variant-numeric:tabular-nums;}
-.stat .label{font-size:11.5px; color:var(--muted); margin-top:4px;}
-
-/* phase 5 method comparison */
-.method-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:28px;}
-@media (max-width:640px){ .method-grid{grid-template-columns:1fr;} }
-.method-card{background:var(--surface); border:1px solid var(--line-strong); border-radius:3px; padding:16px;}
-.method-card .method-choice{
-  font-family:'JetBrains Mono', monospace; font-size:20px; font-weight:800; color:var(--ok); margin:8px 0 4px;
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:14px 16px;border-right:0;border-bottom:1px solid var(--rule);gap:10px 16px}
+  .rail-foot,.route .tag,.route .group{display:none}
+  .route{flex-direction:row;flex-wrap:wrap;border-left:0;padding:0;gap:4px}
+  .route li::before{display:none}
+  .route button{padding:6px 10px;border:1px solid var(--rule);border-radius:99px;font-size:13px}
+  .route li.cur button{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+  .stage,.res{grid-template-columns:1fr}
+  .rowbar{grid-template-columns:96px minmax(0,1fr) 78px}
 }
-.method-card .method-note{font-size:12.5px; color:var(--muted);}
-
-/* phase 5 visual solve */
-.p5-visual-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;}
-@media (max-width:640px){ .p5-visual-grid{grid-template-columns:1fr;} }
-.p5-visual-grid .panel .grid-box{max-width:220px;}
-.p5-visual-grid .step-label{
-  font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); text-align:center; margin-top:4px;
-}
-
-/* river crossing: no grid at all -- two banks and a boat */
-.river-board{display:flex; align-items:stretch; gap:0; margin:0 auto 12px; max-width:320px;}
-.bank{flex:1; border:2px solid var(--line-strong); padding:12px 8px; text-align:center; background:var(--floor);}
-.bank-label{font-family:'JetBrains Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:8px;}
-.bank-count{font-family:'JetBrains Mono', monospace; font-size:15px; font-variant-numeric:tabular-nums; margin:2px 0;}
-.bank-count b{font-size:20px;}
-.boat-track{width:56px; display:flex; align-items:center; justify-content:center; border-top:2px solid var(--line-strong); border-bottom:2px solid var(--line-strong); background:var(--surface); position:relative;}
-.boat{
-  font-family:'JetBrains Mono', monospace; font-size:9px; font-weight:700; color:#fff; background:var(--ok);
-  padding:4px 6px; border-radius:2px; transition:transform .3s;
-}
-.boat-track.right .boat{transform:translateX(14px);}
-.boat-track.left .boat{transform:translateX(-14px);}
-
-/* rush hour: multi-cell vehicles on a CSS grid */
-.vehicle-grid{
-  display:grid; gap:2px; background:var(--line-strong); border:2px solid var(--line-strong); border-radius:2px;
-  overflow:hidden; max-width:260px; margin:0 auto 12px;
-}
-.vehicle-grid .cell{background:var(--floor);}
-.vehicle{
-  display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace;
-  font-size:11px; font-weight:700; color:#fff; background:var(--warn); border-radius:1px;
-}
-.vehicle.target{background:var(--ok);}
-.exit-marker{background:var(--ok-soft); border-left:2px dashed var(--ok);}
-
-/* phase strip */
-.phase-strip{display:flex; gap:5px; margin-bottom:10px;}
-.phase-chip{
-  flex:1; text-align:center; font-family:'JetBrains Mono', monospace; font-size:10.5px; padding:7px 4px; border-radius:2px;
-  background:var(--ok); color:#fbfaf5; border:1px solid var(--ok); font-weight:600;
-}
-.phase-chip.pending{background:transparent; color:var(--muted); border-color:var(--line);}
-
-footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong); font-size:12px; color:var(--muted); font-family:'JetBrains Mono', monospace; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+@media (prefers-reduced-motion:reduce){.view{animation:none}.mv{transition:none}}
 </style>
 
-<div class="wrap">
-  <p class="eyebrow">Phases 2 to 5 · Validation, Experience, Scoring, Path Selection · Live Replay</p>
-  <h1>The same push, judged three different ways</h1>
-  <p class="dek">A real trace from the actual pipeline (not a mockup): one candidate plan legally wedges a box into a corner off any goal. The Phase 1 baseline accepts it into the plan graph like any other move. The Phase 2 validator catches it before it's trusted. The Phase 3 column replays the same plan a second time, after an earlier run already recorded a mismatch on one step, so that transition is trusted even less here. Every accepted step also carries its Phase 4 score breakdown, not just a confidence label. Further down, Phase 5 shows the same graph solved by two different methods, and two more benchmarks (river crossing, Rush Hour) prove none of this is Sokoban-specific.</p>
-
-  <div class="phase-strip">
-    <div class="phase-chip">1 · Baseline ✓</div>
-    <div class="phase-chip">2 · Validation ✓</div>
-    <div class="phase-chip">3 · Experience ✓</div>
-    <div class="phase-chip">4 · Scoring ✓</div>
-    <div class="phase-chip">5 · Path Select ✓</div>
-    <div class="phase-chip pending">6 · Evaluation</div>
-  </div>
-
-  <div class="controls">
-    <div class="seg" id="plan-seg">
-      <button data-plan="bad" class="active">Adversarial candidate</button>
-      <button data-plan="good">Optimal candidate</button>
-    </div>
-    <button class="btn" id="btn-back">◀ Step</button>
-    <button class="btn primary" id="btn-play">Play</button>
-    <button class="btn" id="btn-fwd">Step ▶</button>
-    <button class="btn" id="btn-reset">Reset</button>
-    <div class="spacer"></div>
-    <span class="step-counter" id="step-counter">0 / 0</span>
-  </div>
-
-  <div class="panels">
-    <div class="panel">
-      <div class="panel-head"><span class="tag baseline">Phase 1</span><span class="panel-title">Baseline: trusts every legal move</span></div>
-      <div class="chain" id="chain-baseline"></div>
-      <div class="grid-box" id="grid-baseline"></div>
-      <div class="badge neutral" id="badge-baseline">Ready</div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><span class="tag validated">Phase 2 + 4</span><span class="panel-title">Validated: checks before trusting</span></div>
-      <div class="chain" id="chain-validated"></div>
-      <div class="grid-box" id="grid-validated"></div>
-      <div class="badge neutral" id="badge-validated">Ready</div>
-      <div class="score-row" id="score-validated"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><span class="tag experience">Phase 3</span><span class="panel-title">With experience: remembers past mistakes</span></div>
-      <div class="chain" id="chain-experience"></div>
-      <div class="grid-box" id="grid-experience"></div>
-      <div class="badge neutral" id="badge-experience">Ready</div>
-      <div class="score-row" id="score-experience"></div>
-      <div class="learned-note" id="learned-experience" hidden></div>
-    </div>
-  </div>
-
-  <h2>Solver outcome</h2>
-  <p class="section-note">All three graphs are built from the <em>same two candidates</em> (one optimal, one adversarial). The adversarial one never reaches the goal in any of them, so the solver picks the optimal path every time; none of the three extensions change whether this episode succeeds. What they do change is the price tag attached to trusting the path. Phase 2 discards the dead branch instead of leaving it in the graph unused. Phase 4 prices every edge by regression (did this step move a box farther from its goal), confidence, and budget pressure together, not confidence alone, then scales everything by 10x to keep one decimal of precision as a whole number for the solver. Phase 3 pushes the cost higher again: one earlier episode already recorded a mismatch on a specific step, so that exact transition is trusted less here than it was under plain Phase 2, even though the validator's own verdict on it hasn't changed.</p>
-  <div class="solver-grid">
-    <div class="solver-card">
-      <span class="tag baseline">Phase 1</span>
-      <dl>
-        <dt>graph nodes</dt><dd id="base-nodes"></dd>
-        <dt>graph edges</dt><dd id="base-edges"></dd>
-        <dt>solver cost</dt><dd id="base-cost"></dd>
-        <dt>chosen path</dt><dd class="path-actions" id="base-path"></dd>
-      </dl>
-    </div>
-    <div class="solver-card">
-      <span class="tag validated">Phase 2 + 4</span>
-      <dl>
-        <dt>graph nodes</dt><dd id="val-nodes"></dd>
-        <dt>graph edges</dt><dd id="val-edges"></dd>
-        <dt>rejected transitions</dt><dd id="val-rejections"></dd>
-        <dt>solver cost</dt><dd id="val-cost"></dd>
-        <dt>chosen path</dt><dd class="path-actions" id="val-path"></dd>
-      </dl>
-    </div>
-    <div class="solver-card">
-      <span class="tag experience">Phase 3</span>
-      <dl>
-        <dt>graph nodes</dt><dd id="exp-nodes"></dd>
-        <dt>graph edges</dt><dd id="exp-edges"></dd>
-        <dt>rejected transitions</dt><dd id="exp-rejections"></dd>
-        <dt>solver cost</dt><dd id="exp-cost"></dd>
-        <dt>chosen path</dt><dd class="path-actions" id="exp-path"></dd>
-      </dl>
-    </div>
-  </div>
-
-  <h2>Does this matter at scale?</h2>
-  <p class="section-note">On the goal-biased mock LLM, corner mistakes like the one above almost never happen by chance, so the aggregate metrics look identical with or without the validator. To find out whether it actually matters, we stress-tested it with a deliberately much dumber candidate generator (pure random legal moves, no safety-net optimal plan) across 30 trials on a harder two-box level, then independently re-checked every rejection with a plain breadth-first search that has nothing to do with the validator's own logic.</p>
-  <div class="stat-row">
-    <div class="stat"><div class="num" id="st-attempted"></div><div class="label">transitions attempted</div></div>
-    <div class="stat"><div class="num">0.00%</div><div class="label">baseline's own error rate (structurally blind to this)</div></div>
-    <div class="stat"><div class="num" id="st-rejected"></div><div class="label">validator rejections</div></div>
-    <div class="stat"><div class="num" id="st-verified"></div><div class="label">independently confirmed true dead ends</div></div>
-  </div>
-
-  <h2>Phase 5: same graph, two solvers</h2>
-  <p class="section-note">Every solve above went through CP-SAT (a real ILP-style solver, run as a min-cost flow problem). Phase 5 adds A*, using the Phase 4 score as its heuristic, and a rule for which to use: a single box is a pure shortest-path problem A* handles fine; more than one box means the pushes have to be coordinated jointly, exactly the kind of interacting constraint CP-SAT exists for. These numbers are measured directly, full episodes run start to finish, not a claim.</p>
-  <div class="stat-row">
-    <div class="stat"><div class="num" id="p5-cpsat-time"></div><div class="label">CP-SAT avg planning time (s)</div></div>
-    <div class="stat"><div class="num" id="p5-astar-time"></div><div class="label">A* avg planning time (s)</div></div>
-    <div class="stat"><div class="num" id="p5-speedup"></div><div class="label">A* speedup, identical execution cost</div></div>
-    <div class="stat"><div class="num" id="p5-episodes"></div><div class="label">episodes measured per method</div></div>
-  </div>
-  <div class="method-grid">
-    <div class="method-card">
-      <span class="tag validated">Single-box level</span>
-      <div class="method-choice" id="p5-simple-method"></div>
-      <div class="method-note">Adaptive selection routed every planning round here to A*: no box-to-box coordination needed, so the cheaper method is enough.</div>
-    </div>
-    <div class="method-card">
-      <span class="tag experience">Two-box level</span>
-      <div class="method-choice" id="p5-multi-method"></div>
-      <div class="method-note">Adaptive selection routed every planning round here to CP-SAT: two boxes have to be pushed without one blocking the other, a real joint constraint.</div>
-    </div>
-  </div>
-
-  <h2>Watch each solver work</h2>
-  <p class="section-note">Both boards below are being solved live, right now, by whichever method adaptive selection actually picked for that level. The single box only ever needs one push at a time, so A* just walks toward the goal. The two boxes have to be interleaved, push one partway, switch to the other, come back, without either one blocking the other's path, which is what CP-SAT is actually being asked to coordinate.</p>
-  <div class="controls">
-    <button class="btn" id="p5-btn-back">◀ Step</button>
-    <button class="btn primary" id="p5-btn-play">Play</button>
-    <button class="btn" id="p5-btn-fwd">Step ▶</button>
-    <button class="btn" id="p5-btn-reset">Reset</button>
-    <div class="spacer"></div>
-    <span class="step-counter" id="p5-step-counter">0 / 0</span>
-  </div>
-  <div class="p5-visual-grid">
-    <div class="panel">
-      <div class="panel-head"><span class="tag validated">A*</span><span class="panel-title">Single box</span></div>
-      <div class="grid-box" id="grid-p5single"></div>
-      <div class="step-label" id="label-p5single"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><span class="tag experience">CP-SAT</span><span class="panel-title">Two boxes</span></div>
-      <div class="grid-box" id="grid-p5multi"></div>
-      <div class="step-label" id="label-p5multi"></div>
-    </div>
-  </div>
-
-  <h2>River crossing: a completely different game</h2>
-  <p class="section-note">Missionaries and cannibals. No grid at all &mdash; the whole state is two head counts and which bank the boat is on. Taking 2 missionaries across first is physically legal and looks like fast progress, but it leaves 1 missionary alone with 3 cannibals on the near bank. Same judgment moment as the corner push above, completely different mechanic.</p>
-  <div class="controls">
-    <button class="btn" id="rc-btn-back">◀ Step</button>
-    <button class="btn primary" id="rc-btn-play">Play</button>
-    <button class="btn" id="rc-btn-fwd">Step ▶</button>
-    <button class="btn" id="rc-btn-reset">Reset</button>
-    <div class="spacer"></div>
-    <span class="step-counter" id="rc-step-counter">0 / 1</span>
-  </div>
-  <div class="panels" style="grid-template-columns:1fr 1fr;">
-    <div class="panel">
-      <div class="panel-head"><span class="tag baseline">Phase 1</span><span class="panel-title">Baseline: trusts every legal trip</span></div>
-      <div class="river-board" id="river-baseline"></div>
-      <div class="badge neutral" id="badge-river-baseline">Ready</div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><span class="tag validated">Phase 2</span><span class="panel-title">Validated: checks before trusting</span></div>
-      <div class="river-board" id="river-validated"></div>
-      <div class="badge neutral" id="badge-river-validated">Ready</div>
-    </div>
-  </div>
-
-  <p class="section-note">The real, textbook-verified answer takes 11 one-way trips, ferrying people back as well as forward &mdash; a validator-aware candidate finds it, solved here by A*, since only one boat ever moves independently (complexity 1).</p>
-  <div class="controls">
-    <button class="btn" id="rcs-btn-back">◀ Step</button>
-    <button class="btn primary" id="rcs-btn-play">Play</button>
-    <button class="btn" id="rcs-btn-fwd">Step ▶</button>
-    <button class="btn" id="rcs-btn-reset">Reset</button>
-    <div class="spacer"></div>
-    <span class="step-counter" id="rcs-step-counter">0 / 11</span>
-  </div>
-  <div class="panel" style="max-width:340px; margin:0 auto 30px;">
-    <div class="panel-head"><span class="tag validated">A*</span><span class="panel-title">Full safe solve</span></div>
-    <div class="river-board" id="river-solve"></div>
-    <div class="step-label" id="label-river-solve"></div>
-  </div>
-
-  <h2>Rush Hour: a completely different game</h2>
-  <p class="section-note">The sliding-vehicle traffic jam (ThinkFun, 1996). Vehicles occupy multiple cells with a fixed orientation and length &mdash; a third mechanic, nothing like a single-cell box or a headcount. Watch the vertical blocker <code>B</code> slide out of the way before the target <code>X</code> can reach the exit.</p>
-  <div class="controls">
-    <button class="btn" id="rh-btn-back">◀ Step</button>
-    <button class="btn primary" id="rh-btn-play">Play</button>
-    <button class="btn" id="rh-btn-fwd">Step ▶</button>
-    <button class="btn" id="rh-btn-reset">Reset</button>
-    <div class="spacer"></div>
-    <span class="step-counter" id="rh-step-counter">0 / 6</span>
-  </div>
-  <div class="panel" style="max-width:280px; margin:0 auto 24px;">
-    <div class="panel-head"><span class="tag experience">CP-SAT</span><span class="panel-title">Full solve (3 vehicles)</span></div>
-    <div class="vehicle-grid" id="grid-rh-solve"></div>
-    <div class="step-label" id="label-rh-solve"></div>
-  </div>
-
-  <p class="section-note">The hard-reject tier (a fully sealed row) turns out to be a static property of a level's design, not something a move creates mid-game &mdash; see progress.md &sect;8.2.1. The soft tier genuinely does vary by state: here <code>D</code> is boxed between the target and a vertical vehicle <code>E</code> that also can't move away <em>right now</em>. Baseline says nothing; the validator flags it as worth distrusting, without claiming it's permanently stuck.</p>
-  <div class="panels" style="grid-template-columns:1fr 1fr;">
-    <div class="panel">
-      <div class="panel-head"><span class="tag baseline">Phase 1</span><span class="panel-title">Baseline</span></div>
-      <div class="vehicle-grid" id="grid-rh-baseline"></div>
-      <div class="badge ok" id="badge-rh-baseline">accepted, no domain check</div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><span class="tag validated">Phase 2</span><span class="panel-title">Validated</span></div>
-      <div class="vehicle-grid" id="grid-rh-validated"></div>
-      <div class="badge warning" id="badge-rh-validated"></div>
-    </div>
-  </div>
-
-  <footer>
-    <span>60/60 automated tests passing</span>
-    <span>Phases 1 to 5 complete (~90% of plan) · three benchmarks (Sokoban, river crossing, Rush Hour) · generated from a live pipeline run, not hand-authored numbers</span>
-  </footer>
+<div class="shell">
+  <aside class="rail">
+    <div class="brand">Plan Check<small>A checking layer for planners, built on TAPE</small></div>
+    <ol class="route" id="route"></ol>
+    <div class="rail-foot">Every board, plan and number here comes from a live run of the project code.</div>
+  </aside>
+  <main id="main"></main>
 </div>
 
 <script>
-const DATA = __DEMO_DATA_JSON__;
-const MODES = ['baseline', 'validated', 'experience'];
-
-const st = { plan: 'bad', step: -1, playing: false, timer: null };
-
-function key(rc){ return rc[0] + ',' + rc[1]; }
-
-function buildStaticMap(levelData){
-  const walls = new Set(levelData.walls.map(key));
-  const goals = new Set(levelData.goals.map(key));
-  const height = levelData.height || levelData.rows.length;
-  const width = levelData.width || Math.max(...levelData.rows.map(r => r.length));
-  return { walls, goals, height, width };
-}
-
-const staticMap = buildStaticMap(DATA.level);
-
-function renderGrid(container, sokState, map){
-  map = map || staticMap;
-  container.innerHTML = '';
-  container.style.gridTemplateColumns = `repeat(${map.width}, 1fr)`;
-  container.style.gridTemplateRows = `repeat(${map.height}, 1fr)`;
-  const boxSet = new Set((sokState.boxes || []).map(key));
-  const playerKey = sokState.player ? key(sokState.player) : null;
-  for (let r = 0; r < map.height; r++) {
-    for (let c = 0; c < map.width; c++) {
-      const k = r + ',' + c;
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      if (map.walls.has(k)) cell.classList.add('wall');
-      else if (map.goals.has(k)) cell.classList.add('goal');
-      if (boxSet.has(k)) cell.classList.add(map.goals.has(k) ? 'box-on-goal' : 'box');
-      if (k === playerKey) cell.classList.add(map.goals.has(k) ? 'player-on-goal' : 'player');
-      container.appendChild(cell);
-    }
-  }
-}
-
-function trace(mode, plan){ return DATA.modes[mode][plan + '_trace']; }
-
-function maxSteps(){
-  return Math.max(...MODES.map(mode => trace(mode, st.plan).length));
-}
-
-function renderChain(mode){
-  const tr = trace(mode, st.plan);
-  const idx = st.step;
-  const el = document.getElementById('chain-' + mode);
-  el.innerHTML = '';
-  const start = document.createElement('div');
-  start.className = 'chain-node start';
-  el.appendChild(start);
-  tr.forEach((s, i) => {
-    const stepWrap = document.createElement('div');
-    stepWrap.className = 'chain-step';
-    const edge = document.createElement('div');
-    edge.className = 'chain-edge' + (i <= idx ? ' walked' : '');
-    stepWrap.appendChild(edge);
-    const node = document.createElement('div');
-    let cls = 'chain-node';
-    if (s.accepted === false) cls += ' danger';
-    else if (s.confidence < 1) cls += ' warning';
-    else cls += ' ok';
-    if (i > idx) cls += ' pending';
-    if (s.learned_from_failure) cls += ' learned';
-    node.className = cls + (i === idx ? ' current' : '');
-    node.textContent = s.action;
-    node.title = `${s.action}: ${s.reason} (confidence ${s.confidence.toFixed(2)})`
-      + (s.learned_from_failure ? '. Recorded a failure here in an earlier episode.' : '');
-    stepWrap.appendChild(node);
-    el.appendChild(stepWrap);
-  });
-}
-
-function renderMode(mode){
-  const tr = trace(mode, st.plan);
-  const idx = Math.min(st.step, tr.length - 1);
-  const visState = idx < 0 ? DATA.level.start : tr[idx].to;
-  const grid = document.getElementById('grid-' + mode);
-  renderGrid(grid, visState);
-
-  const frozen = idx >= 0 && tr[idx].accepted === false;
-  grid.classList.toggle('frozen', !!frozen);
-
-  const badge = document.getElementById('badge-' + mode);
-  const step = idx < 0 ? null : tr[idx];
-  if (!step) {
-    badge.textContent = 'Ready. Press Step or Play.';
-    badge.className = 'badge neutral';
-  } else if (step.accepted === false) {
-    badge.textContent = `REJECTED: ${step.reason} (never added to plan graph)`;
-    badge.className = 'badge danger';
-  } else if (step.confidence < 1) {
-    badge.textContent = `accepted, confidence ${step.confidence.toFixed(2)} (${step.reason})`;
-    badge.className = 'badge warning';
-  } else {
-    badge.textContent = `accepted into plan graph, action "${step.action}"`;
-    badge.className = 'badge ok';
-  }
-
-  const scoreRow = document.getElementById('score-' + mode);
-  if (scoreRow) {
-    scoreRow.innerHTML = '';
-    if (step && step.score) {
-      const s = step.score;
-      const items = [
-        ['goal distance', `${s.goal_distance_before} → ${s.goal_distance_after}`],
-        ['regression', s.regression],
-        ['budget used', `${Math.round(s.budget_used_fraction * 100)}%`],
-        ['edge cost', s.cost],
-      ];
-      items.forEach(([label, value]) => {
-        const div = document.createElement('div');
-        div.innerHTML = `${label}: <span>${value}</span>`;
-        scoreRow.appendChild(div);
-      });
-    }
-  }
-
-  const learnedNote = document.getElementById('learned-' + mode);
-  if (learnedNote) {
-    if (step && step.learned_from_failure) {
-      learnedNote.textContent = mode === 'experience'
-        ? `An earlier episode recorded a mismatch on this exact step, so its confidence is lower here than under plain validation.`
-        : `This step will be flagged by Phase 3 next time, once an earlier episode records a mismatch on it.`;
-      learnedNote.hidden = false;
-    } else {
-      learnedNote.hidden = true;
-    }
-  }
-
-  renderChain(mode);
-}
-
-function renderAll(){
-  MODES.forEach(renderMode);
-  document.getElementById('step-counter').textContent = `${Math.max(st.step, 0)} / ${maxSteps()}`;
-  document.getElementById('btn-play').textContent = st.playing ? 'Pause' : 'Play';
-}
-
-function stopPlaying(){
-  st.playing = false;
-  if (st.timer) clearInterval(st.timer);
-  st.timer = null;
-}
-
-function stepForward(){
-  if (st.step + 1 < maxSteps()) { st.step++; renderAll(); }
-  else stopPlaying();
-}
-function stepBack(){ if (st.step > -1) { st.step--; renderAll(); } }
-function reset(){ st.step = -1; renderAll(); }
-
-function setPlan(plan){
-  st.plan = plan;
-  st.step = -1;
-  stopPlaying();
-  document.querySelectorAll('#plan-seg button').forEach(b => b.classList.toggle('active', b.dataset.plan === plan));
-  renderAll();
-}
-
-function togglePlay(){
-  if (st.playing) { stopPlaying(); }
-  else {
-    st.playing = true;
-    st.timer = setInterval(() => {
-      if (st.step + 1 >= maxSteps()) { stopPlaying(); renderAll(); return; }
-      stepForward();
-    }, 900);
-  }
-  renderAll();
-}
-
-document.getElementById('btn-fwd').addEventListener('click', stepForward);
-document.getElementById('btn-back').addEventListener('click', stepBack);
-document.getElementById('btn-reset').addEventListener('click', reset);
-document.getElementById('btn-play').addEventListener('click', togglePlay);
-document.querySelectorAll('#plan-seg button').forEach(b => b.addEventListener('click', () => setPlan(b.dataset.plan)));
-
-function fillSolverPanel(){
-  const b = DATA.modes.baseline, v = DATA.modes.validated, e = DATA.modes.experience;
-  document.getElementById('base-nodes').textContent = b.graph_nodes;
-  document.getElementById('base-edges').textContent = b.graph_edges;
-  document.getElementById('base-cost').textContent = b.solver_cost;
-  document.getElementById('base-path').textContent = (b.solver_actions || []).join(' → ');
-  document.getElementById('val-nodes').textContent = v.graph_nodes;
-  document.getElementById('val-edges').textContent = v.graph_edges;
-  document.getElementById('val-rejections').textContent = v.validator_rejections;
-  document.getElementById('val-cost').textContent = v.solver_cost;
-  document.getElementById('val-path').textContent = (v.solver_actions || []).join(' → ');
-  document.getElementById('exp-nodes').textContent = e.graph_nodes;
-  document.getElementById('exp-edges').textContent = e.graph_edges;
-  document.getElementById('exp-rejections').textContent = e.validator_rejections;
-  document.getElementById('exp-cost').textContent = e.solver_cost;
-  document.getElementById('exp-path').textContent = (e.solver_actions || []).join(' → ');
-}
-
-function fillStressPanel(){
-  const s = DATA.stress_test;
-  document.getElementById('st-attempted').textContent = s.total_attempted.toLocaleString();
-  document.getElementById('st-rejected').textContent = s.total_rejected.toLocaleString();
-  document.getElementById('st-verified').textContent = `${s.verified_dead_ends}/${s.total_rejected}`;
-}
-
-function fillPhase5Panel(){
-  const p = DATA.phase5;
-  document.getElementById('p5-cpsat-time').textContent = p.cp_sat.avg_planning_time_s.toFixed(4);
-  document.getElementById('p5-astar-time').textContent = p.astar.avg_planning_time_s.toFixed(4);
-  document.getElementById('p5-speedup').textContent = `${p.speedup.toFixed(1)}x`;
-  document.getElementById('p5-episodes').textContent = p.n_episodes;
-  document.getElementById('p5-simple-method').textContent = p.adaptive_simple_methods.join(', ');
-  document.getElementById('p5-multi-method').textContent = p.adaptive_multi_methods.join(', ');
-}
-
-const p5v = { step: -1, playing: false, timer: null };
-const p5vMaps = {
-  single: buildStaticMap(DATA.phase5_visual.single),
-  two_box: buildStaticMap(DATA.phase5_visual.two_box),
+const D = __DEMO_DATA_JSON__;
+const G = D.games;
+const META = {
+  sokoban: {name: "Sokoban", goal: "Push the box onto the target.", risk: "Push it into a corner and it is stuck for good."},
+  river: {name: "River Crossing", goal: "Ferry 3 missionaries and 3 cannibals across in a 2 seat boat.", risk: "If cannibals outnumber missionaries on a bank, the game is lost."},
+  rush: {name: "Rush Hour", goal: "Slide the blue car out through the exit.", risk: "Cars block each other, and some jams are easy to miss."}
+};
+const STAGES = [
+  {id: "propose", name: "Propose", phase: "Phase 1", title: "Propose", text: "The planner suggests several plans. Play both."},
+  {id: "merge", name: "Merge", phase: "Phase 1", title: "Merge", text: "Plans that reach the same state share a node. Together they form one graph."},
+  {id: "check", name: "Check", phase: "Phases 2 and 3", title: "Check", text: "A rule checker looks at every move. Switch it on and off."},
+  {id: "choose", name: "Choose", phase: "Phases 4 and 5", title: "Choose", text: "Each move gets a cost. A solver finds the cheapest path to the goal."},
+  {id: "run", name: "Run", phase: "Phases 1 and 3", title: "Run", text: "Worlds surprise us. When a move slips, plan again from where we really are."}
+];
+const $ = (s, r = document) => r.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const svgEl = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
 };
 
-function p5vMaxSteps(){
-  return Math.max(DATA.phase5_visual.single.actions.length, DATA.phase5_visual.two_box.actions.length);
-}
-
-function renderP5Side(key, elGridId, elLabelId){
-  const side = DATA.phase5_visual[key];
-  const idx = Math.min(p5v.step, side.actions.length - 1);
-  const sokState = idx < 0 ? side.start : side.states[idx];
-  renderGrid(document.getElementById(elGridId), sokState, p5vMaps[key]);
-  const label = document.getElementById(elLabelId);
-  if (idx < 0) {
-    label.textContent = `ready (${side.method}, cost ${side.cost})`;
-  } else {
-    label.textContent = `step ${idx + 1}/${side.actions.length}: ${side.actions[idx]}`;
+/* ---------- boards: each returns {svg, show(state, action)} ---------- */
+function sokobanBoard(g) {
+  const S = g.static, C = 44;
+  const svg = svgEl("svg", {viewBox: `0 0 ${S.w * C} ${S.h * C}`, role: "img", "aria-label": "Sokoban board"});
+  svgEl("rect", {width: S.w * C, height: S.h * C, class: "b-floor"}, svg);
+  S.walls.forEach(([r, c]) => svgEl("rect", {x: c * C, y: r * C, width: C, height: C, class: "b-wall"}, svg));
+  S.goals.forEach(([r, c]) => svgEl("circle", {cx: c * C + C / 2, cy: r * C + C / 2, r: C * .32, class: "b-goal"}, svg));
+  const goalSet = new Set(S.goals.map(String));
+  let boxes = [];
+  const player = svgEl("g", {class: "b-player mv"}, svg);
+  svgEl("circle", {cx: C / 2, cy: C / 2, r: C * .3}, player);
+  const at = (el, r, c) => { el.style.transform = `translate(${c * C}px,${r * C}px)`; };
+  function show(st) {
+    at(player, st.p[0], st.p[1]);
+    const next = st.b.slice(), used = new Set(), pairs = [];
+    boxes.forEach(b => {
+      let bestI = -1, bestD = 1e9;
+      next.forEach((n, i) => { if (used.has(i)) return; const d = Math.abs(n[0] - b.pos[0]) + Math.abs(n[1] - b.pos[1]); if (d < bestD) { bestD = d; bestI = i; } });
+      if (bestI >= 0) { used.add(bestI); pairs.push([b, next[bestI]]); }
+    });
+    next.forEach((n, i) => {
+      if (used.has(i)) return;
+      const el = svgEl("g", {class: "b-box mv"}, svg);
+      svgEl("rect", {x: 5, y: 5, width: C - 10, height: C - 10, rx: 4}, el);
+      const b = {el, pos: n}; boxes.push(b); pairs.push([b, n]);
+    });
+    pairs.forEach(([b, n]) => { b.pos = n; at(b.el, n[0], n[1]); b.el.classList.toggle("on", goalSet.has(String(n))); });
+    svg.appendChild(player);
   }
+  return {svg, show};
 }
 
-function renderP5Visual(){
-  renderP5Side('single', 'grid-p5single', 'label-p5single');
-  renderP5Side('two_box', 'grid-p5multi', 'label-p5multi');
-  document.getElementById('p5-step-counter').textContent = `${Math.max(p5v.step, 0)} / ${p5vMaxSteps()}`;
-  document.getElementById('p5-btn-play').textContent = p5v.playing ? 'Pause' : 'Play';
-}
-
-function p5vStopPlaying(){
-  p5v.playing = false;
-  if (p5v.timer) clearInterval(p5v.timer);
-  p5v.timer = null;
-}
-function p5vStepForward(){
-  if (p5v.step + 1 < p5vMaxSteps()) { p5v.step++; renderP5Visual(); }
-  else p5vStopPlaying();
-}
-function p5vStepBack(){ if (p5v.step > -1) { p5v.step--; renderP5Visual(); } }
-function p5vReset(){ p5v.step = -1; renderP5Visual(); }
-function p5vTogglePlay(){
-  if (p5v.playing) { p5vStopPlaying(); }
-  else {
-    p5v.playing = true;
-    p5v.timer = setInterval(() => {
-      if (p5v.step + 1 >= p5vMaxSteps()) { p5vStopPlaying(); renderP5Visual(); return; }
-      p5vStepForward();
-    }, 700);
+function riverBoard(g) {
+  const n = g.static.n, W = 600, H = 250;
+  const svg = svgEl("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "River crossing board"});
+  const left = svgEl("rect", {x: 6, y: 30, width: 190, height: 190, rx: 10, class: "b-bank"}, svg);
+  svgEl("rect", {x: 196, y: 30, width: 208, height: 190, class: "b-river"}, svg);
+  const right = svgEl("rect", {x: 404, y: 30, width: 190, height: 190, rx: 10, class: "b-bank"}, svg);
+  const people = svgEl("g", {}, svg);
+  const boat = svgEl("g", {class: "mv"}, svg);
+  svgEl("path", {d: "M0 0 H90 L76 22 H14 Z", class: "b-boat"}, boat);
+  const cap = svgEl("text", {x: 45, y: -8, "text-anchor": "middle", class: "b-txt"}, boat);
+  const draw = (x0, m, c) => {
+    for (let i = 0; i < m; i++) svgEl("circle", {cx: x0 + 26 + (i % 3) * 52, cy: 66 + Math.floor(i / 3) * 0, r: 16, class: "b-m"}, people);
+    for (let i = 0; i < c; i++) svgEl("rect", {x: x0 + 10 + (i % 3) * 52, y: 118, width: 32, height: 32, rx: 5, class: "b-c"}, people);
+  };
+  const lab = (x, t) => { const e = svgEl("text", {x, y: 18, class: "b-label"}, svg); e.textContent = t; };
+  lab(8, "missionaries: round, cannibals: square");
+  function show(st, action) {
+    people.innerHTML = "";
+    draw(6, st.m, st.c);
+    draw(404, n - st.m, n - st.c);
+    const dangerL = st.m > 0 && st.c > st.m, dangerR = (n - st.m) > 0 && (n - st.c) > (n - st.m);
+    left.classList.toggle("danger", dangerL);
+    right.classList.toggle("danger", dangerR);
+    boat.style.transform = `translate(${st.boat ? 206 : 304}px, 176px)`;
+    cap.textContent = action || "";
   }
-  renderP5Visual();
+  return {svg, show};
 }
 
-document.getElementById('p5-btn-fwd').addEventListener('click', p5vStepForward);
-document.getElementById('p5-btn-back').addEventListener('click', p5vStepBack);
-document.getElementById('p5-btn-reset').addEventListener('click', p5vReset);
-document.getElementById('p5-btn-play').addEventListener('click', p5vTogglePlay);
-
-// ---------- River crossing ----------
-function renderRiverBoard(container, state){
-  container.innerHTML = '';
-  const n = DATA.river_crossing.n;
-  const rightM = n - state.missionaries_left;
-  const rightC = n - state.cannibals_left;
-
-  const left = document.createElement('div');
-  left.className = 'bank';
-  left.innerHTML = `<div class="bank-label">Left bank</div><div class="bank-count">M <b>${state.missionaries_left}</b></div><div class="bank-count">C <b>${state.cannibals_left}</b></div>`;
-
-  const track = document.createElement('div');
-  track.className = 'boat-track ' + (state.boat_left ? 'left' : 'right');
-  track.innerHTML = '<div class="boat">BOAT</div>';
-
-  const right = document.createElement('div');
-  right.className = 'bank';
-  right.innerHTML = `<div class="bank-label">Right bank</div><div class="bank-count">M <b>${rightM}</b></div><div class="bank-count">C <b>${rightC}</b></div>`;
-
-  container.appendChild(left);
-  container.appendChild(track);
-  container.appendChild(right);
-}
-
-const rcState = { step: -1, playing: false, timer: null };
-function rcMaxSteps(){
-  return Math.max(DATA.river_crossing.bad_trace_baseline.length, DATA.river_crossing.bad_trace_validated.length);
-}
-function renderRiverMode(mode){
-  const trace = DATA.river_crossing['bad_trace_' + mode];
-  const idx = Math.min(rcState.step, trace.length - 1);
-  const s = idx < 0 ? DATA.river_crossing.start : trace[idx].to;
-  renderRiverBoard(document.getElementById('river-' + mode), s);
-  const badge = document.getElementById('badge-river-' + mode);
-  const step = idx < 0 ? null : trace[idx];
-  if (!step) { badge.textContent = 'Ready. Press Step or Play.'; badge.className = 'badge neutral'; }
-  else if (step.accepted === false) { badge.textContent = `REJECTED: ${step.reason}`; badge.className = 'badge danger'; }
-  else { badge.textContent = `accepted, action "${step.action}"`; badge.className = 'badge ok'; }
-}
-function renderRiverAll(){
-  renderRiverMode('baseline');
-  renderRiverMode('validated');
-  document.getElementById('rc-step-counter').textContent = `${Math.max(rcState.step, 0)} / ${rcMaxSteps()}`;
-  document.getElementById('rc-btn-play').textContent = rcState.playing ? 'Pause' : 'Play';
-}
-function rcStopPlaying(){ rcState.playing = false; if (rcState.timer) clearInterval(rcState.timer); rcState.timer = null; }
-function rcStepForward(){ if (rcState.step + 1 < rcMaxSteps()) { rcState.step++; renderRiverAll(); } else rcStopPlaying(); }
-function rcStepBack(){ if (rcState.step > -1) { rcState.step--; renderRiverAll(); } }
-function rcReset(){ rcState.step = -1; renderRiverAll(); }
-function rcTogglePlay(){
-  if (rcState.playing) { rcStopPlaying(); }
-  else {
-    rcState.playing = true;
-    rcState.timer = setInterval(() => {
-      if (rcState.step + 1 >= rcMaxSteps()) { rcStopPlaying(); renderRiverAll(); return; }
-      rcStepForward();
-    }, 900);
-  }
-  renderRiverAll();
-}
-document.getElementById('rc-btn-fwd').addEventListener('click', rcStepForward);
-document.getElementById('rc-btn-back').addEventListener('click', rcStepBack);
-document.getElementById('rc-btn-reset').addEventListener('click', rcReset);
-document.getElementById('rc-btn-play').addEventListener('click', rcTogglePlay);
-
-const rcsState = { step: -1, playing: false, timer: null };
-function rcsMaxSteps(){ return DATA.river_crossing.solve.actions.length; }
-function renderRcsAll(){
-  const solve = DATA.river_crossing.solve;
-  const idx = Math.min(rcsState.step, solve.states.length - 1);
-  const s = idx < 0 ? DATA.river_crossing.start : solve.states[idx];
-  renderRiverBoard(document.getElementById('river-solve'), s);
-  const label = document.getElementById('label-river-solve');
-  label.textContent = idx < 0 ? `ready (astar, cost ${solve.cost})` : `step ${idx + 1}/${solve.actions.length}: ${solve.actions[idx]}`;
-  document.getElementById('rcs-step-counter').textContent = `${Math.max(rcsState.step, 0)} / ${rcsMaxSteps()}`;
-  document.getElementById('rcs-btn-play').textContent = rcsState.playing ? 'Pause' : 'Play';
-}
-function rcsStopPlaying(){ rcsState.playing = false; if (rcsState.timer) clearInterval(rcsState.timer); rcsState.timer = null; }
-function rcsStepForward(){ if (rcsState.step + 1 < rcsMaxSteps()) { rcsState.step++; renderRcsAll(); } else rcsStopPlaying(); }
-function rcsStepBack(){ if (rcsState.step > -1) { rcsState.step--; renderRcsAll(); } }
-function rcsReset(){ rcsState.step = -1; renderRcsAll(); }
-function rcsTogglePlay(){
-  if (rcsState.playing) { rcsStopPlaying(); }
-  else {
-    rcsState.playing = true;
-    rcsState.timer = setInterval(() => {
-      if (rcsState.step + 1 >= rcsMaxSteps()) { rcsStopPlaying(); renderRcsAll(); return; }
-      rcsStepForward();
-    }, 700);
-  }
-  renderRcsAll();
-}
-document.getElementById('rcs-btn-fwd').addEventListener('click', rcsStepForward);
-document.getElementById('rcs-btn-back').addEventListener('click', rcsStepBack);
-document.getElementById('rcs-btn-reset').addEventListener('click', rcsReset);
-document.getElementById('rcs-btn-play').addEventListener('click', rcsTogglePlay);
-
-// ---------- Rush Hour ----------
-function renderVehicles(container, width, height, meta, placements){
-  container.innerHTML = '';
-  container.style.gridTemplateColumns = `repeat(${width}, 1fr)`;
-  container.style.gridTemplateRows = `repeat(${height}, 1fr)`;
-  container.style.aspectRatio = `${width} / ${height}`;
-  for (let r = 0; r < height; r++) {
-    for (let c = 0; c < width; c++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.style.gridColumn = `${c + 1} / span 1`;
-      cell.style.gridRow = `${r + 1} / span 1`;
-      container.appendChild(cell);
-    }
-  }
-  const xp = placements.find(p => p[0] === 'X');
-  if (xp) {
-    const exit = document.createElement('div');
-    exit.className = 'exit-marker';
-    exit.style.gridColumn = `${width} / span 1`;
-    exit.style.gridRow = `${xp[1] + 1} / span 1`;
-    container.appendChild(exit);
-  }
-  placements.forEach(([vid, row, col]) => {
-    const m = meta[vid];
-    const el = document.createElement('div');
-    el.className = 'vehicle' + (vid === 'X' ? ' target' : '');
-    el.textContent = vid;
-    if (m.orientation === 'H') {
-      el.style.gridColumn = `${col + 1} / span ${m.length}`;
-      el.style.gridRow = `${row + 1} / span 1`;
-    } else {
-      el.style.gridColumn = `${col + 1} / span 1`;
-      el.style.gridRow = `${row + 1} / span ${m.length}`;
-    }
-    container.appendChild(el);
+function rushBoard(g) {
+  const S = g.static, C = 56, exitRow = g.start.find(p => p[0] === "X")[1];
+  const svg = svgEl("svg", {viewBox: `0 0 ${S.w * C + 34} ${S.h * C}`, role: "img", "aria-label": "Rush Hour board"});
+  for (let r = 0; r < S.h; r++) for (let c = 0; c < S.w; c++) svgEl("rect", {x: c * C, y: r * C, width: C, height: C, class: "b-grid"}, svg);
+  svgEl("rect", {x: S.w * C + 4, y: exitRow * C + 14, width: 26, height: C - 28, rx: 4, class: "b-exit"}, svg);
+  const fills = ["var(--v1)", "var(--v2)", "var(--v3)", "var(--v4)"];
+  let k = 0;
+  const els = {};
+  Object.keys(S.vehicles).sort().forEach(v => {
+    const m = S.vehicles[v], gEl = svgEl("g", {class: "b-veh mv"}, svg);
+    const w = (m.o === "H" ? m.len * C : C) - 10, h = (m.o === "V" ? m.len * C : C) - 10;
+    svgEl("rect", {x: 5, y: 5, width: w, height: h, rx: 9, fill: v === "X" ? "var(--accent)" : fills[k++ % 4]}, gEl);
+    const t = svgEl("text", {x: 5 + w / 2, y: 5 + h / 2 + 5, "text-anchor": "middle"}, gEl); t.textContent = v;
+    els[v] = gEl;
   });
+  function show(st) { st.forEach(([v, r, c]) => { els[v].style.transform = `translate(${c * C}px,${r * C}px)`; }); }
+  return {svg, show};
 }
+const BOARDS = {sokoban: sokobanBoard, river: riverBoard, rush: rushBoard};
 
-const rhState = { step: -1, playing: false, timer: null };
-function rhMaxSteps(){ return DATA.rush_hour.solve.actions.length; }
-function renderRhAll(){
-  const rh = DATA.rush_hour;
-  const idx = Math.min(rhState.step, rh.solve.states.length - 1);
-  const placements = idx < 0 ? rh.start : rh.solve.states[idx];
-  renderVehicles(document.getElementById('grid-rh-solve'), rh.width, rh.height, rh.vehicles, placements);
-  const label = document.getElementById('label-rh-solve');
-  label.textContent = idx < 0 ? `ready (${rh.solve.method}, cost ${rh.solve.cost})` : `step ${idx + 1}/${rh.solve.actions.length}: ${rh.solve.actions[idx]}`;
-  document.getElementById('rh-step-counter').textContent = `${Math.max(rhState.step, 0)} / ${rhMaxSteps()}`;
-  document.getElementById('rh-btn-play').textContent = rhState.playing ? 'Pause' : 'Play';
-}
-function rhStopPlaying(){ rhState.playing = false; if (rhState.timer) clearInterval(rhState.timer); rhState.timer = null; }
-function rhStepForward(){ if (rhState.step + 1 < rhMaxSteps()) { rhState.step++; renderRhAll(); } else rhStopPlaying(); }
-function rhStepBack(){ if (rhState.step > -1) { rhState.step--; renderRhAll(); } }
-function rhReset(){ rhState.step = -1; renderRhAll(); }
-function rhTogglePlay(){
-  if (rhState.playing) { rhStopPlaying(); }
-  else {
-    rhState.playing = true;
-    rhState.timer = setInterval(() => {
-      if (rhState.step + 1 >= rhMaxSteps()) { rhStopPlaying(); renderRhAll(); return; }
-      rhStepForward();
-    }, 700);
+/* ---------- player: steps a board through frames ---------- */
+function makePlayer(host, gid, frames, onFrame) {
+  const board = BOARDS[gid](G[gid]);
+  host.innerHTML = `<div class="stagebox"></div>
+    <div class="controls">
+      <button class="btn small" data-a="reset">Reset</button>
+      <button class="btn small" data-a="back">Back</button>
+      <button class="btn small primary" data-a="play">Play</button>
+      <button class="btn small" data-a="next">Next</button>
+      <input type="range" min="0" max="${frames.length - 1}" value="0" aria-label="Step">
+    </div>
+    <div class="status" aria-live="polite"></div>`;
+  $(".stagebox", host).appendChild(board.svg);
+  const range = $("input", host), status = $(".status", host), play = $('[data-a=play]', host);
+  let i = 0, timer = null;
+  const stop = () => { clearInterval(timer); timer = null; play.textContent = "Play"; };
+  function go(n) {
+    i = Math.max(0, Math.min(frames.length - 1, n));
+    const f = frames[i];
+    board.show(f.state, f.action);
+    range.value = i;
+    status.innerHTML = `<span class="pill">step ${i} of ${frames.length - 1}</span>` +
+      `<span>${esc(f.label)}</span>` + (f.pill ? `<span class="pill ${f.tone || ""}">${esc(f.pill)}</span>` : "");
+    if (onFrame) onFrame(i, f);
+    if (i === frames.length - 1) stop();
   }
-  renderRhAll();
+  if (host._h) host.removeEventListener("click", host._h);
+  host._h = e => {
+    const a = e.target.closest("[data-a]")?.dataset.a;
+    if (!a) return;
+    if (a === "play") {
+      if (timer) return stop();
+      if (i === frames.length - 1) go(0);
+      play.textContent = "Pause";
+      timer = setInterval(() => go(i + 1), 720);
+    } else { stop(); go(a === "reset" ? 0 : a === "back" ? i - 1 : i + 1); }
+  };
+  host.addEventListener("click", host._h);
+  range.addEventListener("input", () => { stop(); go(+range.value); });
+  go(0);
+  return {go, stop, get index() { return i; }};
 }
-document.getElementById('rh-btn-fwd').addEventListener('click', rhStepForward);
-document.getElementById('rh-btn-back').addEventListener('click', rhStepBack);
-document.getElementById('rh-btn-reset').addEventListener('click', rhReset);
-document.getElementById('rh-btn-play').addEventListener('click', rhTogglePlay);
 
-function fillRhUncertainDemo(){
-  const d = DATA.rush_hour.uncertain_demo;
-  renderVehicles(document.getElementById('grid-rh-baseline'), d.width, d.height, d.vehicles, d.state);
-  renderVehicles(document.getElementById('grid-rh-validated'), d.width, d.height, d.vehicles, d.state);
-  document.getElementById('badge-rh-validated').textContent = `confidence ${d.validated_confidence.toFixed(2)}: ${d.validated_reason}`;
+const chipsHtml = (steps, mode) => steps.map((s, i) => {
+  const cls = mode === "check" ? (!s.ok ? "bad" : s.conf < 1 ? "warn" : "") : "";
+  return `<button class="chip ${cls}" data-i="${i + 1}" title="Go to step ${i + 1}">${esc(s.a)}</button>`;
+}).join("");
+function bindChips(panel, player) {
+  const mark = i => panel.querySelectorAll(".chip").forEach((c, k) => c.classList.toggle("cur", k + 1 === i));
+  if (panel._h) panel.removeEventListener("click", panel._h);
+  panel._h = e => { const c = e.target.closest(".chip"); if (c) { player.stop(); player.go(+c.dataset.i); } };
+  panel.addEventListener("click", panel._h);
+  return mark;
+}
+const framesFrom = (g, steps, tonef) => [{state: g.start, label: "Start"}].concat(steps.map((s, i) => {
+  const t = tonef ? tonef(s) : {};
+  return Object.assign({state: s.s, action: s.a, label: `Move ${s.a}`}, t);
+}));
+
+/* ---------- graph ---------- */
+function graphSvg(g, mode) {
+  const nodes = g.graph.nodes.filter(n => mode === "check" || !n.stub);
+  const ids = new Set(nodes.map(n => n.id));
+  const edges = g.graph.edges.filter(e => ids.has(e.s) && ids.has(e.t));
+  const big = mode === "merge", W = big ? 900 : 540, H = big ? 300 : 200, pad = 28;
+  const L = Math.max(1, ...nodes.map(n => n.layer));
+  const byLayer = {};
+  nodes.forEach(n => (byLayer[n.layer] = byLayer[n.layer] || []).push(n));
+  const pos = {};
+  Object.keys(byLayer).forEach(l => byLayer[l].forEach((n, k, arr) => {
+    pos[n.id] = [pad + l * (W - 2 * pad) / L, arr.length === 1 ? H / 2 : pad + 10 + k * (H - 2 * pad - 20) / (arr.length - 1)];
+  }));
+  const col = e => e.plans.length > 1 ? "var(--muted)" : e.plans[0] === 0 ? "var(--plan-a)" : "var(--plan-b)";
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Plan graph">`;
+  edges.forEach(e => {
+    const [x1, y1] = pos[e.s], [x2, y2] = pos[e.t];
+    let stroke = col(e), dash = "", extra = "";
+    if (mode === "check") {
+      if (e.st === "rejected") { stroke = "var(--bad)"; dash = ' stroke-dasharray="5 4"'; }
+      else if (e.st === "uncertain") { stroke = "var(--warn)"; extra = ' stroke-width="4"'; }
+      else stroke = "var(--ok)";
+    }
+    s += `<line class="g-edge" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}"${dash}${extra}/>`;
+    if (big) s += `<text class="g-lab" x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 8}" text-anchor="middle">${esc(e.a)}</text>`;
+  });
+  nodes.forEach(n => {
+    const [x, y] = pos[n.id], r = big ? 8 : 6;
+    s += n.stub ? `<circle class="g-node g-stub" cx="${x}" cy="${y}" r="${r}"/>`
+      : `<circle class="${n.goal ? "g-goal" : "g-node"}" cx="${x}" cy="${y}" r="${n.id === 0 || n.goal ? r + 3 : r}"/>`;
+  });
+  const p0 = pos[0];
+  s += `<text class="g-lab" x="${p0[0]}" y="${p0[1] - 16}" text-anchor="middle">start</text>`;
+  const goal = nodes.find(n => n.goal);
+  if (goal) s += `<text class="g-lab" x="${pos[goal.id][0]}" y="${pos[goal.id][1] - 16}" text-anchor="middle">goal</text>`;
+  return s + "</svg>";
 }
 
-fillSolverPanel();
-fillStressPanel();
-fillPhase5Panel();
-renderAll();
-renderP5Visual();
-renderRiverAll();
-renderRcsAll();
-renderRhAll();
-fillRhUncertainDemo();
+/* ---------- screens ---------- */
+const state = {screen: "intro", game: null, stage: null};
+let player = null;
+
+function head(stage, gid) {
+  const st = STAGES.find(x => x.id === stage);
+  return `<div class="stagehead"><div><div class="tag eyebrow">${st.phase}</div><h2>${st.title}</h2><p>${st.text}</p></div>
+    <div class="picked">Game: <b>${META[gid].name}</b> <button data-go="games">change</button></div></div>`;
+}
+
+function viewIntro() {
+  return `<div class="tag eyebrow">Semester project</div>
+  <h1>Check the plan before anything moves.</h1>
+  <p class="lede">A planner suggests several routes. Some are wrong. This layer checks them, picks the best one, and recovers when something slips.</p>
+  <ol class="flow">
+    <li><b>Propose</b><span>plans come in</span></li><li><b>Merge</b><span>one graph</span></li>
+    <li><b>Check</b><span>rules and memory</span></li><li><b>Choose</b><span>cheapest path</span></li><li><b>Run</b><span>replan on slips</span></li>
+  </ol>
+  <button class="btn primary" data-go="games">Pick a game</button>
+  <p class="note">This extends TAPE, which pairs plan graphs with an external solver. Our planners are synthetic. No language model is used.</p>`;
+}
+
+function viewGames() {
+  return `<div class="tag eyebrow">Step 1</div><h2>Pick a game</h2>
+  <p class="lede">Same pipeline, three different games. Pick one to follow through.</p>
+  <div class="tiles">${Object.keys(G).map(id => `<button class="tile" data-game="${id}">
+    <div class="thumb" data-thumb="${id}"></div>
+    <div><h3>${META[id].name}</h3><p>${META[id].goal}</p></div>
+    <div class="risk">${META[id].risk}</div></button>`).join("")}</div>`;
+}
+
+function stageShell(stage, gid, left, right) {
+  return `<div class="view">${head(stage, gid)}<div class="stage"><div class="boardwrap" id="left">${left}</div><div class="panel" id="right">${right}</div></div></div>`;
+}
+
+function viewPropose(gid) {
+  const g = G[gid];
+  return stageShell("propose", gid, "", `
+    <div class="seg" role="group" aria-label="Plan"><button data-plan="0" aria-pressed="true">Plan A</button><button data-plan="1" aria-pressed="false">Plan B</button></div>
+    <div><h3 id="pname">Plan A</h3><p class="picked" id="pinfo"></p></div>
+    <div class="chips" id="chips"></div>`);
+}
+function mountPropose(gid) {
+  const g = G[gid], plans = [g.good.steps, g.bad_plain.steps];
+  let cur = 0, mark;
+  const load = k => {
+    cur = k;
+    if (player) player.stop();
+    $("#chips").innerHTML = chipsHtml(plans[k], "plain");
+    $("#pname").textContent = k ? "Plan B" : "Plan A";
+    $("#pinfo").textContent = `${plans[k].length} moves`;
+    document.querySelectorAll("[data-plan]").forEach(b => b.setAttribute("aria-pressed", b.dataset.plan == k));
+    player = makePlayer($("#left"), gid, framesFrom(g, plans[k]), i => mark && mark(i));
+    mark = bindChips($("#right"), player);
+    mark(0);
+  };
+  $("#right").addEventListener("click", e => { const b = e.target.closest("[data-plan]"); if (b) load(+b.dataset.plan); });
+  load(0);
+}
+
+function viewMerge(gid) {
+  const g = G[gid];
+  return `<div class="view">${head("merge", gid)}
+    <div class="graphcard">${graphSvg(g, "merge")}</div>
+    <div class="legend"><span><i style="border-color:var(--plan-a)"></i>only Plan A</span><span><i style="border-color:var(--plan-b)"></i>only Plan B</span><span><i style="border-color:var(--muted)"></i>both plans</span></div>
+    <div class="facts"><span><b>${g.graph_stats.nodes}</b>states</span><span><b>${g.graph_stats.edges}</b>moves</span></div></div>`;
+}
+
+function viewCheck(gid) {
+  return stageShell("check", gid, "", `
+    <div><div class="tag" style="margin-bottom:8px">Rule checker</div>
+    <div class="seg" role="group" aria-label="Rule checker"><button data-chk="0" aria-pressed="false">Off</button><button data-chk="1" aria-pressed="true">On</button></div></div>
+    <div><h3>Plan B</h3></div>
+    <div class="chips" id="chips"></div>
+    <div id="verdict"></div>
+    <div><div class="tag" style="margin-bottom:6px">Graph after checking</div><div class="graphcard compact" style="padding:8px">${graphSvg(G[gid], "check")}</div>
+    <div class="legend"><span><i style="border-color:var(--ok)"></i>accepted</span><span><i style="border-color:var(--warn)"></i>doubtful</span><span><i style="border-color:var(--bad);border-top-style:dashed"></i>rejected</span></div></div>`);
+}
+function mountCheck(gid) {
+  const g = G[gid];
+  const k = g.bad_at + 1, kind = g.bad_kind;
+  let mark;
+  const verdictFor = on => {
+    const s = g.bad_checked.steps[k - 1];
+    if (!on) {
+      if (kind === "uncertain") return ["warn", `Plan B runs to the end.`, `Nothing marks step ${k} as risky.`];
+      return g.bad_plain.goal
+        ? ["bad", "Plan B reaches the goal.", `It broke a rule at step ${k} and nothing noticed.`]
+        : ["bad", "Plan B ends stuck.", `The goal is out of reach after step ${k}.`];
+    }
+    return kind === "rejected"
+      ? ["ok", `Stopped at step ${k}.`, `${cap(s.why)}. The plan never enters the graph.`]
+      : ["warn", `Step ${k} is kept, but trusted at ${s.conf.toFixed(2)}.`, `${cap(s.why)}. It costs more, so the solver avoids it.`];
+  };
+  const load = on => {
+    if (player) player.stop();
+    const steps = on ? g.bad_checked.steps : g.bad_plain.steps;
+    $("#chips").innerHTML = chipsHtml(steps, on ? "check" : "plain");
+    const v = verdictFor(on);
+    $("#verdict").innerHTML = `<div class="verdict ${v[0]}"><b>${esc(v[1])}</b><span>${esc(v[2])}</span></div>`;
+    document.querySelectorAll("[data-chk]").forEach(b => b.setAttribute("aria-pressed", b.dataset.chk == (on ? 1 : 0)));
+    const tonef = s => on && !s.ok ? {tone: "bad", pill: "rejected"} : on && s.conf < 1 ? {tone: "warn", pill: `trust ${s.conf.toFixed(2)}`} : {};
+    player = makePlayer($("#left"), gid, framesFrom(g, steps, tonef), i => mark && mark(i));
+    mark = bindChips($("#right"), player);
+    mark(0);
+    player.go(Math.min(k, steps.length));
+    player.stop();
+    mark(player.index);
+  };
+  $("#right").addEventListener("click", e => { const b = e.target.closest("[data-chk]"); if (b) load(b.dataset.chk === "1"); });
+  load(true);
+}
+
+function viewChoose(gid) {
+  const g = G[gid], c = g.choose, max = Math.max(c.astar_ms, c.cpsat_ms);
+  const card = (id, name, sub, ms) => `<div class="solver ${c.method === id ? "chosen" : ""}">
+    <header><div><h3>${name}</h3><div class="sub">${sub}</div></div>${c.method === id ? '<span class="mark">chosen</span>' : ""}</header>
+    <div class="bar"><span style="width:${Math.max(2, ms / max * 100)}%"></span></div><div class="ms">${ms.toFixed(2)} ms on this graph</div></div>`;
+  return stageShell("choose", gid, "", `
+    <div class="solvers">${card("astar", "A*", "Best-first search", c.astar_ms)}${card("cp_sat", "CP-SAT", "Constraint solver", c.cpsat_ms)}</div>
+    <div class="verdict ok"><b>${c.method === "astar" ? "One moving piece. A search is enough." : "Several pieces block each other. The solver plans them together."}</b>
+    <span>${g.piece} here. Path cost ${c.cost} over ${c.length} moves.</span></div>
+    <div class="chips" id="chips"></div>`);
+}
+function mountChoose(gid) {
+  const g = G[gid], c = g.choose;
+  const steps = c.actions.map((a, i) => ({a, s: c.states[i], ok: true, conf: 1}));
+  $("#chips").innerHTML = chipsHtml(steps, "plain");
+  let mark;
+  player = makePlayer($("#left"), gid, framesFrom(g, steps), i => mark && mark(i));
+  mark = bindChips($("#right"), player); mark(0);
+}
+
+function viewRun(gid) {
+  const g = G[gid], r = g.run;
+  return stageShell("run", gid, "", `
+    <ul class="timeline">
+      <li class="acc"><i></i><span>Follow the chosen path for ${r.slip_at} moves.</span></li>
+      <li class="bad"><i></i><span>Move <b class="mono">${esc(r.slipped_action)}</b> slips. The world did not change.</span></li>
+      <li class="acc"><i></i><span>Plan again from the real state with ${r.method === "astar" ? "A*" : "CP-SAT"}. ${r.after_actions.length} moves to go.</span></li>
+    </ul>
+    <div class="verdict ok"><b>The slip is remembered.</b><span>Trust in that move drops from 1.00 to ${r.memory_conf.toFixed(2)}, so later plans lean away from it.</span></div>
+    <div class="chips" id="chips"></div>`);
+}
+function mountRun(gid) {
+  const g = G[gid], r = g.run;
+  const before = r.before_actions.map((a, i) => ({a, s: r.before[i], ok: true, conf: 1, phase: "run"}));
+  const slip = {a: r.slipped_action + " (slip)", s: r.real, ok: false, conf: 1};
+  const after = r.after_actions.map((a, i) => ({a, s: r.after[i], ok: true, conf: 1}));
+  const all = before.concat([slip], after);
+  const frames = [{state: g.start, label: "Start"}].concat(all.map((s, i) => {
+    const kind = i < before.length ? "run" : i === before.length ? "slip" : "replan";
+    return {state: s.s, action: s.a, label: kind === "slip" ? `${r.slipped_action} did not happen` : `Move ${s.a}`,
+      tone: kind === "slip" ? "bad" : kind === "replan" ? "ok" : "", pill: kind === "slip" ? "slip" : kind === "replan" ? "replanned" : ""};
+  }));
+  $("#chips").innerHTML = all.map((s, i) => `<button class="chip ${i === before.length ? "bad" : ""}" data-i="${i + 1}">${esc(s.a)}</button>`).join("");
+  let mark;
+  player = makePlayer($("#left"), gid, frames, i => mark && mark(i));
+  mark = bindChips($("#right"), player); mark(0);
+}
+
+function viewResults() {
+  const R = D.results, ms = Math.max(...R.speed.map(x => x.base));
+  const lo = -1.0, hi = 0.3, W = 460, rowH = 34, H = R.memory.length * rowH + 44;
+  const X = v => 150 + (v - lo) / (hi - lo) * (W - 170);
+  const mem = R.memory.map((m, i) => {
+    const y = 22 + i * rowH, help = m.diff + m.se < 0;
+    return `<text class="nm" x="0" y="${y + 4}">${esc(m.name.replace("sokoban-", "Sokoban ").replace("river-crossing", "River").replace("rush-hour", "Rush Hour").replace("Sokoban simple", "Sokoban 1 box").replace("Sokoban multi", "Sokoban 2 box"))}</text>
+      <line x1="${X(m.diff - m.se)}" x2="${X(m.diff + m.se)}" y1="${y}" y2="${y}" stroke="var(--ink)" stroke-width="2"/>
+      <circle cx="${X(m.diff)}" cy="${y}" r="6" fill="${help ? "var(--ok)" : "var(--muted)"}" stroke="var(--ink)" stroke-width="2"/>
+      <text x="${W - 4}" y="${y + 4}" text-anchor="end">${m.diff > 0 ? "+" : ""}${m.diff.toFixed(2)}</text>`;
+  }).join("");
+  return `<div class="view"><div class="tag eyebrow">What we measured</div><h2>Results</h2>
+  <p class="lede">Each row is a different experiment. Full tables are in the results folder of the repository.</p>
+  <div class="results">
+    <div class="res"><div><h3>Safety</h3><p class="claim">On River Crossing the plain planner reaches the goal every time, but breaks the rules on the way. With the checker it does not.</p></div>
+      <div class="rows">
+        <div class="rowbar"><span>Without checker</span><div class="bar"><span class="bad" style="width:${Math.max(1, R.river.baseline * 100)}%"></span></div><span class="v">${(R.river.baseline * 100).toFixed(0)}% safe</span></div>
+        <div class="rowbar"><span>With checker</span><div class="bar"><span class="good" style="width:${R.river.validated * 100}%"></span></div><span class="v">${(R.river.validated * 100).toFixed(0)}% safe</span></div>
+        <p class="picked">Reached the goal without the checker: ${(R.river.raw * 100).toFixed(0)}%. Safe means no move broke a rule.</p></div></div>
+    <div class="res"><div><h3>Speed</h3><p class="claim">Planning time per episode, in milliseconds. The adaptive solver helps where one piece moves and ties elsewhere.</p></div>
+      <div class="rows">${R.speed.map(x => `<div class="duo"><span style="font-size:14px">${esc(x.name)}</span>
+        <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">always CP-SAT</span><div class="bar"><span style="width:${x.base / ms * 100}%"></span></div><span class="v">${x.base.toFixed(1)} ms</span></div>
+        <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">adaptive</span><div class="bar"><span class="acc" style="width:${Math.max(1, x.adaptive / ms * 100)}%"></span></div><span class="v">${x.adaptive.toFixed(1)} ms</span></div></div>`).join("")}</div></div>
+    <div class="res"><div><h3>Memory</h3><p class="claim">Change in replans per episode when the system remembers failed moves. Left of zero is better. Bars show one standard error.</p></div>
+      <svg class="forest" viewBox="0 0 ${W} ${H}" role="img" aria-label="Replan change per game">${mem}
+        <line x1="${X(0)}" x2="${X(0)}" y1="6" y2="${H - 26}" stroke="var(--muted)" stroke-dasharray="4 4"/>
+        <text x="${X(0)}" y="${H - 8}" text-anchor="middle">0</text><text x="${X(-0.6)}" y="${H - 8}" text-anchor="middle">fewer replans</text></svg></div>
+    <div class="limits"><h3>What this does not show</h3><ul>
+      <li>Planners here are synthetic. No language model was used, so results say nothing about real model failures.</li>
+      <li>The checker filters bad plans. It cannot invent a plan that no proposal contains.</li>
+      <li>Tuning the cost weights found nothing better than the defaults.</li>
+      <li>Memory gave no gain on two box Sokoban, and Rush Hour is within noise.</li></ul></div>
+  </div>
+  <p class="note">Code and data: github.com/Harsh-v69/MachineLearningCP</p></div>`;
+}
+
+/* ---------- routing ---------- */
+const ORDER = ["intro", "games"].concat(STAGES.map(s => s.id), ["results"]);
+const cur = () => state.screen === "stage" ? state.stage : state.screen;
+function hashFor() { return state.screen === "stage" ? `${state.game}-${state.stage}` : state.screen; }
+function fromHash() {
+  const h = location.hash.slice(1), [g, s] = h.split("-");
+  if (G[g] && STAGES.some(x => x.id === s)) { state.game = g; state.screen = "stage"; state.stage = s; }
+  else if (h === "games" || h === "results") state.screen = h;
+  else state.screen = "intro";
+}
+function goto(id) {
+  if (STAGES.some(s => s.id === id)) { if (!state.game) return goto("games"); state.screen = "stage"; state.stage = id; }
+  else state.screen = id;
+  if (location.hash.slice(1) !== hashFor()) location.hash = hashFor();
+  render();
+}
+
+function renderRoute() {
+  const c = cur(), ci = ORDER.indexOf(c);
+  const li = (id, label, cls = "", tag = "") => `<li class="${ORDER.indexOf(id) < ci ? "done" : ""} ${id === c ? "cur" : ""} ${cls}"><button data-goto="${id}">${label}${tag ? `<span class="tag">${tag}</span>` : ""}</button></li>`;
+  $("#route").innerHTML = li("intro", "Start") + li("games", state.game ? `Game: ${META[state.game].name}` : "Pick a game") +
+    `<li class="group tag">Pipeline</li>` + STAGES.map(s => li(s.id, s.name, "sub", s.phase)).join("") + li("results", "Results");
+}
+
+function render() {
+  if (player) { player.stop(); player = null; }
+  renderRoute();
+  const main = $("#main"), c = cur(), gid = state.game;
+  const views = {intro: viewIntro, games: viewGames, results: viewResults};
+  let html;
+  if (views[c]) html = `<div class="view">${views[c]()}</div>`.replace('<div class="view"><div class="view">', '<div class="view">');
+  else html = {propose: viewPropose, merge: viewMerge, check: viewCheck, choose: viewChoose, run: viewRun}[c](gid);
+  const i = ORDER.indexOf(c), prev = ORDER[i - 1], next = ORDER[i + 1];
+  const canNext = next && !(c === "games" && !gid);
+  main.innerHTML = html + (c === "intro" || c === "games" ? "" : `<div class="pager">
+    <button class="btn" data-goto="${prev}" ${prev ? "" : "disabled"}>Back</button>
+    ${next ? `<button class="btn primary" data-goto="${next}">${next === "results" ? "See results" : "Next: " + STAGES.find(s => s.id === next).name}</button>` : "<span></span>"}</div>`);
+  if (c === "games") document.querySelectorAll("[data-thumb]").forEach(t => { const b = BOARDS[t.dataset.thumb](G[t.dataset.thumb]); b.show(G[t.dataset.thumb].start); t.appendChild(b.svg); });
+  if (c === "propose") mountPropose(gid);
+  if (c === "check") mountCheck(gid);
+  if (c === "choose") mountChoose(gid);
+  if (c === "run") mountRun(gid);
+  window.scrollTo(0, 0);
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-goto],[data-go],[data-game]");
+  if (!t) return;
+  if (t.dataset.game) { state.game = t.dataset.game; goto("propose"); }
+  else goto(t.dataset.goto || t.dataset.go);
+});
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input,textarea") || e.altKey || e.ctrlKey || e.metaKey) return;
+  const c = cur(), i = ORDER.indexOf(c);
+  if (e.key === "ArrowRight" && ORDER[i + 1] && !(c === "games" && !state.game)) goto(ORDER[i + 1]);
+  if (e.key === "ArrowLeft" && ORDER[i - 1]) goto(ORDER[i - 1]);
+});
+window.addEventListener("hashchange", () => { if (location.hash.slice(1) !== hashFor()) { fromHash(); render(); } });
+fromHash();
+render();
 </script>

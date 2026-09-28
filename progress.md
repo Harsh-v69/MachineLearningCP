@@ -68,7 +68,7 @@ MachineLearningCP/
 │   ├── stress_test.py            # Phase 2 adversarial stress test (see §4.1)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
 ├── demo/index.html               # standalone interactive replay for presenting to the teacher (see §11)
-└── tests/                        # 60 tests, all passing (see §9)
+└── tests/                        # 63 tests, all passing (see §9)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -291,7 +291,7 @@ Three benchmarks (Sokoban, river crossing, Rush Hour) now share Phases 1–5 unc
 
 ---
 
-## 9. Test coverage (60 tests, all passing)
+## 9. Test coverage (63 tests, all passing)
 
 ```
 tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -340,26 +340,19 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 
 ## 11. The live demo (for the mid-semester presentation)
 
-`demo/index.html` is a standalone, interactive replay built specifically for showing this to the teacher. It requires no server, no internet, and no setup — open it directly in any browser. It shows, side by side in three columns (one per extension):
+`demo/index.html` is a guided walkthrough called **Plan Check**, built so the guide can go through the project on their own. A route map on the left shows where you are: Start, Pick a game, then five pipeline steps, then Results. Arrow keys and the Back/Next buttons move between them.
 
-- **Phase 1 (Baseline)** and **Phase 2 + 4 (Validated)**: the exact same hand-verified adversarial candidate plan run through both. Baseline accepts a corner-deadlock push silently; the validator flags and rejects it ("corner deadlock, never added to plan graph"), with a synced step/play control across all three columns.
-- **Phase 3 (With experience)**: the identical plan and steps a second time, except one earlier "episode" already recorded a mismatch on the plan's first uncertain (wall-hugging) step. That step's confidence visibly drops further here than in the plain Phase 2 column (0.50 → 0.17 in the current build) even though the validator's own verdict on it is unchanged — a small purple dot on the chain node and an on-page note both mark which step this is.
-- Every accepted step in the Phase 2+4 and Phase 3 columns shows its full Phase 4 score breakdown underneath the badge: goal-distance change, regression, percent of the step budget used, and the resulting edge cost, not just a single confidence number.
-- A toggle to switch to the optimal candidate instead, showing it solve the puzzle end to end in all three columns.
-- The real solver output (graph node/edge counts, chosen path, cost) for all three graphs, pulled from an actual pipeline run, not typed in by hand.
-- The Phase 2 stress-test numbers from §4.1 above, rendered as stat cards.
-- **Phase 5 (same graph, two solvers):** a dedicated section below the stress-test stats, showing CP-SAT's and A*'s measured average planning time over 20 real episodes each (0.0176s vs 0.0027s, ~6.6x, in the current build), plus two cards showing which method adaptive selection actually picked on a single-box level (`astar`) versus a two-box level (`cp_sat`) — all pulled from a live 20-episode run per method, not hand-typed.
-- **"Watch each solver work"**: two boards animating the *actual winning solution* on each level, independently steppable/playable. The single-box board just walks toward the goal (A*). The two-box board is the point: watching CP-SAT interleave two pushes (partway on one box, switch to the other, come back) makes "joint constraint coordination" concrete instead of an abstract phrase — and visibly, one box reaching its goal (solid teal fill) while the other is still in progress (amber) is the moment that actually shows why a single-box shortest-path search wouldn't be enough here.
-- **River crossing section**: a two-column comparison (no grid at all — just left/right bank head counts and a boat indicator that slides side to side) replaying the exact fatal shortcut from §8.1: baseline accepts taking 2 missionaries across first, validated rejects it ("cannibals outnumber missionaries"). Below that, a full independently-steppable animation of the real 11-move safe solution.
-- **Rush Hour section**: a full animation of the actual 6-move solution with real multi-cell vehicles (rendered as CSS grid items spanning their true length and orientation, not single-cell boxes) sliding on the board — the most visually distinct proof that this isn't Sokoban. Below that, a two-column comparison for the soft "uncertain" validator tier (§8.2.1) using the constructed example where `D` is boxed between the target and a vertical vehicle `E` that also can't move away yet; the page states directly that the hard-reject tier is a static level-design property, not something demonstrated as a live "move causes deadlock" moment, since that would misrepresent what it actually checks.
+- **Pick a game:** Sokoban (one box), River Crossing, Rush Hour. Each has its own board.
+- **Propose:** two plans from the planner, Plan A (good) and Plan B (has a bad move). Play or step through each on the board.
+- **Merge:** the plans drawn as one graph. States both plans reach are shared nodes.
+- **Check:** switch the rule checker Off and On for Plan B. Off, the plan runs and nothing warns you. On, the bad move is rejected (Sokoban corner, River Crossing outnumbered) or kept with low trust (Rush Hour, confidence 0.50). The graph is recolored by verdict.
+- **Choose:** A* and CP-SAT timed on the graph, which one the adaptive rule picked and why, and the cheapest path played on the board.
+- **Run:** a move slips, the world does not change, the system replans from the real state, and the slipped move's trust drops from 1.00 to 0.33 in the experience store.
+- **Results:** three charts (safety, speed, memory) and a short list of what the data does not show. The numbers are read from `results/ablation.csv` and `results/experience_test.md`.
 
-**It is generated, not hand-authored.** `demo/template.html` is the hand-written page (layout, styling, JS logic) with a placeholder where the data goes. Running `python experiments/export_demo.py` re-executes the real pipeline (baseline graph build, validated graph build, an experience-primed graph build, the Phase 2 stress test, the Phase 5 timing comparison, and the river crossing / Rush Hour builders) and bakes the fresh output into `demo/index.html`. **Whenever the pipeline changes** (as it did for Phase 4 — the solver-cost numbers on the page jumped from single digits into the hundreds because of the new scoring formula), rerun this script before presenting, or the demo will show stale numbers that no longer match the code. Do not hand-edit `demo/index.html` directly; edit `demo/template.html` instead.
+**It is generated, not hand-authored.** `demo/template.html` is the hand-written page. `python experiments/export_demo.py` runs the real pipeline for all three games (finds a bad move by search, builds the graph, times both solvers, forces a slip and replans) and writes `demo/index.html`. Rerun it whenever the pipeline or the results files change. Edit `demo/template.html`, never `index.html`. `tests/test_export_demo.py` checks that every game's data is sound.
 
-**Opening it — two ways, and a real bug found by testing both:**
-- Double-click `demo/index.html` (or open it via `file://`) — no server, no setup. This is what we tested first, and it looked fine.
-- Serve it locally instead (`.claude/launch.json` defines a `demo` config: `python -m http.server 8000 --directory demo`, or run that command directly) if you want a `localhost` URL — e.g. to open it on another device on the same network, or to avoid a browser's occasional extra restrictions on `file://` pages.
-
-Testing the second option surfaced a real bug the first one was silently hiding: `demo/template.html` never declared `<meta charset="utf-8">`. Chrome guesses UTF-8 correctly for local `file://` pages regardless, but Python's `http.server` doesn't send a charset in its `Content-Type` header, so every non-ASCII character (`·`, `✓`, `◀`) rendered as mojibake once served over plain HTTP. Fixed by adding the meta tag — a one-line fix, but one that would only ever have been caught by actually serving the page the second way, not by eyeballing it as a local file.
+**Opening it:** double-click `demo/index.html`, or serve it with `.claude/launch.json` (`python -m http.server 8000 --directory demo`) and open `http://localhost:8000`. Deep links work, for example `#river-check`. The page uses Google Fonts when online and falls back to system fonts offline. It follows the system light or dark theme. The template declares `<meta charset="utf-8">` because Python's HTTP server sends no charset and non-ASCII text would otherwise turn into garbage.
 
 ---
 

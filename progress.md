@@ -348,7 +348,7 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 - **Check:** switch the rule checker Off and On for Plan B. Off, the plan runs and nothing warns you. On, the bad move is rejected (Sokoban corner, River Crossing outnumbered) or kept with low trust (Rush Hour, confidence 0.50). The graph is recolored by verdict.
 - **Choose:** A* and CP-SAT timed on the graph, which one the adaptive rule picked and why, and the cheapest path played on the board.
 - **Run:** a move slips, the world does not change, the system replans from the real state, and the slipped move's trust drops from 1.00 to 0.33 in the experience store.
-- **Results:** three charts (safety, speed, memory) and a short list of what the data does not show. The numbers are read from `results/ablation.csv` and `results/experience_test.md`.
+- **Results:** four charts (safety, speed, real levels on Boxoban, memory) and a short list of what the data does not show. The numbers are read from `results/ablation.csv` and `results/experience_test.md`.
 
 **It is generated, not hand-authored.** `demo/template.html` is the hand-written page. `python experiments/export_demo.py` runs the real pipeline for all three games (finds a bad move by search, builds the graph, times both solvers, forces a slip and replans) and writes `demo/index.html`. Rerun it whenever the pipeline or the results files change. Edit `demo/template.html`, never `index.html`. `tests/test_export_demo.py` checks that every game's data is sound.
 
@@ -473,3 +473,28 @@ Context: the original TAPE paper uses an LLM to propose candidate plans. Our gui
 - The class names `MockLLMClient`/`AdversarialMockLLMClient` are historical; they are simply proposers.
 
 **Recommended next steps:** standard non-LLM benchmarks (Boxoban Sokoban levels, Rush Hour configuration database, IPC PDDL domains), classical baselines (plain A*, proposer alone), and a learned non-LLM proposer if the guide allows learned models.
+
+---
+
+## 16. Boxoban benchmark (standard external levels)
+
+Boxoban is DeepMind's public Sokoban level set (`github.com/google-deepmind/boxoban-levels`). We use `medium/valid/000.txt`: 1000 levels, 10x10, 4 boxes each, stored at `data/boxoban/medium_valid_000.txt`. It uses the same character grammar as our own levels, so `tape.envs.boxoban.load_boxoban()` turns each block into a `SokobanLevel`. This is the first benchmark we did not write ourselves.
+
+**Proposer (no LLM):** blind BFS cannot solve 4-box levels, so `tape.search_proposer.WeightedAStarProposer` runs weighted A* (weights 1, 2, 4, 8) under a per-search node budget and returns the plans that finish. Optionally the Phase 2 corner-deadlock checker prunes the search.
+
+**Experiment:** `python experiments/run_boxoban.py --levels 200` (table: `results/boxoban.md`). Solve rate is the share of levels where any of the four searches finds a plan within the budget:
+
+| nodes per search | no pruning | with checker |
+|---|---|---|
+| 2,000 | 14% | 22% |
+| 5,000 | 26% | 41% |
+| 10,000 | 43% | 64% |
+| 20,000 | 57% | 82% |
+| 30,000 | 70% | 88% |
+
+**Reading it:**
+- The checker solves more levels at every budget, and in no case did no-pruning solve a level the checker missed (0 of 200 at every budget). The intervals at 20,000 and 30,000 nodes do not overlap.
+- It also expands 25% fewer nodes per level (69,002 vs 91,606 at the full budget).
+- **This is not a new idea.** Pruning dead corners is standard in Sokoban solvers. What the result shows is that our Phase 2 checker works as that pruner on real external levels, not just on levels we wrote.
+- **Merging did not shorten paths.** On 176 solved levels the merged path was never shorter than the best single plan and was longer on 2. The pipeline picks the cheapest path by Phase 4 cost (progress, trust, budget), not by move count, so a longer path can win. We report this as measured.
+- Limits: 200 of the 1000 levels in one file, one checker rule, a search-based proposer we wrote. The other Boxoban difficulty sets (`unfiltered`, `hard`) were not run.

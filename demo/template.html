@@ -448,7 +448,7 @@ let nodeIdx = 0;
 const R0 = () => D.results;
 const MAP = [
   {tag: "Data in", title: "Input", short: "Games and candidate plans", go: "games", goText: "Pick a game",
-   points: () => ["Three game environments: Sokoban, River Crossing, Rush Hour.", "Boxoban, a standard Sokoban level set, is the planned fourth.", "Plans come from LLM-free proposers: heuristic walks, or an optimal plan with random mistakes."]},
+   points: () => ["Three game environments: Sokoban, River Crossing, Rush Hour.", "Boxoban, a public set of 10 by 10 Sokoban levels with four boxes, is used for the results.","Plans come from LLM-free proposers: heuristic walks, or an optimal plan with random mistakes."]},
   {tag: "Preprocessing", title: "Preparation", short: "Plans become one graph", go: "merge", goText: "See the merge",
    points: () => ["There is no dataset to clean. The equivalent step is turning plans into a graph.", "Each plan is simulated move by move. Illegal moves end that plan early.", "Plans that reach the same state share one node."]},
   {tag: "Changes to it", title: "What we changed", short: "Check before merging", go: "check", goText: "See the checker",
@@ -460,7 +460,8 @@ const MAP = [
      const r = R0(), sp = r.speed[0], helped = r.memory.filter(m => m.diff + 2 * m.se < 0).length;
      return [`Safety: River Crossing goes from ${(r.river.baseline * 100).toFixed(0)}% to ${(r.river.validated * 100).toFixed(0)}% safe with the checker.`,
        `Speed: ${sp.name} planning drops from ${sp.base.toFixed(0)} ms to ${sp.adaptive.toFixed(0)} ms.`,
-       `Memory: clearly fewer replans on ${helped} of ${r.memory.length} games.`, "Tuning the cost weights found nothing better than the defaults."];
+       `Memory: clearly fewer replans on ${helped} of ${r.memory.length} games.`,
+       `Boxoban: ${r.boxoban.rows.at(-1).prune}% of ${r.boxoban.levels} real levels solved with the checker, ${r.boxoban.rows.at(-1).plain}% without.`,"Tuning the cost weights found nothing better than the defaults."];
    }},
   {tag: "Across all", title: "Pipeline changes", short: "Since the original paper", side: true, go: "propose", goText: "Walk the pipeline",
    points: () => ["No LLM. The proposer is a plug-in with a quality dial.", "One Environment interface serves every game.", "Checkers are per game plug-ins.", "Solver choice depends on how many pieces move."]}
@@ -633,6 +634,10 @@ function viewResults() {
       <div class="rows">${R.speed.map(x => `<div class="duo"><span style="font-size:14px">${esc(x.name)}</span>
         <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">always CP-SAT</span><div class="bar"><span style="width:${x.base / ms * 100}%"></span></div><span class="v">${x.base.toFixed(1)} ms</span></div>
         <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">adaptive</span><div class="bar"><span class="acc" style="width:${Math.max(1, x.adaptive / ms * 100)}%"></span></div><span class="v">${x.adaptive.toFixed(1)} ms</span></div></div>`).join("")}</div></div>
+    <div class="res"><div><h3>Real levels</h3><p class="claim">Boxoban is a public set of 10 by 10 Sokoban levels with four boxes. Share of ${R.boxoban.levels} levels solved within a search budget. Pruning dead corners during the search solves more at every budget.</p></div>
+      <div class="rows">${R.boxoban.rows.map(x => `<div class="duo"><span style="font-size:14px">${x.budget} nodes per search</span>
+        <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">no pruning</span><div class="bar"><span style="width:${x.plain}%"></span></div><span class="v">${x.plain}%</span></div>
+        <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">with checker</span><div class="bar"><span class="acc" style="width:${x.prune}%"></span></div><span class="v">${x.prune}%</span></div></div>`).join("")}</div></div>
     <div class="res"><div><h3>Memory</h3><p class="claim">Change in replans per episode when the system remembers failed moves. Left of zero is better. Bars show one standard error.</p></div>
       <svg class="forest" viewBox="0 0 ${W} ${H}" role="img" aria-label="Replan change per game">${mem}
         <line x1="${X(0)}" x2="${X(0)}" y1="6" y2="${H - 26}" stroke="var(--muted)" stroke-dasharray="4 4"/>
@@ -641,6 +646,7 @@ function viewResults() {
       <li>Planners here are synthetic. No language model was used, so results say nothing about real model failures.</li>
       <li>The checker filters bad plans. It cannot invent a plan that no proposal contains.</li>
       <li>Tuning the cost weights found nothing better than the defaults.</li>
+      <li>On Boxoban the checker is the standard dead corner rule, and the merged path is never shorter than the best single plan.</li>
       <li>Memory gave no gain on two box Sokoban, and Rush Hour is within noise.</li></ul></div>
   </div>
   <p class="note">Code and data: github.com/Harsh-v69/MachineLearningCP</p></div>`;

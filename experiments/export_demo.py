@@ -234,7 +234,11 @@ def read_results() -> dict:
     cell = lambda b, c: next(r for r in rows if r["benchmark"] == b and r["config"] == c)
     river = "river-crossing"
     txt = (ROOT / "results" / "experience_test.md").read_text(encoding="utf-8")
+    box = (ROOT / "results" / "boxoban.md").read_text(encoding="utf-8")
     return {
+        "boxoban": {"levels": int(re.search(r"\((\d+) levels", box).group(1)),
+                    "rows": [{"budget": m[0], "plain": int(m[1]), "prune": int(m[2])}
+                             for m in re.findall(r"\| ([\d,]+) \| (\d+)% \[[^\]]*\] \| (\d+)% \[", box)]},
         "river": {"baseline": float(cell(river, "baseline")["success"]),
                   "raw": float(cell(river, "baseline")["raw_success"]),
                   "validated": float(cell(river, "+validator")["success"])},

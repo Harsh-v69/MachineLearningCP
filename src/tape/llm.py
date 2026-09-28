@@ -148,6 +148,40 @@ class AdversarialMockLLMClient:
         return actions
 
 
+class QualityProposer:
+    """LLM-free candidate generator with a quality dial (Phase 6 sweep).
+
+    Each candidate is independently "guided" with probability `quality`
+    (goal-biased walk, as in MockLLMClient's noisy candidates) or uniform
+    random otherwise. Unlike MockLLMClient it plants NO guaranteed optimal
+    plan and is validator-unaware, so quality=0 is pure random and
+    quality=1 is a competent-but-imperfect heuristic proposer. Sweeping
+    the dial measures how much the pipeline helps as a function of
+    proposer quality, without any LLM.
+    """
+
+    def __init__(self, quality: float, seed: int = 0, mode: str = "guided"):
+        self.quality = quality
+        self.mode = mode  # "guided": mix guided/random walks. "corrupt": optimal plan, each step randomized w.p. 1-quality
+        self._rng = random.Random(seed)
+        self._guided = MockLLMClient(seed=seed + 10_000)
+        self._random = AdversarialMockLLMClient(seed=seed + 20_000)
+
+    def generate_candidate_plans(
+        self, level: Environment, state: State, n: int, max_depth: int
+    ) -> list[list[str]]:
+        if self.mode == "corrupt":
+            best = _bfs_plan(level, state, max_depth)
+            return [[a if self._rng.random() < self.quality else self._rng.choice(level.ACTIONS)
+                     for a in best] for _ in range(n)]
+        return [
+            self._guided._noisy_candidate(level, state, max_depth)
+            if self._rng.random() < self.quality
+            else self._random._one_candidate(level, state, max_depth)
+            for _ in range(n)
+        ]
+
+
 class GeminiClient:
     def __init__(self, api_key: str | None = None, model: str = "gemini-1.5-flash"):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY")

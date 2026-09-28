@@ -412,7 +412,7 @@ No. This project is closer to classical AI planning (graph search plus constrain
 - **Under the adversarial LLM the validator prunes bad transitions but cannot rescue a plan**: River Crossing 0% safe success in every config because no candidate is safe. Validators filter, they do not plan.
 - All results use mock LLMs, not a real model. Real-LLM runs (Gemini client exists) are still to do.
 
-**Still open for Phase 6:** real-LLM runs, TAPE's own benchmarks (ALFWorld, MuSiQue, GSM8K-Hard).
+**Still open for Phase 6:** see Sec 14.3 and 15 (the guide ruled out LLMs, so real-LLM runs and TAPE's LLM-native benchmarks are dropped).
 
 ### 14.1 Experience store under state-dependent slip
 
@@ -443,3 +443,40 @@ No. This project is closer to classical AI planning (graph search plus constrain
 | **default (1.5, 4, 2)** | 4.219 (rank 23/80) | 4.176 | 0 |
 
 **Result: tuning found no defensible improvement.** The best train point did not hold up on held-out seeds, and none of the three candidates beats the defaults beyond one standard error. So we keep the defaults, and can now say they were checked rather than merely assumed: within this setting the cost is fairly flat over a wide range of weights (train objectives 3.9 to 4.2 for most of the grid; the worst corner is 5.1). Caveats: mock LLM, synthetic hazards, and only 8 train seeds, so the grid ranking itself is noisy. `run_episode` now accepts `weights=` so this can be re-run against real-LLM candidates.
+
+### 14.3 Proposer-quality sweep (no LLM)
+
+`python experiments/run_proposer_sweep.py [guided|corrupt]` (tables: `results/proposer_sweep_guided.md`, `results/proposer_sweep_corrupt.md`). `QualityProposer` in `llm.py` is an LLM-free candidate generator with a quality dial. Both arms run under the state-dependent slip of Sec 14.1: `baseline` (graph + CP-SAT) vs `full` (validator + experience store + adaptive solver). Metric: safe success, paired difference over 10 hazard seeds x 20 episodes.
+
+- **guided mode** (mix of goal-biased and random walks, no planted optimal plan): floor effect. Sokoban-simple tops out at 17%, multi and hard at 0%, in both arms. This proposer is too weak for the pipeline to have anything to select from.
+- **corrupt mode** (optimal plan, each step randomized with probability 1-quality, 30 candidates): the informative one. Highlights: Sokoban-simple 75-78% and Sokoban-multi 55-70% at quality 0.7 and above, hard 13-14% at 0.9-0.95.
+
+**What corrupt mode shows, honestly:**
+1. **The extra layers barely move success** on Sokoban and Rush Hour: almost every paired difference is within one or two standard errors of zero. The one nominal exception, Sokoban-multi at quality 0.7 (+5.0% +/- 2.0%), is one of about 25 comparisons and should not be presented as a finding.
+2. **River Crossing is 0% safe success in both arms at every quality.** The proposer is validator-unaware, and its optimal plan is the unsafe 9-move one. The validator correctly rejects it (and cuts replans by roughly 2.7 to 3.4 per episode at quality 0.7 and above, because unsafe plans fail fast instead of being executed), but it cannot invent the safe 11-move plan. **A validator filters proposals; it does not create coverage.** Whether the pipeline succeeds depends on the proposer containing a valid plan.
+3. Rush Hour leans positive at some qualities (+6.5% at 0.5, +5.0% at 0.95) but every difference is inside its noise band.
+
+**Bottom line for the write-up:** with a heuristic proposer instead of an LLM, the contribution shows up as (a) safety, meaning no unsafe execution where the baseline silently executes unsafe plans, and (b) fewer wasted replans, not as a higher goal-reach rate. That is a narrower claim than "improves the planner", and it is what the data supports.
+
+---
+
+## 15. How the guide's no-LLM decision affected the project
+
+Context: the original TAPE paper uses an LLM to propose candidate plans. Our guide decided we may not use LLMs. Consequences, stated plainly so nobody overclaims:
+
+**Lost**
+- **Direct comparison to TAPE.** Its benchmarks (ALFWorld, MuSiQue, GSM8K-Hard) are LLM-native, so they are dropped, and our numbers cannot be compared to the paper's.
+- **The "LLM agent" framing** of the paper, and the venues that go with it.
+- **Realism of the proposer.** Every candidate generator we have (`MockLLMClient`, `AdversarialMockLLMClient`, `QualityProposer`) is synthetic. Its failure modes are ones we designed, not ones a real planner shows. The unused `GeminiClient` is dead code.
+- **Some benefit in the results.** Without an LLM's structured mistakes, the validator and experience store mostly show up in safety and replans, not success rate (Sec 14.3).
+
+**Gained**
+- **Fully reproducible experiments**: no API cost, no rate limits, no model drift; every result is re-runnable from a seed.
+- **A controllable proposer.** The quality-sweep in Sec 14.3 is something an LLM API would not let us do cleanly.
+
+**How we adapted**
+- The claim moves from "improves LLM agents" to "a proposer-agnostic verification and selection layer".
+- Evidence uses controlled proposers with a quality dial, paired statistics, held-out seeds, and negative results kept in.
+- The class names `MockLLMClient`/`AdversarialMockLLMClient` are historical; they are simply proposers.
+
+**Recommended next steps:** standard non-LLM benchmarks (Boxoban Sokoban levels, Rush Hour configuration database, IPC PDDL domains), classical baselines (plain A*, proposer alone), and a learned non-LLM proposer if the guide allows learned models.

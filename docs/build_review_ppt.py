@@ -14,10 +14,14 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
 import json
+import re
 
 _R = Path(__file__).resolve().parents[1] / "results"
 HARD = json.loads((_R / "hard_games.json").read_text(encoding="utf-8"))
 SEARCH = json.loads((_R / "search_methods.json").read_text(encoding="utf-8"))
+
+_demo = (Path(__file__).resolve().parents[1] / "demo" / "index.html").read_text(encoding="utf-8")
+DEMO = json.loads(re.search(r"const D = (\{.*\});\s*const G = D\.games;", _demo, re.S).group(1))
 
 INK, MUTED, ACCENT, RULE = RGBColor(0x1A, 0x1A, 0x1A), RGBColor(0x5A, 0x5A, 0x5A), RGBColor(0x1F, 0x4F, 0xC8), RGBColor(0xC8, 0xC8, 0xC8)
 FONT = "Calibri"
@@ -197,7 +201,7 @@ arrow(s, prop_cx, Y + 2.1, prop_cx, Y + 1.2)
 text(s, prop_cx + 0.3, Y + 2.2, 7.0, 0.5, "Mismatch: record the failure, replan from the real state", size=16, color=MUTED)
 text(s, 0.6, 5.7, 12.1, 1.4, [
     ("Phase 1: Propose, Merge, Run.  Phase 2 and 3: Check (rules, then memory of past failures).  Phase 4 and 5: Choose (move score, then A* or CP-SAT).", {"size": 16, "color": MUTED}),
-    ("Proposers are synthetic programs; no language model is used.", {"size": 16, "color": MUTED})])
+    ("Proposers are synthetic programs; no language model is used. Seven games share this pipeline unchanged.", {"size": 16, "color": MUTED})])
 
 # 7. Algorithm ---------------------------------------------------------
 s = new_slide("Algorithm")
@@ -248,7 +252,7 @@ table(s, 0.6, 1.9, 12.1, [
     ["5  Adaptive selection", "A* and CP-SAT, chosen by task complexity", "Done"],
     ["6  Evaluation", "Ablation, memory, tuning, proposer sweep, Boxoban, three harder games, search methods", "Core done"],
 ], col_w=[3.0, 7.3, 1.8], size=15, row_h=0.55)
-text(s, 0.6, 6.0, 12.1, 1.0, "About 2,300 lines in src/tape, 1,500 in experiments, 1,000 in tests. 90 automated tests pass. Interactive demo with a tab per game and a 3D Rubik's cube. Code: github.com/Harsh-v69/MachineLearningCP", size=16, color=MUTED)
+text(s, 0.6, 6.0, 12.1, 1.0, "About 2,300 lines in src/tape, 1,500 in experiments, 1,000 in tests. 90 automated tests pass. Interactive 3D demo with a tab per game. Code: github.com/Harsh-v69/MachineLearningCP", size=16, color=MUTED)
 
 # 9. Coding: key parts -------------------------------------------------
 s = new_slide("Coding: Key Components")
@@ -275,6 +279,42 @@ text(s, 6.9, 1.95, 5.8, 4.6, [
     ("", {"size": 8}),
     ("Seven games: Sokoban, River Crossing, Rush Hour, Peg Solitaire, 24-puzzle, Rubik's cube, and 3,000 Boxoban levels.", {"size": 16, "color": MUTED}),
 ])
+
+# 9b. Interactive demo -------------------------------------------------
+s = new_slide("Interactive Demo", "A browser walkthrough, generated from live runs of the project code.")
+bullets(s, 0.6, 1.9, 6.2, 5.2, [
+    "One tab per game: Sokoban, River Crossing, Rush Hour, Boxoban, Peg Solitaire, 24-puzzle, Rubik's cube.",
+    "Every board is 3D and draggable: sliding crates, jumping marbles, sliding tiles, a turning cube.",
+    "Five steps per game: Propose, Merge, Check, Choose, Run.",
+    "Light and dark theme, and a project map on the first page.",
+], size=19)
+text(s, 7.1, 1.9, 5.6, 0.5, "Try it yourself", size=20, bold=True, color=ACCENT)
+bullets(s, 7.1, 2.5, 5.6, 4.6, [
+    "Check: switch the rule checker on and off and watch the bad plan.",
+    "Choose: A* and CP-SAT timed on the same graph.",
+    "Randomize: scramble the Rubik's cube or the 24-puzzle and watch it solve itself, in the browser.",
+    "Run: a slip, or a wrong move (next slide).",
+    "Results: every chart is read from the experiment files.",
+], size=19)
+
+# 9c. Failure handling -------------------------------------------------
+s = new_slide("Failure Handling: Slip vs Wrong Move", "A slip means nothing happened. A wrong move means a different legal move happened. The demo shows the worst one found for each game.")
+NAMES = {"sokoban": "Sokoban", "river": "River Crossing", "rush": "Rush Hour", "peg": "Peg Solitaire", "puzzle": "24-puzzle", "cube": "Rubik's cube"}
+KIND = {"lost": "Lost", "deadend": "Dead end", "stuck": "Stuck", "detour": "Detour"}
+def outcome(w):
+    if w["kind"] == "lost":
+        return "Checker flags the position at once" + ("; an unchecked planner plans on" if w["probe"]["solved"] else "")
+    if w["kind"] == "deadend":
+        return f"No plan exists. Search proves it in {w['probe']['nodes']:,} nodes ({w['checked_nodes']:,} with the checker)"
+    if w["kind"] == "stuck":
+        return f"No plan in {w['probe']['budget']:,} nodes, not provable either way"
+    return f"Still solvable: {len(w['after_actions'])} moves to go, was {w['remaining']}"
+rows = [["Game", "What happens", "Kind", "Result"]]
+for gid in ("sokoban", "river", "rush", "peg", "puzzle", "cube"):
+    w = DEMO["games"][gid]["wrong"]
+    rows.append([NAMES[gid], f"{w['planned']} planned, {w['wrong']} happens", KIND[w["kind"]], outcome(w)])
+table(s, 0.6, 2.0, 12.1, rows, col_w=[2.1, 2.7, 1.3, 6.0], size=13, row_h=0.56)
+text(s, 0.6, 6.15, 12.1, 1.0, "Lost: the checker flags it. Dead end: the checker's rules miss it, but a full search shows no plan exists. Detour: still solvable, only longer.", size=15, color=MUTED)
 
 # 10. Results 1 --------------------------------------------------------
 s = new_slide("Results and Discussion: Safety and Speed", "Ablation, 30 episodes per cell, 15% slip, synthetic proposer")
@@ -377,7 +417,7 @@ bullets(s, 0.6, 1.5, 12.1, 3.4, [
 text(s, 0.6, 5.0, 12.1, 0.5, "Future work", size=20, bold=True, color=ACCENT)
 bullets(s, 0.6, 5.5, 12.1, 1.6, [
     "A learned, non-LLM proposer with realistic errors; more Boxoban files and a second checker rule.",
-    "Finish the research paper (full draft written, with figures).",
+    "Finish the research paper (full draft written, with figures). Add a learned proposer to the demo's failure scenarios.",
 ], size=18)
 
 # 14. References -------------------------------------------------------

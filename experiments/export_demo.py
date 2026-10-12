@@ -228,6 +228,41 @@ def build_game(gid: str) -> dict:
     }
 
 
+def build_boxoban() -> dict:
+    """One real Boxoban level (medium set) that the search solves inside the
+    node budget with the corner checker but not without it."""
+    from tape.envs.boxoban import load_boxoban
+    from tape.search_proposer import WeightedAStarProposer
+
+    budget, val = 10_000, CornerDeadlockValidator()
+    chosen = None
+    for idx, lv in enumerate(load_boxoban(limit=80)):
+        pruned = WeightedAStarProposer(weights=(4,), node_budget=budget, validator=val)
+        plans = pruned.generate_candidate_plans(lv, lv.initial_state, 1, 400)
+        if not plans:
+            continue
+        if WeightedAStarProposer(weights=(4,), node_budget=budget).generate_candidate_plans(lv, lv.initial_state, 1, 400):
+            continue
+        chosen = (idx, lv, plans[0], pruned.expansions)
+        break
+    if chosen is None:
+        raise RuntimeError("no Boxoban level in the first 80 separates the two searches")
+    idx, lv, plan, used = chosen
+    big = WeightedAStarProposer(weights=(4,), node_budget=100_000)
+    found = big.generate_candidate_plans(lv, lv.initial_state, 1, 400)
+    states, cur = [], lv.initial_state
+    for a in plan:
+        cur, _ = lv.step(cur, a)
+        states.append(ser_sokoban(cur))
+    return {
+        "index": idx, "budget": budget, "moves": len(plan), "prune_nodes": used,
+        "plain_needs": big.expansions if found else None,
+        "static": {"w": lv.width, "h": lv.height, "walls": sorted(list(w) for w in lv.walls),
+                   "goals": sorted(list(g) for g in lv.goals)},
+        "start": ser_sokoban(lv.initial_state), "actions": plan, "states": states,
+    }
+
+
 def read_results() -> dict:
     with open(ROOT / "results" / "ablation.csv", encoding="utf-8") as f:
         rows = [r for r in csv.DictReader(f) if r["llm"] == "goal-biased"]
@@ -256,7 +291,7 @@ def read_results() -> dict:
 
 
 def build_data() -> dict:
-    return {"games": {gid: build_game(gid) for gid in GAMES}, "results": read_results()}
+    return {"games": {gid: build_game(gid) for gid in GAMES}, "boxoban": build_boxoban(), "results": read_results()}
 
 
 def main() -> None:

@@ -2,58 +2,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Plan Check</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
 :root{
-  --ground:#E7ECEF; --surface:#F5F8FA; --sunken:#DAE2E7; --ink:#13202B; --muted:#55666F; --rule:#C3CED5;
-  --accent:#2B59FF; --accent-ink:#FFFFFF; --ok:#26875A; --warn:#D98319; --bad:#D23F2F;
-  --wall:#2A3A47; --crate:#C9822F; --v1:#7C8B96; --v2:#A0AEB8; --v3:#5F707C; --v4:#93A1AB;
-  --plan-a:#2B59FF; --plan-b:#D98319;
-  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
-  --body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:"DM Mono",ui-monospace,Consolas,monospace;
+  --ground:#E8EDED; --surface:#F6F8F8; --sunken:#DAE3E3; --ink:#10201F; --muted:#506464; --rule:#C2CFCF;
+  --accent:#0A6B7D; --accent-ink:#FFFFFF; --ok:#2A7F4F; --warn:#C9770F; --bad:#C63A2B;
+  --wall:#26393B; --crate:#C9822F; --v1:#7E9091; --v2:#A2B2B3; --v3:#607274; --v4:#94A5A6;
+  --plan-a:#0A6B7D; --plan-b:#C9770F;
+  --display:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --ground:#0E151B; --surface:#16212A; --sunken:#0A1015; --ink:#E7EEF3; --muted:#93A4B1; --rule:#2A3945;
-    --accent:#7F9BFF; --accent-ink:#0E151B; --ok:#4FBF88; --warn:#EDA13E; --bad:#F0705F;
-    --wall:#3B4D5B; --crate:#D9994A; --v1:#6D7C87; --v2:#8B99A4; --v3:#556571; --v4:#7A8994;
-    --plan-a:#7F9BFF; --plan-b:#EDA13E; color-scheme:dark;
+    --ground:#0D1617; --surface:#152223; --sunken:#091112; --ink:#E4EEEE; --muted:#8FA6A6; --rule:#263838;
+    --accent:#54C6D6; --accent-ink:#08181A; --ok:#5CC48A; --warn:#EDA13E; --bad:#F0705F;
+    --wall:#3A5254; --crate:#D9994A; --v1:#6C8082; --v2:#8A9C9E; --v3:#55686A; --v4:#7B8E90;
+    --plan-a:#54C6D6; --plan-b:#EDA13E; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --ground:#0E151B; --surface:#16212A; --sunken:#0A1015; --ink:#E7EEF3; --muted:#93A4B1; --rule:#2A3945;
-  --accent:#7F9BFF; --accent-ink:#0E151B; --ok:#4FBF88; --warn:#EDA13E; --bad:#F0705F;
-  --wall:#3B4D5B; --crate:#D9994A; --v1:#6D7C87; --v2:#8B99A4; --v3:#556571; --v4:#7A8994;
-  --plan-a:#7F9BFF; --plan-b:#EDA13E; color-scheme:dark;
+  --ground:#0D1617; --surface:#152223; --sunken:#091112; --ink:#E4EEEE; --muted:#8FA6A6; --rule:#263838;
+  --accent:#54C6D6; --accent-ink:#08181A; --ok:#5CC48A; --warn:#EDA13E; --bad:#F0705F;
+  --wall:#3A5254; --crate:#D9994A; --v1:#6C8082; --v2:#8A9C9E; --v3:#55686A; --v4:#7B8E90;
+  --plan-a:#54C6D6; --plan-b:#EDA13E; color-scheme:dark;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--ground);color:var(--ink);font:400 16px/1.5 var(--body)}
+body{margin:0;background:var(--ground);color:var(--ink);font:400 16px/1.55 var(--body)}
 button{font:inherit;color:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-0.02em}
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:-0.015em}
 p{margin:0}
 .mono{font-family:var(--mono)}
 .tag{font:500 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 
-.shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
-.rail{position:sticky;top:0;align-self:start;height:100vh;padding:32px 20px 24px 28px;display:flex;flex-direction:column;gap:22px;border-right:1px solid var(--rule)}
-.brand{font:700 22px/1 var(--display);letter-spacing:-.02em}
-.brand small{display:block;margin-top:6px;font:400 12px/1.3 var(--body);color:var(--muted);letter-spacing:0}
-.route{list-style:none;margin:0;padding:0 0 0 14px;border-left:2px solid var(--rule);display:flex;flex-direction:column;gap:2px}
-.route li{position:relative}
-.route button{all:unset;box-sizing:border-box;display:block;width:100%;padding:7px 8px 7px 14px;cursor:pointer;border-radius:4px;font-size:15px;color:var(--muted)}
-.route button:hover{color:var(--ink)}
-.route button:focus-visible{outline:2px solid var(--accent)}
-.route li::before{content:"";position:absolute;left:-21px;top:15px;width:10px;height:10px;border-radius:50%;background:var(--ground);border:2px solid var(--rule)}
-.route li.done::before{background:var(--ink);border-color:var(--ink)}
-.route li.cur::before{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
-.route li.cur button{color:var(--ink);font-weight:600}
-.route .group{padding:14px 0 4px 14px}
-.route .sub button{padding-left:14px}
-.route .sub .tag{display:block;margin-top:1px;font-size:10.5px}
-.rail-foot{margin-top:auto;font-size:12px;color:var(--muted);line-height:1.45}
-
+/* header and tabs */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--ground);border-bottom:1px solid var(--rule)}
+.top-in{max-width:1200px;margin:0 auto;padding:12px clamp(16px,4vw,40px) 0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;column-gap:28px;align-items:end}
+.brand{font:700 20px/1 var(--display);letter-spacing:-.01em;padding-bottom:12px}
+.brand small{display:block;margin-top:5px;font:400 12px/1.3 var(--body);color:var(--muted);letter-spacing:0}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.tabs::-webkit-scrollbar{display:none}
+.tab{all:unset;box-sizing:border-box;cursor:pointer;padding:14px 14px 11px;font-weight:500;font-size:15px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.theme{padding-bottom:10px}
+.theme .seg button{padding:6px 12px;font-size:13px}
+@media (max-width:1100px){.top-in{grid-template-columns:minmax(0,1fr) auto}.tabs{grid-column:1/-1;order:3}.brand{padding-bottom:10px}}
 main{padding:40px clamp(16px,4vw,56px) 48px;max-width:1140px;width:100%}
 .view{animation:in .22s ease-out}
 @keyframes in{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -193,37 +189,69 @@ h2{font-size:clamp(26px,3.4vw,38px);line-height:1.08}
 .forest text{font:500 12px var(--mono);fill:var(--muted)}
 .forest .nm{fill:var(--ink);font:500 13px var(--body)}
 
+
+/* pages */
+main{margin:0 auto;max-width:1200px;padding:36px clamp(16px,4vw,40px) 40px;width:100%}
+.page-head .lede{max-width:64ch}
+.gfacts{display:flex;flex-wrap:wrap;gap:6px 26px;margin-top:16px;font-size:14.5px;color:var(--muted)}
+.gfacts b{color:var(--ink);font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:26px 0 26px;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface)}
+.step{all:unset;box-sizing:border-box;cursor:pointer;padding:12px 14px;border-right:1px solid var(--rule);display:flex;flex-direction:column;gap:3px;min-width:0}
+.step:last-child{border-right:0}
+.step b{font-weight:600;font-size:15px}
+.step span{font:500 11px/1.2 var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.step:hover{background:var(--sunken)}
+.step[aria-selected=true]{background:var(--ink);color:var(--ground)}
+.step[aria-selected=true] span{color:inherit;opacity:.8}
+.step:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.stitle{font-size:24px}
+.sec{margin-top:44px;padding-top:26px;border-top:1px solid var(--rule)}
+.sec h2{font-size:clamp(22px,2.6vw,30px)}
+.tbl{overflow-x:auto;margin-top:16px}
+.phases{width:100%;border-collapse:collapse;font-size:15px;min-width:560px}
+.phases th{text-align:left;font:500 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1.5px solid var(--ink)}
+.phases td{padding:11px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+.phases td:first-child{white-space:nowrap;font-weight:600}
+.state{font:500 12px/1 var(--mono);color:var(--ok);white-space:nowrap}
+.link{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:14px}
+.link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cmpc{padding:14px 16px;border:1.5px solid var(--rule);border-radius:8px;background:var(--surface)}
+.cmpc.win{border-color:var(--ok)}.cmpc.lose{border-color:var(--bad)}
+.cmpc .big{font:700 24px/1.15 var(--display);margin:8px 0 2px}
+.cmpc .sub{font-size:13.5px;color:var(--muted)}
+.foot{margin-top:48px;padding-top:18px;border-top:1px solid var(--rule);font-size:13px;color:var(--muted)}
 @media (max-width:900px){
-  .shell{grid-template-columns:1fr}
-  .rail{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:14px 16px;border-right:0;border-bottom:1px solid var(--rule);gap:10px 16px}
-  .rail-foot,.route .tag,.route .group{display:none}
-  .route{flex-direction:row;flex-wrap:wrap;border-left:0;padding:0;gap:4px}
-  .route li::before{display:none}
-  .route button{padding:6px 10px;border:1px solid var(--rule);border-radius:99px;font-size:13px}
-  .route li.cur button{background:var(--ink);color:var(--ground);border-color:var(--ink)}
   .stage,.res{grid-template-columns:1fr}
   .rowbar{grid-template-columns:96px minmax(0,1fr) 78px}
+  .steps{grid-template-columns:repeat(5,minmax(120px,1fr));overflow-x:auto}
 }
+@media (max-width:560px){.cmp{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.view{animation:none}.mv{transition:none}}
 </style>
 
-<div class="shell">
-  <aside class="rail">
-    <div class="brand">Plan Check<small>A checking layer for planners, built on TAPE</small></div>
-    <ol class="route" id="route"></ol>
-    <div class="rail-foot">Every board, plan and number here comes from a live run of the project code.</div>
-  </aside>
-  <main id="main"></main>
-</div>
+<header class="top"><div class="top-in">
+  <div class="brand">Plan Check<small>A checking layer for planners, built on TAPE</small></div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections"></nav>
+  <div class="theme"><div class="seg" role="group" aria-label="Theme">
+    <button data-theme-set="light" aria-pressed="false">Light</button><button data-theme-set="dark" aria-pressed="false">Dark</button></div></div>
+</div></header>
+<main id="main"></main>
 
 <script>
-const D = {"games":{"sokoban":{"id":"sokoban","static":{"w":7,"h":7,"walls":[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[1,0],[1,6],[2,0],[2,6],[3,0],[3,6],[4,0],[4,6],[5,0],[5,6],[6,0],[6,1],[6,2],[6,3],[6,4],[6,5],[6,6]],"goals":[[5,5]]},"start":{"p":[4,3],"b":[[2,3]]},"piece":"1 box","good":{"steps":[{"a":"U","s":{"p":[3,3],"b":[[2,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"L","s":{"p":[3,2],"b":[[2,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"U","s":{"p":[2,2],"b":[[2,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"R","s":{"p":[2,3],"b":[[2,4]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"R","s":{"p":[2,4],"b":[[2,5]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"U","s":{"p":[1,4],"b":[[2,5]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"R","s":{"p":[1,5],"b":[[2,5]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"D","s":{"p":[2,5],"b":[[3,5]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"D","s":{"p":[3,5],"b":[[4,5]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"D","s":{"p":[4,5],"b":[[5,5]]},"ok":true,"conf":1.0,"why":"ok"}],"goal":true},"bad_plain":{"steps":[{"a":"U","s":{"p":[3,3],"b":[[2,3]]},"ok":true,"conf":1.0,"why":""},{"a":"U","s":{"p":[2,3],"b":[[1,3]]},"ok":true,"conf":1.0,"why":""},{"a":"L","s":{"p":[2,2],"b":[[1,3]]},"ok":true,"conf":1.0,"why":""},{"a":"U","s":{"p":[1,2],"b":[[1,3]]},"ok":true,"conf":1.0,"why":""},{"a":"R","s":{"p":[1,3],"b":[[1,4]]},"ok":true,"conf":1.0,"why":""},{"a":"R","s":{"p":[1,4],"b":[[1,5]]},"ok":true,"conf":1.0,"why":""}],"goal":false},"bad_checked":{"steps":[{"a":"U","s":{"p":[3,3],"b":[[2,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"U","s":{"p":[2,3],"b":[[1,3]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"L","s":{"p":[2,2],"b":[[1,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"U","s":{"p":[1,2],"b":[[1,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"R","s":{"p":[1,3],"b":[[1,4]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"R","s":{"p":[1,4],"b":[[1,5]]},"ok":false,"conf":0.0,"why":"corner deadlock"}],"goal":false},"bad_kind":"rejected","bad_at":5,"graph":{"nodes":[{"id":0,"layer":0,"goal":false},{"id":1,"layer":1,"goal":false},{"id":2,"layer":2,"goal":false},{"id":3,"layer":3,"goal":false},{"id":4,"layer":4,"goal":false},{"id":5,"layer":5,"goal":false},{"id":6,"layer":6,"goal":false},{"id":7,"layer":7,"goal":false},{"id":8,"layer":8,"goal":false},{"id":9,"layer":9,"goal":false},{"id":10,"layer":10,"goal":true},{"id":11,"layer":2,"goal":false},{"id":12,"layer":3,"goal":false},{"id":13,"layer":4,"goal":false},{"id":14,"layer":5,"goal":false},{"id":15,"layer":6,"stub":true}],"edges":[{"s":0,"t":1,"a":"U","plans":[0,1],"st":"ok"},{"s":1,"t":2,"a":"L","plans":[0],"st":"ok"},{"s":2,"t":3,"a":"U","plans":[0],"st":"ok"},{"s":3,"t":4,"a":"R","plans":[0],"st":"ok"},{"s":4,"t":5,"a":"R","plans":[0],"st":"uncertain"},{"s":5,"t":6,"a":"U","plans":[0],"st":"ok"},{"s":6,"t":7,"a":"R","plans":[0],"st":"ok"},{"s":7,"t":8,"a":"D","plans":[0],"st":"uncertain"},{"s":8,"t":9,"a":"D","plans":[0],"st":"uncertain"},{"s":9,"t":10,"a":"D","plans":[0],"st":"ok"},{"s":1,"t":11,"a":"U","plans":[1],"st":"uncertain"},{"s":11,"t":12,"a":"L","plans":[1],"st":"ok"},{"s":12,"t":13,"a":"U","plans":[1],"st":"ok"},{"s":13,"t":14,"a":"R","plans":[1],"st":"uncertain"},{"s":14,"t":15,"a":"R","plans":[1],"st":"rejected"}]},"graph_stats":{"nodes":15,"edges":14,"rejected":1},"choose":{"method":"astar","cost":237,"length":10,"astar_ms":0.11,"cpsat_ms":15.44,"actions":["U","L","U","R","R","U","R","D","D","D"],"states":[{"p":[3,3],"b":[[2,3]]},{"p":[3,2],"b":[[2,3]]},{"p":[2,2],"b":[[2,3]]},{"p":[2,3],"b":[[2,4]]},{"p":[2,4],"b":[[2,5]]},{"p":[1,4],"b":[[2,5]]},{"p":[1,5],"b":[[2,5]]},{"p":[2,5],"b":[[3,5]]},{"p":[3,5],"b":[[4,5]]},{"p":[4,5],"b":[[5,5]]}]},"run":{"slip_at":2,"before_actions":["U","L"],"before":[{"p":[3,3],"b":[[2,3]]},{"p":[3,2],"b":[[2,3]]}],"slipped_action":"U","real":{"p":[3,2],"b":[[2,3]]},"after_actions":["U","R","R","U","R","D","D","D"],"after":[{"p":[2,2],"b":[[2,3]]},{"p":[2,3],"b":[[2,4]]},{"p":[2,4],"b":[[2,5]]},{"p":[1,4],"b":[[2,5]]},{"p":[1,5],"b":[[2,5]]},{"p":[2,5],"b":[[3,5]]},{"p":[3,5],"b":[[4,5]]},{"p":[4,5],"b":[[5,5]]}],"method":"astar","memory_conf":0.33}},"river":{"id":"river","static":{"n":3},"start":{"m":3,"c":3,"boat":true},"piece":"1 boat","good":{"steps":[{"a":"2C","s":{"m":3,"c":1,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1C","s":{"m":3,"c":2,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2C","s":{"m":3,"c":0,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1C","s":{"m":3,"c":1,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2M","s":{"m":1,"c":1,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1M1C","s":{"m":2,"c":2,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2M","s":{"m":0,"c":2,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1C","s":{"m":0,"c":3,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2C","s":{"m":0,"c":1,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1M","s":{"m":1,"c":1,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"1M1C","s":{"m":0,"c":0,"boat":false},"ok":true,"conf":1.0,"why":"ok"}],"goal":true},"bad_plain":{"steps":[{"a":"2C","s":{"m":3,"c":1,"boat":false},"ok":true,"conf":1.0,"why":""},{"a":"1C","s":{"m":3,"c":2,"boat":true},"ok":true,"conf":1.0,"why":""},{"a":"2M","s":{"m":1,"c":2,"boat":false},"ok":true,"conf":1.0,"why":""},{"a":"1M","s":{"m":2,"c":2,"boat":true},"ok":true,"conf":1.0,"why":""},{"a":"2M","s":{"m":0,"c":2,"boat":false},"ok":true,"conf":1.0,"why":""},{"a":"1M","s":{"m":1,"c":2,"boat":true},"ok":true,"conf":1.0,"why":""},{"a":"2C","s":{"m":1,"c":0,"boat":false},"ok":true,"conf":1.0,"why":""},{"a":"1M","s":{"m":2,"c":0,"boat":true},"ok":true,"conf":1.0,"why":""},{"a":"2M","s":{"m":0,"c":0,"boat":false},"ok":true,"conf":1.0,"why":""}],"goal":true},"bad_checked":{"steps":[{"a":"2C","s":{"m":3,"c":1,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1C","s":{"m":3,"c":2,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2M","s":{"m":1,"c":2,"boat":false},"ok":false,"conf":0.0,"why":"cannibals outnumber missionaries"}],"goal":false},"bad_kind":"rejected","bad_at":2,"graph":{"nodes":[{"id":0,"layer":0,"goal":false},{"id":1,"layer":1,"goal":false},{"id":2,"layer":2,"goal":false},{"id":3,"layer":3,"goal":false},{"id":4,"layer":4,"goal":false},{"id":5,"layer":5,"goal":false},{"id":6,"layer":6,"goal":false},{"id":7,"layer":7,"goal":false},{"id":8,"layer":8,"goal":false},{"id":9,"layer":9,"goal":false},{"id":10,"layer":10,"goal":false},{"id":11,"layer":11,"goal":true},{"id":12,"layer":3,"stub":true}],"edges":[{"s":0,"t":1,"a":"2C","plans":[0,1],"st":"ok"},{"s":1,"t":2,"a":"1C","plans":[0,1],"st":"ok"},{"s":2,"t":3,"a":"2C","plans":[0],"st":"ok"},{"s":3,"t":4,"a":"1C","plans":[0],"st":"ok"},{"s":4,"t":5,"a":"2M","plans":[0],"st":"ok"},{"s":5,"t":6,"a":"1M1C","plans":[0],"st":"ok"},{"s":6,"t":7,"a":"2M","plans":[0],"st":"ok"},{"s":7,"t":8,"a":"1C","plans":[0],"st":"ok"},{"s":8,"t":9,"a":"2C","plans":[0],"st":"ok"},{"s":9,"t":10,"a":"1M","plans":[0],"st":"ok"},{"s":10,"t":11,"a":"1M1C","plans":[0],"st":"ok"},{"s":2,"t":12,"a":"2M","plans":[1],"st":"rejected"}]},"graph_stats":{"nodes":12,"edges":11,"rejected":1},"choose":{"method":"astar","cost":284,"length":11,"astar_ms":0.07,"cpsat_ms":15.39,"actions":["2C","1C","2C","1C","2M","1M1C","2M","1C","2C","1M","1M1C"],"states":[{"m":3,"c":1,"boat":false},{"m":3,"c":2,"boat":true},{"m":3,"c":0,"boat":false},{"m":3,"c":1,"boat":true},{"m":1,"c":1,"boat":false},{"m":2,"c":2,"boat":true},{"m":0,"c":2,"boat":false},{"m":0,"c":3,"boat":true},{"m":0,"c":1,"boat":false},{"m":1,"c":1,"boat":true},{"m":0,"c":0,"boat":false}]},"run":{"slip_at":2,"before_actions":["2C","1C"],"before":[{"m":3,"c":1,"boat":false},{"m":3,"c":2,"boat":true}],"slipped_action":"2C","real":{"m":3,"c":2,"boat":true},"after_actions":["2C","1C","2M","1M1C","2M","1C","2C","1M","1M1C"],"after":[{"m":3,"c":0,"boat":false},{"m":3,"c":1,"boat":true},{"m":1,"c":1,"boat":false},{"m":2,"c":2,"boat":true},{"m":0,"c":2,"boat":false},{"m":0,"c":3,"boat":true},{"m":0,"c":1,"boat":false},{"m":1,"c":1,"boat":true},{"m":0,"c":0,"boat":false}],"method":"astar","memory_conf":0.33}},"rush":{"id":"rush","static":{"w":6,"h":6,"vehicles":{"A":{"o":"H","len":2},"B":{"o":"V","len":3},"X":{"o":"H","len":2}}},"start":[["A",3,3],["B",1,2],["X",2,0]],"piece":"5 vehicles","good":{"steps":[{"a":"B+","s":[["A",3,3],["B",2,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"B+","s":[["A",3,3],["B",3,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,3],["B",3,2],["X",2,1]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,3],["B",3,2],["X",2,2]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,3],["B",3,2],["X",2,3]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,3],["B",3,2],["X",2,4]],"ok":true,"conf":1.0,"why":"ok"}],"goal":true},"bad_plain":{"steps":[{"a":"B-","s":[["A",3,3],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"A-","s":[["A",3,2],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"A-","s":[["A",3,1],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"A-","s":[["A",3,0],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"B+","s":[["A",3,0],["B",1,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"B+","s":[["A",3,0],["B",2,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"B+","s":[["A",3,0],["B",3,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,1]],"ok":true,"conf":1.0,"why":""},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,2]],"ok":true,"conf":1.0,"why":""},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,3]],"ok":true,"conf":1.0,"why":""},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,4]],"ok":true,"conf":1.0,"why":""}],"goal":true},"bad_checked":{"steps":[{"a":"B-","s":[["A",3,3],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"A-","s":[["A",3,2],["B",0,2],["X",2,0]],"ok":true,"conf":0.5,"why":"blocked by B, which has no immediate move either (unverified if rescuable)"},{"a":"A-","s":[["A",3,1],["B",0,2],["X",2,0]],"ok":true,"conf":0.5,"why":"blocked by B, which has no immediate move either (unverified if rescuable)"},{"a":"A-","s":[["A",3,0],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"B+","s":[["A",3,0],["B",1,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"B+","s":[["A",3,0],["B",2,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"B+","s":[["A",3,0],["B",3,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,1]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,2]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,3]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,4]],"ok":true,"conf":1.0,"why":"ok"}],"goal":true},"bad_kind":"uncertain","bad_at":2,"graph":{"nodes":[{"id":0,"layer":0,"goal":false},{"id":1,"layer":1,"goal":false},{"id":2,"layer":2,"goal":false},{"id":3,"layer":3,"goal":false},{"id":4,"layer":4,"goal":false},{"id":5,"layer":5,"goal":false},{"id":6,"layer":6,"goal":true},{"id":7,"layer":1,"goal":false},{"id":8,"layer":2,"goal":false},{"id":9,"layer":3,"goal":false},{"id":10,"layer":4,"goal":false},{"id":11,"layer":5,"goal":false},{"id":12,"layer":6,"goal":false},{"id":13,"layer":7,"goal":false},{"id":14,"layer":8,"goal":false},{"id":15,"layer":9,"goal":false},{"id":16,"layer":10,"goal":false},{"id":17,"layer":11,"goal":true}],"edges":[{"s":0,"t":1,"a":"B+","plans":[0],"st":"ok"},{"s":1,"t":2,"a":"B+","plans":[0],"st":"ok"},{"s":2,"t":3,"a":"X+","plans":[0],"st":"ok"},{"s":3,"t":4,"a":"X+","plans":[0],"st":"ok"},{"s":4,"t":5,"a":"X+","plans":[0],"st":"ok"},{"s":5,"t":6,"a":"X+","plans":[0],"st":"ok"},{"s":0,"t":7,"a":"B-","plans":[1],"st":"ok"},{"s":7,"t":8,"a":"A-","plans":[1],"st":"uncertain"},{"s":8,"t":9,"a":"A-","plans":[1],"st":"uncertain"},{"s":9,"t":10,"a":"A-","plans":[1],"st":"ok"},{"s":10,"t":11,"a":"B+","plans":[1],"st":"ok"},{"s":11,"t":12,"a":"B+","plans":[1],"st":"ok"},{"s":12,"t":13,"a":"B+","plans":[1],"st":"ok"},{"s":13,"t":14,"a":"X+","plans":[1],"st":"ok"},{"s":14,"t":15,"a":"X+","plans":[1],"st":"ok"},{"s":15,"t":16,"a":"X+","plans":[1],"st":"ok"},{"s":16,"t":17,"a":"X+","plans":[1],"st":"ok"}]},"graph_stats":{"nodes":18,"edges":17,"rejected":0},"choose":{"method":"cp_sat","cost":75,"length":6,"astar_ms":0.04,"cpsat_ms":15.18,"actions":["B+","B+","X+","X+","X+","X+"],"states":[[["A",3,3],["B",2,2],["X",2,0]],[["A",3,3],["B",3,2],["X",2,0]],[["A",3,3],["B",3,2],["X",2,1]],[["A",3,3],["B",3,2],["X",2,2]],[["A",3,3],["B",3,2],["X",2,3]],[["A",3,3],["B",3,2],["X",2,4]]]},"run":{"slip_at":2,"before_actions":["B+","B+"],"before":[[["A",3,3],["B",2,2],["X",2,0]],[["A",3,3],["B",3,2],["X",2,0]]],"slipped_action":"X+","real":[["A",3,3],["B",3,2],["X",2,0]],"after_actions":["X+","X+","X+","X+"],"after":[[["A",3,3],["B",3,2],["X",2,1]],[["A",3,3],["B",3,2],["X",2,2]],[["A",3,3],["B",3,2],["X",2,3]],[["A",3,3],["B",3,2],["X",2,4]]],"method":"cp_sat","memory_conf":0.33}}},"results":{"boxoban":[{"name":"Unfiltered","levels":1000,"rows":[{"budget":"2,000","plain":57,"prune":65},{"budget":"5,000","plain":73,"prune":82},{"budget":"10,000","plain":84,"prune":92},{"budget":"20,000","plain":92,"prune":96},{"budget":"30,000","plain":95,"prune":98}]},{"name":"Medium","levels":1000,"rows":[{"budget":"2,000","plain":14,"prune":23},{"budget":"5,000","plain":29,"prune":45},{"budget":"10,000","plain":46,"prune":65},{"budget":"20,000","plain":61,"prune":82},{"budget":"30,000","plain":71,"prune":88}]},{"name":"Hard","levels":1000,"rows":[{"budget":"2,000","plain":6,"prune":13},{"budget":"5,000","plain":16,"prune":29},{"budget":"10,000","plain":27,"prune":49},{"budget":"20,000","plain":44,"prune":70},{"budget":"30,000","plain":54,"prune":82}]}],"river":{"baseline":0.0,"raw":1.0,"validated":1.0},"speed":[{"name":"Sokoban 1 box","base":51.82344333249299,"adaptive":7.567003337317146},{"name":"Sokoban 2 box","base":99.88973999764615,"adaptive":96.42511999506193},{"name":"River crossing","base":62.06957000055505,"adaptive":3.5616533355399347},{"name":"Rush Hour","base":36.16482333260743,"adaptive":36.096450004455015}],"memory":[{"name":"sokoban-simple","diff":-0.56,"se":0.18},{"name":"sokoban-multi","diff":0.06,"se":0.03},{"name":"river-crossing","diff":-0.54,"se":0.15},{"name":"rush-hour","diff":-0.17,"se":0.11}]}};
+const D = {"games":{"sokoban":{"id":"sokoban","static":{"w":7,"h":7,"walls":[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[1,0],[1,6],[2,0],[2,6],[3,0],[3,6],[4,0],[4,6],[5,0],[5,6],[6,0],[6,1],[6,2],[6,3],[6,4],[6,5],[6,6]],"goals":[[5,5]]},"start":{"p":[4,3],"b":[[2,3]]},"piece":"1 box","good":{"steps":[{"a":"U","s":{"p":[3,3],"b":[[2,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"L","s":{"p":[3,2],"b":[[2,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"U","s":{"p":[2,2],"b":[[2,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"R","s":{"p":[2,3],"b":[[2,4]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"R","s":{"p":[2,4],"b":[[2,5]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"U","s":{"p":[1,4],"b":[[2,5]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"R","s":{"p":[1,5],"b":[[2,5]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"D","s":{"p":[2,5],"b":[[3,5]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"D","s":{"p":[3,5],"b":[[4,5]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"D","s":{"p":[4,5],"b":[[5,5]]},"ok":true,"conf":1.0,"why":"ok"}],"goal":true},"bad_plain":{"steps":[{"a":"U","s":{"p":[3,3],"b":[[2,3]]},"ok":true,"conf":1.0,"why":""},{"a":"U","s":{"p":[2,3],"b":[[1,3]]},"ok":true,"conf":1.0,"why":""},{"a":"L","s":{"p":[2,2],"b":[[1,3]]},"ok":true,"conf":1.0,"why":""},{"a":"U","s":{"p":[1,2],"b":[[1,3]]},"ok":true,"conf":1.0,"why":""},{"a":"R","s":{"p":[1,3],"b":[[1,4]]},"ok":true,"conf":1.0,"why":""},{"a":"R","s":{"p":[1,4],"b":[[1,5]]},"ok":true,"conf":1.0,"why":""}],"goal":false},"bad_checked":{"steps":[{"a":"U","s":{"p":[3,3],"b":[[2,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"U","s":{"p":[2,3],"b":[[1,3]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"L","s":{"p":[2,2],"b":[[1,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"U","s":{"p":[1,2],"b":[[1,3]]},"ok":true,"conf":1.0,"why":"ok"},{"a":"R","s":{"p":[1,3],"b":[[1,4]]},"ok":true,"conf":0.5,"why":"box against wall, unverified"},{"a":"R","s":{"p":[1,4],"b":[[1,5]]},"ok":false,"conf":0.0,"why":"corner deadlock"}],"goal":false},"bad_kind":"rejected","bad_at":5,"graph":{"nodes":[{"id":0,"layer":0,"goal":false},{"id":1,"layer":1,"goal":false},{"id":2,"layer":2,"goal":false},{"id":3,"layer":3,"goal":false},{"id":4,"layer":4,"goal":false},{"id":5,"layer":5,"goal":false},{"id":6,"layer":6,"goal":false},{"id":7,"layer":7,"goal":false},{"id":8,"layer":8,"goal":false},{"id":9,"layer":9,"goal":false},{"id":10,"layer":10,"goal":true},{"id":11,"layer":2,"goal":false},{"id":12,"layer":3,"goal":false},{"id":13,"layer":4,"goal":false},{"id":14,"layer":5,"goal":false},{"id":15,"layer":6,"stub":true}],"edges":[{"s":0,"t":1,"a":"U","plans":[0,1],"st":"ok"},{"s":1,"t":2,"a":"L","plans":[0],"st":"ok"},{"s":2,"t":3,"a":"U","plans":[0],"st":"ok"},{"s":3,"t":4,"a":"R","plans":[0],"st":"ok"},{"s":4,"t":5,"a":"R","plans":[0],"st":"uncertain"},{"s":5,"t":6,"a":"U","plans":[0],"st":"ok"},{"s":6,"t":7,"a":"R","plans":[0],"st":"ok"},{"s":7,"t":8,"a":"D","plans":[0],"st":"uncertain"},{"s":8,"t":9,"a":"D","plans":[0],"st":"uncertain"},{"s":9,"t":10,"a":"D","plans":[0],"st":"ok"},{"s":1,"t":11,"a":"U","plans":[1],"st":"uncertain"},{"s":11,"t":12,"a":"L","plans":[1],"st":"ok"},{"s":12,"t":13,"a":"U","plans":[1],"st":"ok"},{"s":13,"t":14,"a":"R","plans":[1],"st":"uncertain"},{"s":14,"t":15,"a":"R","plans":[1],"st":"rejected"}]},"graph_stats":{"nodes":15,"edges":14,"rejected":1},"choose":{"method":"astar","cost":237,"length":10,"astar_ms":0.11,"cpsat_ms":15.96,"actions":["U","L","U","R","R","U","R","D","D","D"],"states":[{"p":[3,3],"b":[[2,3]]},{"p":[3,2],"b":[[2,3]]},{"p":[2,2],"b":[[2,3]]},{"p":[2,3],"b":[[2,4]]},{"p":[2,4],"b":[[2,5]]},{"p":[1,4],"b":[[2,5]]},{"p":[1,5],"b":[[2,5]]},{"p":[2,5],"b":[[3,5]]},{"p":[3,5],"b":[[4,5]]},{"p":[4,5],"b":[[5,5]]}]},"run":{"slip_at":2,"before_actions":["U","L"],"before":[{"p":[3,3],"b":[[2,3]]},{"p":[3,2],"b":[[2,3]]}],"slipped_action":"U","real":{"p":[3,2],"b":[[2,3]]},"after_actions":["U","R","R","U","R","D","D","D"],"after":[{"p":[2,2],"b":[[2,3]]},{"p":[2,3],"b":[[2,4]]},{"p":[2,4],"b":[[2,5]]},{"p":[1,4],"b":[[2,5]]},{"p":[1,5],"b":[[2,5]]},{"p":[2,5],"b":[[3,5]]},{"p":[3,5],"b":[[4,5]]},{"p":[4,5],"b":[[5,5]]}],"method":"astar","memory_conf":0.33}},"river":{"id":"river","static":{"n":3},"start":{"m":3,"c":3,"boat":true},"piece":"1 boat","good":{"steps":[{"a":"2C","s":{"m":3,"c":1,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1C","s":{"m":3,"c":2,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2C","s":{"m":3,"c":0,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1C","s":{"m":3,"c":1,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2M","s":{"m":1,"c":1,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1M1C","s":{"m":2,"c":2,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2M","s":{"m":0,"c":2,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1C","s":{"m":0,"c":3,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2C","s":{"m":0,"c":1,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1M","s":{"m":1,"c":1,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"1M1C","s":{"m":0,"c":0,"boat":false},"ok":true,"conf":1.0,"why":"ok"}],"goal":true},"bad_plain":{"steps":[{"a":"2C","s":{"m":3,"c":1,"boat":false},"ok":true,"conf":1.0,"why":""},{"a":"1C","s":{"m":3,"c":2,"boat":true},"ok":true,"conf":1.0,"why":""},{"a":"2M","s":{"m":1,"c":2,"boat":false},"ok":true,"conf":1.0,"why":""},{"a":"1M","s":{"m":2,"c":2,"boat":true},"ok":true,"conf":1.0,"why":""},{"a":"2M","s":{"m":0,"c":2,"boat":false},"ok":true,"conf":1.0,"why":""},{"a":"1M","s":{"m":1,"c":2,"boat":true},"ok":true,"conf":1.0,"why":""},{"a":"2C","s":{"m":1,"c":0,"boat":false},"ok":true,"conf":1.0,"why":""},{"a":"1M","s":{"m":2,"c":0,"boat":true},"ok":true,"conf":1.0,"why":""},{"a":"2M","s":{"m":0,"c":0,"boat":false},"ok":true,"conf":1.0,"why":""}],"goal":true},"bad_checked":{"steps":[{"a":"2C","s":{"m":3,"c":1,"boat":false},"ok":true,"conf":1.0,"why":"ok"},{"a":"1C","s":{"m":3,"c":2,"boat":true},"ok":true,"conf":1.0,"why":"ok"},{"a":"2M","s":{"m":1,"c":2,"boat":false},"ok":false,"conf":0.0,"why":"cannibals outnumber missionaries"}],"goal":false},"bad_kind":"rejected","bad_at":2,"graph":{"nodes":[{"id":0,"layer":0,"goal":false},{"id":1,"layer":1,"goal":false},{"id":2,"layer":2,"goal":false},{"id":3,"layer":3,"goal":false},{"id":4,"layer":4,"goal":false},{"id":5,"layer":5,"goal":false},{"id":6,"layer":6,"goal":false},{"id":7,"layer":7,"goal":false},{"id":8,"layer":8,"goal":false},{"id":9,"layer":9,"goal":false},{"id":10,"layer":10,"goal":false},{"id":11,"layer":11,"goal":true},{"id":12,"layer":3,"stub":true}],"edges":[{"s":0,"t":1,"a":"2C","plans":[0,1],"st":"ok"},{"s":1,"t":2,"a":"1C","plans":[0,1],"st":"ok"},{"s":2,"t":3,"a":"2C","plans":[0],"st":"ok"},{"s":3,"t":4,"a":"1C","plans":[0],"st":"ok"},{"s":4,"t":5,"a":"2M","plans":[0],"st":"ok"},{"s":5,"t":6,"a":"1M1C","plans":[0],"st":"ok"},{"s":6,"t":7,"a":"2M","plans":[0],"st":"ok"},{"s":7,"t":8,"a":"1C","plans":[0],"st":"ok"},{"s":8,"t":9,"a":"2C","plans":[0],"st":"ok"},{"s":9,"t":10,"a":"1M","plans":[0],"st":"ok"},{"s":10,"t":11,"a":"1M1C","plans":[0],"st":"ok"},{"s":2,"t":12,"a":"2M","plans":[1],"st":"rejected"}]},"graph_stats":{"nodes":12,"edges":11,"rejected":1},"choose":{"method":"astar","cost":284,"length":11,"astar_ms":0.07,"cpsat_ms":15.54,"actions":["2C","1C","2C","1C","2M","1M1C","2M","1C","2C","1M","1M1C"],"states":[{"m":3,"c":1,"boat":false},{"m":3,"c":2,"boat":true},{"m":3,"c":0,"boat":false},{"m":3,"c":1,"boat":true},{"m":1,"c":1,"boat":false},{"m":2,"c":2,"boat":true},{"m":0,"c":2,"boat":false},{"m":0,"c":3,"boat":true},{"m":0,"c":1,"boat":false},{"m":1,"c":1,"boat":true},{"m":0,"c":0,"boat":false}]},"run":{"slip_at":2,"before_actions":["2C","1C"],"before":[{"m":3,"c":1,"boat":false},{"m":3,"c":2,"boat":true}],"slipped_action":"2C","real":{"m":3,"c":2,"boat":true},"after_actions":["2C","1C","2M","1M1C","2M","1C","2C","1M","1M1C"],"after":[{"m":3,"c":0,"boat":false},{"m":3,"c":1,"boat":true},{"m":1,"c":1,"boat":false},{"m":2,"c":2,"boat":true},{"m":0,"c":2,"boat":false},{"m":0,"c":3,"boat":true},{"m":0,"c":1,"boat":false},{"m":1,"c":1,"boat":true},{"m":0,"c":0,"boat":false}],"method":"astar","memory_conf":0.33}},"rush":{"id":"rush","static":{"w":6,"h":6,"vehicles":{"A":{"o":"H","len":2},"B":{"o":"V","len":3},"X":{"o":"H","len":2}}},"start":[["A",3,3],["B",1,2],["X",2,0]],"piece":"5 vehicles","good":{"steps":[{"a":"B+","s":[["A",3,3],["B",2,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"B+","s":[["A",3,3],["B",3,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,3],["B",3,2],["X",2,1]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,3],["B",3,2],["X",2,2]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,3],["B",3,2],["X",2,3]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,3],["B",3,2],["X",2,4]],"ok":true,"conf":1.0,"why":"ok"}],"goal":true},"bad_plain":{"steps":[{"a":"B-","s":[["A",3,3],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"A-","s":[["A",3,2],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"A-","s":[["A",3,1],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"A-","s":[["A",3,0],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"B+","s":[["A",3,0],["B",1,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"B+","s":[["A",3,0],["B",2,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"B+","s":[["A",3,0],["B",3,2],["X",2,0]],"ok":true,"conf":1.0,"why":""},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,1]],"ok":true,"conf":1.0,"why":""},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,2]],"ok":true,"conf":1.0,"why":""},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,3]],"ok":true,"conf":1.0,"why":""},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,4]],"ok":true,"conf":1.0,"why":""}],"goal":true},"bad_checked":{"steps":[{"a":"B-","s":[["A",3,3],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"A-","s":[["A",3,2],["B",0,2],["X",2,0]],"ok":true,"conf":0.5,"why":"blocked by B, which has no immediate move either (unverified if rescuable)"},{"a":"A-","s":[["A",3,1],["B",0,2],["X",2,0]],"ok":true,"conf":0.5,"why":"blocked by B, which has no immediate move either (unverified if rescuable)"},{"a":"A-","s":[["A",3,0],["B",0,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"B+","s":[["A",3,0],["B",1,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"B+","s":[["A",3,0],["B",2,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"B+","s":[["A",3,0],["B",3,2],["X",2,0]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,1]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,2]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,3]],"ok":true,"conf":1.0,"why":"ok"},{"a":"X+","s":[["A",3,0],["B",3,2],["X",2,4]],"ok":true,"conf":1.0,"why":"ok"}],"goal":true},"bad_kind":"uncertain","bad_at":2,"graph":{"nodes":[{"id":0,"layer":0,"goal":false},{"id":1,"layer":1,"goal":false},{"id":2,"layer":2,"goal":false},{"id":3,"layer":3,"goal":false},{"id":4,"layer":4,"goal":false},{"id":5,"layer":5,"goal":false},{"id":6,"layer":6,"goal":true},{"id":7,"layer":1,"goal":false},{"id":8,"layer":2,"goal":false},{"id":9,"layer":3,"goal":false},{"id":10,"layer":4,"goal":false},{"id":11,"layer":5,"goal":false},{"id":12,"layer":6,"goal":false},{"id":13,"layer":7,"goal":false},{"id":14,"layer":8,"goal":false},{"id":15,"layer":9,"goal":false},{"id":16,"layer":10,"goal":false},{"id":17,"layer":11,"goal":true}],"edges":[{"s":0,"t":1,"a":"B+","plans":[0],"st":"ok"},{"s":1,"t":2,"a":"B+","plans":[0],"st":"ok"},{"s":2,"t":3,"a":"X+","plans":[0],"st":"ok"},{"s":3,"t":4,"a":"X+","plans":[0],"st":"ok"},{"s":4,"t":5,"a":"X+","plans":[0],"st":"ok"},{"s":5,"t":6,"a":"X+","plans":[0],"st":"ok"},{"s":0,"t":7,"a":"B-","plans":[1],"st":"ok"},{"s":7,"t":8,"a":"A-","plans":[1],"st":"uncertain"},{"s":8,"t":9,"a":"A-","plans":[1],"st":"uncertain"},{"s":9,"t":10,"a":"A-","plans":[1],"st":"ok"},{"s":10,"t":11,"a":"B+","plans":[1],"st":"ok"},{"s":11,"t":12,"a":"B+","plans":[1],"st":"ok"},{"s":12,"t":13,"a":"B+","plans":[1],"st":"ok"},{"s":13,"t":14,"a":"X+","plans":[1],"st":"ok"},{"s":14,"t":15,"a":"X+","plans":[1],"st":"ok"},{"s":15,"t":16,"a":"X+","plans":[1],"st":"ok"},{"s":16,"t":17,"a":"X+","plans":[1],"st":"ok"}]},"graph_stats":{"nodes":18,"edges":17,"rejected":0},"choose":{"method":"cp_sat","cost":75,"length":6,"astar_ms":0.04,"cpsat_ms":15.35,"actions":["B+","B+","X+","X+","X+","X+"],"states":[[["A",3,3],["B",2,2],["X",2,0]],[["A",3,3],["B",3,2],["X",2,0]],[["A",3,3],["B",3,2],["X",2,1]],[["A",3,3],["B",3,2],["X",2,2]],[["A",3,3],["B",3,2],["X",2,3]],[["A",3,3],["B",3,2],["X",2,4]]]},"run":{"slip_at":2,"before_actions":["B+","B+"],"before":[[["A",3,3],["B",2,2],["X",2,0]],[["A",3,3],["B",3,2],["X",2,0]]],"slipped_action":"X+","real":[["A",3,3],["B",3,2],["X",2,0]],"after_actions":["X+","X+","X+","X+"],"after":[[["A",3,3],["B",3,2],["X",2,1]],[["A",3,3],["B",3,2],["X",2,2]],[["A",3,3],["B",3,2],["X",2,3]],[["A",3,3],["B",3,2],["X",2,4]]],"method":"cp_sat","memory_conf":0.33}}},"boxoban":{"index":6,"budget":10000,"moves":43,"prune_nodes":2226,"plain_needs":17939,"static":{"w":10,"h":10,"walls":[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[2,0],[2,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[2,9],[3,0],[3,1],[3,2],[3,3],[3,4],[3,5],[3,6],[3,7],[3,8],[3,9],[4,0],[4,1],[4,2],[4,3],[4,4],[4,5],[4,6],[4,7],[4,8],[4,9],[5,0],[5,1],[5,5],[5,6],[5,7],[5,8],[5,9],[6,0],[6,1],[6,4],[6,8],[6,9],[7,0],[7,8],[7,9],[8,0],[8,7],[8,8],[8,9],[9,0],[9,1],[9,2],[9,3],[9,4],[9,5],[9,6],[9,7],[9,8],[9,9]],"goals":[[6,6],[7,3],[7,6],[8,2]]},"start":{"p":[7,1],"b":[[6,2],[7,2],[7,5],[8,4]]},"actions":["D","R","R","U","R","R","D","R","U","L","L","L","D","L","L","U","R","R","U","U","L","D","R","D","D","L","L","U","R","D","R","U","R","R","D","L","L","U","L","U","U","R","D"],"states":[{"p":[8,1],"b":[[6,2],[7,2],[7,5],[8,4]]},{"p":[8,2],"b":[[6,2],[7,2],[7,5],[8,4]]},{"p":[8,3],"b":[[6,2],[7,2],[7,5],[8,4]]},{"p":[7,3],"b":[[6,2],[7,2],[7,5],[8,4]]},{"p":[7,4],"b":[[6,2],[7,2],[7,5],[8,4]]},{"p":[7,5],"b":[[6,2],[7,2],[7,6],[8,4]]},{"p":[8,5],"b":[[6,2],[7,2],[7,6],[8,4]]},{"p":[8,6],"b":[[6,2],[7,2],[7,6],[8,4]]},{"p":[7,6],"b":[[6,2],[6,6],[7,2],[8,4]]},{"p":[7,5],"b":[[6,2],[6,6],[7,2],[8,4]]},{"p":[7,4],"b":[[6,2],[6,6],[7,2],[8,4]]},{"p":[7,3],"b":[[6,2],[6,6],[7,2],[8,4]]},{"p":[8,3],"b":[[6,2],[6,6],[7,2],[8,4]]},{"p":[8,2],"b":[[6,2],[6,6],[7,2],[8,4]]},{"p":[8,1],"b":[[6,2],[6,6],[7,2],[8,4]]},{"p":[7,1],"b":[[6,2],[6,6],[7,2],[8,4]]},{"p":[7,2],"b":[[6,2],[6,6],[7,3],[8,4]]},{"p":[7,3],"b":[[6,2],[6,6],[7,4],[8,4]]},{"p":[6,3],"b":[[6,2],[6,6],[7,4],[8,4]]},{"p":[5,3],"b":[[6,2],[6,6],[7,4],[8,4]]},{"p":[5,2],"b":[[6,2],[6,6],[7,4],[8,4]]},{"p":[6,2],"b":[[6,6],[7,2],[7,4],[8,4]]},{"p":[6,3],"b":[[6,6],[7,2],[7,4],[8,4]]},{"p":[7,3],"b":[[6,6],[7,2],[7,4],[8,4]]},{"p":[8,3],"b":[[6,6],[7,2],[7,4],[8,4]]},{"p":[8,2],"b":[[6,6],[7,2],[7,4],[8,4]]},{"p":[8,1],"b":[[6,6],[7,2],[7,4],[8,4]]},{"p":[7,1],"b":[[6,6],[7,2],[7,4],[8,4]]},{"p":[7,2],"b":[[6,6],[7,3],[7,4],[8,4]]},{"p":[8,2],"b":[[6,6],[7,3],[7,4],[8,4]]},{"p":[8,3],"b":[[6,6],[7,3],[7,4],[8,4]]},{"p":[7,3],"b":[[6,3],[6,6],[7,4],[8,4]]},{"p":[7,4],"b":[[6,3],[6,6],[7,5],[8,4]]},{"p":[7,5],"b":[[6,3],[6,6],[7,6],[8,4]]},{"p":[8,5],"b":[[6,3],[6,6],[7,6],[8,4]]},{"p":[8,4],"b":[[6,3],[6,6],[7,6],[8,3]]},{"p":[8,3],"b":[[6,3],[6,6],[7,6],[8,2]]},{"p":[7,3],"b":[[6,3],[6,6],[7,6],[8,2]]},{"p":[7,2],"b":[[6,3],[6,6],[7,6],[8,2]]},{"p":[6,2],"b":[[6,3],[6,6],[7,6],[8,2]]},{"p":[5,2],"b":[[6,3],[6,6],[7,6],[8,2]]},{"p":[5,3],"b":[[6,3],[6,6],[7,6],[8,2]]},{"p":[6,3],"b":[[6,6],[7,3],[7,6],[8,2]]}]},"results":{"boxoban":[{"name":"Unfiltered","levels":1000,"rows":[{"budget":"2,000","plain":57,"prune":65},{"budget":"5,000","plain":73,"prune":82},{"budget":"10,000","plain":84,"prune":92},{"budget":"20,000","plain":92,"prune":96},{"budget":"30,000","plain":95,"prune":98}]},{"name":"Medium","levels":1000,"rows":[{"budget":"2,000","plain":14,"prune":23},{"budget":"5,000","plain":29,"prune":45},{"budget":"10,000","plain":46,"prune":65},{"budget":"20,000","plain":61,"prune":82},{"budget":"30,000","plain":71,"prune":88}]},{"name":"Hard","levels":1000,"rows":[{"budget":"2,000","plain":6,"prune":13},{"budget":"5,000","plain":16,"prune":29},{"budget":"10,000","plain":27,"prune":49},{"budget":"20,000","plain":44,"prune":70},{"budget":"30,000","plain":54,"prune":82}]}],"river":{"baseline":0.0,"raw":1.0,"validated":1.0},"speed":[{"name":"Sokoban 1 box","base":51.82344333249299,"adaptive":7.567003337317146},{"name":"Sokoban 2 box","base":99.88973999764615,"adaptive":96.42511999506193},{"name":"River crossing","base":62.06957000055505,"adaptive":3.5616533355399347},{"name":"Rush Hour","base":36.16482333260743,"adaptive":36.096450004455015}],"memory":[{"name":"sokoban-simple","diff":-0.56,"se":0.18},{"name":"sokoban-multi","diff":0.06,"se":0.03},{"name":"river-crossing","diff":-0.54,"se":0.15},{"name":"rush-hour","diff":-0.17,"se":0.11}]}};
 const G = D.games;
+const GAMES = ["sokoban", "river", "rush"];
 const META = {
-  sokoban: {name: "Sokoban", goal: "Push the box onto the target.", risk: "Push it into a corner and it is stuck for good."},
-  river: {name: "River Crossing", goal: "Ferry 3 missionaries and 3 cannibals across in a 2 seat boat.", risk: "If cannibals outnumber missionaries on a bank, the game is lost."},
-  rush: {name: "Rush Hour", goal: "Slide the blue car out through the exit.", risk: "Cars block each other, and some jams are easy to miss."}
+  sokoban: {name: "Sokoban", goal: "Push the box onto the target.", risk: "Push it into a corner and it is stuck for good.", checker: "dead corner rule"},
+  river: {name: "River Crossing", goal: "Ferry 3 missionaries and 3 cannibals across in a 2 seat boat.", risk: "If cannibals outnumber missionaries on a bank, the game is lost.", checker: "outnumbered rule"},
+  rush: {name: "Rush Hour", goal: "Slide the blue car out through the exit.", risk: "Cars block each other, and some jams are easy to miss.", checker: "gridlock rule"},
+  boxoban: {name: "Boxoban", goal: "Solve real 10 by 10 levels with four boxes.", risk: "Public levels we did not write. Dead corners waste the search."}
 };
+const TABS = [
+  {id: "overview", label: "Overview"}, {id: "sokoban", label: "Sokoban"}, {id: "river", label: "River Crossing"},
+  {id: "rush", label: "Rush Hour"}, {id: "boxoban", label: "Boxoban"}, {id: "results", label: "Results"}
+];
 const STAGES = [
   {id: "propose", name: "Propose", phase: "Phase 1", title: "Propose", text: "The planner suggests several plans. Play both."},
   {id: "merge", name: "Merge", phase: "Phase 1", title: "Merge", text: "Plans that reach the same state share a node. Together they form one graph."},
@@ -325,7 +353,7 @@ const BOARDS = {sokoban: sokobanBoard, river: riverBoard, rush: rushBoard};
 
 /* ---------- player: steps a board through frames ---------- */
 function makePlayer(host, gid, frames, onFrame) {
-  const board = BOARDS[gid](G[gid]);
+  const board = gid === "boxoban" ? sokobanBoard(D.boxoban) : BOARDS[gid](G[gid]);
   host.innerHTML = `<div class="stagebox"></div>
     <div class="controls">
       <button class="btn small" data-a="reset">Reset</button>
@@ -420,50 +448,36 @@ function graphSvg(g, mode) {
   return s + "</svg>";
 }
 
-/* ---------- screens ---------- */
-const state = {screen: "intro", game: null, stage: null};
-let player = null;
+/* ---------- pages ---------- */
+const state = {tab: "overview", stage: "propose"};
+let player = null, nodeIdx = 0, boxSet = 1;
 
-function head(stage, gid) {
+function head(stage) {
   const st = STAGES.find(x => x.id === stage);
-  return `<div class="stagehead"><div><div class="tag eyebrow">${st.phase}</div><h2>${st.title}</h2><p>${st.text}</p></div>
-    <div class="picked">Game: <b>${META[gid].name}</b> <button data-go="games">change</button></div></div>`;
+  return `<div class="stagehead"><div><div class="tag eyebrow">${st.phase}</div><h3 class="stitle">${st.title}</h3><p>${st.text}</p></div></div>`;
 }
 
-function viewIntro() {
-  return `<div class="tag eyebrow">Semester project</div>
-  <h1>Check the plan before anything moves.</h1>
-  <p class="lede">A planner suggests several routes. Some are wrong. This layer checks them, picks the best one, and recovers when something slips.</p>
-  <button class="btn primary" data-go="games">Pick a game</button>
-  <section class="map" aria-label="Project flow">
-    <div class="tag eyebrow">Project map</div><h2>How the project fits together</h2>
-    <p class="picked">Select a box to see what it holds.</p>
-    <div class="nodes" id="nodes">${MAP.map((n, i) => `<button class="node ${n.side ? "side" : ""}" data-node="${i}" aria-pressed="${i === nodeIdx}"><span class="tag">${n.tag}</span><b>${n.title}</b><span>${n.short}</span></button>`).join("")}</div>
-    <div class="detail" id="detail">${detailHtml(nodeIdx)}</div>
-  </section>
-  <p class="note">This extends TAPE, which pairs plan graphs with an external solver. Our planners are synthetic. No language model is used.</p>`;
-}
-
-let nodeIdx = 0;
 const R0 = () => D.results;
 const MAP = [
-  {tag: "Data in", title: "Input", short: "Games and candidate plans", go: "games", goText: "Pick a game",
-   points: () => ["Three game environments: Sokoban, River Crossing, Rush Hour.", "Boxoban, a public set of 10 by 10 Sokoban levels with four boxes, is used for the results.","Plans come from LLM-free proposers: heuristic walks, or an optimal plan with random mistakes."]},
-  {tag: "Preprocessing", title: "Preparation", short: "Plans become one graph", go: "merge", goText: "See the merge",
+  {tag: "Data in", title: "Input", short: "Games and candidate plans", go: "sokoban-propose", goText: "Open a game",
+   points: () => ["Three game environments: Sokoban, River Crossing, Rush Hour.", "Boxoban, a public set of 10 by 10 Sokoban levels with four boxes, is used for the results.", "Plans come from LLM-free proposers: heuristic walks, or an optimal plan with random mistakes."]},
+  {tag: "Preprocessing", title: "Preparation", short: "Plans become one graph", go: "sokoban-merge", goText: "See the merge",
    points: () => ["There is no dataset to clean. The equivalent step is turning plans into a graph.", "Each plan is simulated move by move. Illegal moves end that plan early.", "Plans that reach the same state share one node."]},
-  {tag: "Changes to it", title: "What we changed", short: "Check before merging", go: "check", goText: "See the checker",
+  {tag: "Changes to it", title: "What we changed", short: "Check before merging", go: "sokoban-check", goText: "See the checker",
    points: () => ["TAPE merges plans without judging them.", "We add a rule checker per game. It rejects a move or lowers trust in it.", "Past failures also lower trust, through an experience store."]},
-  {tag: "Algorithms", title: "Algorithms", short: "Cost, solver, replan", go: "choose", goText: "See the solver",
+  {tag: "Algorithms", title: "Algorithms", short: "Cost, solver, replan", go: "sokoban-choose", goText: "See the solver",
    points: () => ["Base from TAPE: CP-SAT finds the cheapest path.", "Each move gets a cost from progress, trust and step budget.", "One moving piece uses A*. Several pieces use CP-SAT.", "A slipped move triggers a replan from the real state."]},
   {tag: "Outcomes", title: "Outcomes", short: "What the numbers show", go: "results", goText: "See results",
    points: () => {
      const r = R0(), sp = r.speed[0], helped = r.memory.filter(m => m.diff + 2 * m.se < 0).length;
+     const top = r.boxoban.map(b => b.rows.at(-1));
      return [`Safety: River Crossing goes from ${(r.river.baseline * 100).toFixed(0)}% to ${(r.river.validated * 100).toFixed(0)}% safe with the checker.`,
        `Speed: ${sp.name} planning drops from ${sp.base.toFixed(0)} ms to ${sp.adaptive.toFixed(0)} ms.`,
        `Memory: clearly fewer replans on ${helped} of ${r.memory.length} games.`,
-       `Boxoban: with the checker ${Math.min(...r.boxoban.map(b => b.rows.at(-1).prune))}% to ${Math.max(...r.boxoban.map(b => b.rows.at(-1).prune))}% of real levels solved across three sets, ${Math.min(...r.boxoban.map(b => b.rows.at(-1).plain))}% to ${Math.max(...r.boxoban.map(b => b.rows.at(-1).plain))}% without.`, "Tuning the cost weights found nothing better than the defaults."];
+       `Boxoban: with the checker ${Math.min(...top.map(x => x.prune))}% to ${Math.max(...top.map(x => x.prune))}% of real levels solved across three sets, ${Math.min(...top.map(x => x.plain))}% to ${Math.max(...top.map(x => x.plain))}% without.`,
+       "Tuning the cost weights found nothing better than the defaults."];
    }},
-  {tag: "Across all", title: "Pipeline changes", short: "Since the original paper", side: true, go: "propose", goText: "Walk the pipeline",
+  {tag: "Across all", title: "Pipeline changes", short: "Since the original paper", side: true, go: "sokoban-propose", goText: "Walk the pipeline",
    points: () => ["No LLM. The proposer is a plug-in with a quality dial.", "One Environment interface serves every game.", "Checkers are per game plug-ins.", "Solver choice depends on how many pieces move."]}
 ];
 function detailHtml(i) {
@@ -472,13 +486,46 @@ function detailHtml(i) {
     <div class="detail-go"><button class="btn small" data-goto="${n.go}">${n.goText}</button></div>`;
 }
 
-function viewGames() {
-  return `<div class="tag eyebrow">Step 1</div><h2>Pick a game</h2>
-  <p class="lede">Same pipeline, three different games. Pick one to follow through.</p>
-  <div class="tiles">${Object.keys(G).map(id => `<button class="tile" data-game="${id}">
+const PHASES = [
+  ["1", "TAPE baseline", "Candidate plans, plan graph, CP-SAT solver, constrained execution, replanning", "Done", "sokoban-propose"],
+  ["2", "Graph validation", "Per game rule checkers that reject a move or lower trust in it", "Done", "sokoban-check"],
+  ["3", "Self-improving graph", "Experience store that lowers trust in moves that failed before", "Done", "sokoban-run"],
+  ["4", "Dynamic move score", "Cost from goal progress, trust and step budget", "Done", "sokoban-choose"],
+  ["5", "Adaptive selection", "A* or CP-SAT, chosen by how many pieces move", "Done", "river-choose"],
+  ["6", "Evaluation", "Ablation, memory test, weight tuning, proposer sweep, Boxoban", "Core done", "results"]
+];
+
+function viewOverview() {
+  const tiles = ["sokoban", "river", "rush", "boxoban"].map(id => `<button class="tile" data-goto="${id}">
     <div class="thumb" data-thumb="${id}"></div>
     <div><h3>${META[id].name}</h3><p>${META[id].goal}</p></div>
-    <div class="risk">${META[id].risk}</div></button>`).join("")}</div>`;
+    <div class="risk">${META[id].risk}</div></button>`).join("");
+  return `<div class="view page-head"><div class="tag eyebrow">Semester project</div>
+  <h1>Check the plan before anything moves.</h1>
+  <p class="lede">A planner suggests several routes. Some are wrong. This layer checks them, picks the best one, and recovers when something slips.</p></div>
+  <section class="sec"><div class="tag eyebrow">Demonstrations</div><h2>One tab per game</h2>
+    <p class="picked">Each game runs the same pipeline. Open one to step through it.</p><div class="tiles">${tiles}</div></section>
+  <section class="sec" aria-label="Project flow"><div class="tag eyebrow">Project map</div><h2>How the project fits together</h2>
+    <p class="picked">Select a box to see what it holds.</p>
+    <div class="nodes" id="nodes">${MAP.map((n, i) => `<button class="node ${n.side ? "side" : ""}" data-node="${i}" aria-pressed="${i === nodeIdx}"><span class="tag">${n.tag}</span><b>${n.title}</b><span>${n.short}</span></button>`).join("")}</div>
+    <div class="detail" id="detail">${detailHtml(nodeIdx)}</div></section>
+  <section class="sec"><div class="tag eyebrow">Work done</div><h2>Six phases</h2>
+    <div class="tbl"><table class="phases"><thead><tr><th>Phase</th><th>What was built</th><th>State</th><th></th></tr></thead><tbody>${PHASES.map(p =>
+      `<tr><td>${p[0]}. ${p[1]}</td><td>${p[2]}</td><td><span class="state">${p[3]}</span></td><td><button class="link" data-goto="${p[4]}">Open</button></td></tr>`).join("")}</tbody></table></div>
+    <p class="note">This extends TAPE, which pairs plan graphs with an external solver. Our planners are synthetic. No language model is used.</p></section>`;
+}
+
+function viewGame(gid) {
+  const m = META[gid], g = G[gid], si = STAGES.findIndex(s => s.id === state.stage), ti = TABS.findIndex(t => t.id === gid);
+  const steps = STAGES.map((s, i) => `<button class="step" role="tab" aria-selected="${s.id === state.stage}" data-stage="${s.id}"><b>${i + 1}. ${s.name}</b><span>${s.phase}</span></button>`).join("");
+  const body = {propose: viewPropose, merge: viewMerge, check: viewCheck, choose: viewChoose, run: viewRun}[state.stage](gid);
+  const prev = si > 0 ? `<button class="btn" data-stage="${STAGES[si - 1].id}">Back: ${STAGES[si - 1].name}</button>` : `<button class="btn" disabled>Back</button>`;
+  const next = si < STAGES.length - 1 ? `<button class="btn primary" data-stage="${STAGES[si + 1].id}">Next: ${STAGES[si + 1].name}</button>`
+    : `<button class="btn primary" data-goto="${TABS[ti + 1].id}">Next: ${TABS[ti + 1].label}</button>`;
+  return `<div class="view page-head"><div class="tag eyebrow">Game</div><h2>${m.name}</h2>
+    <p class="lede">${m.goal} ${m.risk}</p>
+    <div class="gfacts"><span>Checker: <b>${m.checker}</b></span><span>Moving pieces: <b>${g.piece}</b></span><span>Solution: <b>${g.choose.length} moves</b></span></div></div>
+    <div class="steps" role="tablist" aria-label="Pipeline steps">${steps}</div>${body}<div class="pager">${prev}${next}</div>`;
 }
 
 function stageShell(stage, gid, left, right) {
@@ -611,14 +658,38 @@ function mountRun(gid) {
   mark = bindChips($("#right"), player); mark(0);
 }
 
-let boxSet = 1;
 function boxRows(i) {
   return D.results.boxoban[i].rows.map(x => `<div class="duo"><span style="font-size:14px">${x.budget} nodes per search</span>
     <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">no pruning</span><div class="bar"><span style="width:${x.plain}%"></span></div><span class="v">${x.plain}%</span></div>
     <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">with checker</span><div class="bar"><span class="acc" style="width:${x.prune}%"></span></div><span class="v">${x.prune}%</span></div></div>`).join("");
 }
+
+function viewBoxoban() {
+  const B = D.boxoban, R = D.results.boxoban, n = v => v.toLocaleString("en-US");
+  return `<div class="view page-head"><div class="tag eyebrow">Real levels</div><h2>Boxoban</h2>
+    <p class="lede">A public set of 10 by 10 Sokoban levels with four boxes each, made by DeepMind. We did not write these levels. Here a search proposes the plan, and the dead corner checker prunes it.</p></div>
+  <div class="stage" style="margin-top:26px"><div class="boardwrap" id="left"></div><div class="panel" id="right">
+    <div><div class="tag" style="margin-bottom:8px">Medium set, level ${B.index}, ${n(B.budget)} nodes per search</div>
+      <div class="cmp">
+        <div class="cmpc lose"><span class="tag">No pruning</span><div class="big">No plan</div><div class="sub">Budget used up.${B.plain_needs ? ` It needs about ${n(B.plain_needs)} nodes.` : ""}</div></div>
+        <div class="cmpc win"><span class="tag">With checker</span><div class="big">${B.moves} moves</div><div class="sub">Found after ${n(B.prune_nodes)} nodes.</div></div>
+      </div></div>
+    <div><div class="tag" style="margin-bottom:8px">The plan, move by move</div><div class="chips" id="chips"></div></div></div></div>
+  <section class="res" style="margin-top:36px"><div><h3>Across ${n(R[0].levels * 3)} levels</h3>
+    <p class="claim">Share of ${n(R[0].levels)} levels per set solved within a search budget. Pruning dead corners solves more at every budget, in every set.</p>
+    <div class="seg" role="group" aria-label="Boxoban set" style="margin-top:12px">${R.map((b, i) => `<button data-bset="${i}" aria-pressed="${i === boxSet}">${b.name}</button>`).join("")}</div></div>
+    <div class="rows" id="boxrows">${boxRows(boxSet)}</div></section>`;
+}
+function mountBoxoban() {
+  const B = D.boxoban, steps = B.actions.map((a, i) => ({a, s: B.states[i], ok: true, conf: 1}));
+  $("#chips").innerHTML = chipsHtml(steps, "plain");
+  let mark;
+  player = makePlayer($("#left"), "boxoban", framesFrom(B, steps), i => mark && mark(i));
+  mark = bindChips($("#right"), player); mark(0);
+}
+
 function viewResults() {
-  const R = D.results, ms = Math.max(...R.speed.map(x => x.base));
+  const R = D.results, ms = Math.max(...R.speed.map(x => x.base)), hard = R.boxoban[2].rows.at(-1);
   const lo = -1.0, hi = 0.3, W = 460, rowH = 34, H = R.memory.length * rowH + 44;
   const X = v => 150 + (v - lo) / (hi - lo) * (W - 170);
   const mem = R.memory.map((m, i) => {
@@ -628,8 +699,8 @@ function viewResults() {
       <circle cx="${X(m.diff)}" cy="${y}" r="6" fill="${help ? "var(--ok)" : "var(--muted)"}" stroke="var(--ink)" stroke-width="2"/>
       <text x="${W - 4}" y="${y + 4}" text-anchor="end">${m.diff > 0 ? "+" : ""}${m.diff.toFixed(2)}</text>`;
   }).join("");
-  return `<div class="view"><div class="tag eyebrow">What we measured</div><h2>Results</h2>
-  <p class="lede">Each row is a different experiment. Full tables are in the results folder of the repository.</p>
+  return `<div class="view page-head"><div class="tag eyebrow">What we measured</div><h2>Results</h2>
+  <p class="lede">Each row is a different experiment. Full tables are in the results folder of the repository.</p></div>
   <div class="results">
     <div class="res"><div><h3>Safety</h3><p class="claim">On River Crossing the plain planner reaches the goal every time, but breaks the rules on the way. With the checker it does not.</p></div>
       <div class="rows">
@@ -640,9 +711,8 @@ function viewResults() {
       <div class="rows">${R.speed.map(x => `<div class="duo"><span style="font-size:14px">${esc(x.name)}</span>
         <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">always CP-SAT</span><div class="bar"><span style="width:${x.base / ms * 100}%"></span></div><span class="v">${x.base.toFixed(1)} ms</span></div>
         <div class="rowbar" style="grid-template-columns:70px minmax(0,1fr) 76px"><span class="picked">adaptive</span><div class="bar"><span class="acc" style="width:${Math.max(1, x.adaptive / ms * 100)}%"></span></div><span class="v">${x.adaptive.toFixed(1)} ms</span></div></div>`).join("")}</div></div>
-    <div class="res"><div><h3>Real levels</h3><p class="claim">Boxoban is a public set of 10 by 10 Sokoban levels with four boxes, in three difficulty sets. Share of ${R.boxoban[0].levels} levels per set solved within a search budget. Pruning dead corners during the search solves more at every budget, in every set.</p>
-      <div class="seg" role="group" aria-label="Boxoban set" style="margin-top:12px">${R.boxoban.map((b, i) => `<button data-bset="${i}" aria-pressed="${i === boxSet}">${b.name}</button>`).join("")}</div></div>
-      <div class="rows" id="boxrows">${boxRows(boxSet)}</div></div>
+    <div class="res"><div><h3>Real levels</h3><p class="claim">Boxoban is a public set of Sokoban levels. On the hard set, at the largest search budget, ${hard.plain}% of levels are solved without the checker and ${hard.prune}% with it.</p></div>
+      <div><button class="btn" data-goto="boxoban">Open the Boxoban tab</button></div></div>
     <div class="res"><div><h3>Memory</h3><p class="claim">Change in replans per episode when the system remembers failed moves. Left of zero is better. Bars show one standard error.</p></div>
       <svg class="forest" viewBox="0 0 ${W} ${H}" role="img" aria-label="Replan change per game">${mem}
         <line x1="${X(0)}" x2="${X(0)}" y1="6" y2="${H - 26}" stroke="var(--muted)" stroke-dasharray="4 4"/>
@@ -653,56 +723,54 @@ function viewResults() {
       <li>Tuning the cost weights found nothing better than the defaults.</li>
       <li>On Boxoban the checker is the standard dead corner rule, and the merged path is never shorter than the best single plan.</li>
       <li>Memory gave no gain on two box Sokoban, and Rush Hour is within noise.</li></ul></div>
-  </div>
-  <p class="note">Code and data: github.com/Harsh-v69/MachineLearningCP</p></div>`;
+  </div>`;
 }
 
 /* ---------- routing ---------- */
-const ORDER = ["intro", "games"].concat(STAGES.map(s => s.id), ["results"]);
-const cur = () => state.screen === "stage" ? state.stage : state.screen;
-function hashFor() { return state.screen === "stage" ? `${state.game}-${state.stage}` : state.screen; }
+const hashFor = () => GAMES.includes(state.tab) ? `${state.tab}-${state.stage}` : state.tab;
 function fromHash() {
-  const h = location.hash.slice(1), [g, s] = h.split("-");
-  if (G[g] && STAGES.some(x => x.id === s)) { state.game = g; state.screen = "stage"; state.stage = s; }
-  else if (h === "games" || h === "results") state.screen = h;
-  else state.screen = "intro";
+  const [t, s] = location.hash.slice(1).split("-");
+  state.tab = TABS.some(x => x.id === t) ? t : "overview";
+  if (STAGES.some(x => x.id === s)) state.stage = s;
 }
-function goto(id) {
-  if (STAGES.some(s => s.id === id)) { if (!state.game) return goto("games"); state.screen = "stage"; state.stage = id; }
-  else state.screen = id;
+function go(tab, stage) {
+  state.tab = tab;
+  if (stage) state.stage = stage;
   if (location.hash.slice(1) !== hashFor()) location.hash = hashFor();
   render();
 }
 
-function renderRoute() {
-  const c = cur(), ci = ORDER.indexOf(c);
-  const li = (id, label, cls = "", tag = "") => `<li class="${ORDER.indexOf(id) < ci ? "done" : ""} ${id === c ? "cur" : ""} ${cls}"><button data-goto="${id}">${label}${tag ? `<span class="tag">${tag}</span>` : ""}</button></li>`;
-  $("#route").innerHTML = li("intro", "Start") + li("games", state.game ? `Game: ${META[state.game].name}` : "Pick a game") +
-    `<li class="group tag">Pipeline</li>` + STAGES.map(s => li(s.id, s.name, "sub", s.phase)).join("") + li("results", "Results");
-}
-
 function render() {
   if (player) { player.stop(); player = null; }
-  renderRoute();
-  const main = $("#main"), c = cur(), gid = state.game;
-  const views = {intro: viewIntro, games: viewGames, results: viewResults};
-  let html;
-  if (views[c]) html = `<div class="view">${views[c]()}</div>`.replace('<div class="view"><div class="view">', '<div class="view">');
-  else html = {propose: viewPropose, merge: viewMerge, check: viewCheck, choose: viewChoose, run: viewRun}[c](gid);
-  const i = ORDER.indexOf(c), prev = ORDER[i - 1], next = ORDER[i + 1];
-  const canNext = next && !(c === "games" && !gid);
-  main.innerHTML = html + (c === "intro" || c === "games" ? "" : `<div class="pager">
-    <button class="btn" data-goto="${prev}" ${prev ? "" : "disabled"}>Back</button>
-    ${next ? `<button class="btn primary" data-goto="${next}">${next === "results" ? "See results" : "Next: " + STAGES.find(s => s.id === next).name}</button>` : "<span></span>"}</div>`);
-  if (c === "games") document.querySelectorAll("[data-thumb]").forEach(t => { const b = BOARDS[t.dataset.thumb](G[t.dataset.thumb]); b.show(G[t.dataset.thumb].start); t.appendChild(b.svg); });
-  if (c === "propose") mountPropose(gid);
-  if (c === "check") mountCheck(gid);
-  if (c === "choose") mountChoose(gid);
-  if (c === "run") mountRun(gid);
+  $("#tabs").innerHTML = TABS.map(t => `<button class="tab" role="tab" aria-selected="${t.id === state.tab}" data-goto="${t.id}">${t.label}</button>`).join("");
+  const t = state.tab;
+  const html = t === "overview" ? viewOverview() : t === "boxoban" ? viewBoxoban() : t === "results" ? viewResults() : viewGame(t);
+  $("#main").innerHTML = html + `<footer class="foot">Every board, plan and number on this page comes from a live run of the project code. Source: github.com/Harsh-v69/MachineLearningCP</footer>`;
+  if (t === "overview") document.querySelectorAll("[data-thumb]").forEach(el => {
+    const id = el.dataset.thumb, b = id === "boxoban" ? sokobanBoard(D.boxoban) : BOARDS[id](G[id]);
+    b.show(id === "boxoban" ? D.boxoban.start : G[id].start);
+    el.appendChild(b.svg);
+  });
+  if (GAMES.includes(t)) ({propose: mountPropose, check: mountCheck, choose: mountChoose, run: mountRun}[state.stage] || (() => {}))(t);
+  if (t === "boxoban") mountBoxoban();
   window.scrollTo(0, 0);
 }
 
+/* ---------- theme ---------- */
+const root = document.documentElement;
+const effectiveTheme = () => root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+function syncTheme() { document.querySelectorAll("[data-theme-set]").forEach(b => b.setAttribute("aria-pressed", b.dataset.themeSet === effectiveTheme())); }
+try { const saved = localStorage.getItem("plancheck-theme"); if (saved === "light" || saved === "dark") root.dataset.theme = saved; } catch (e) {}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncTheme);
+
 document.addEventListener("click", e => {
+  const th = e.target.closest("[data-theme-set]");
+  if (th) {
+    root.dataset.theme = th.dataset.themeSet;
+    try { localStorage.setItem("plancheck-theme", th.dataset.themeSet); } catch (err) {}
+    syncTheme();
+    return;
+  }
   const bs = e.target.closest("[data-bset]");
   if (bs) {
     boxSet = +bs.dataset.bset;
@@ -717,18 +785,19 @@ document.addEventListener("click", e => {
     $("#detail").innerHTML = detailHtml(nodeIdx);
     return;
   }
-  const t = e.target.closest("[data-goto],[data-go],[data-game]");
-  if (!t) return;
-  if (t.dataset.game) { state.game = t.dataset.game; goto("propose"); }
-  else goto(t.dataset.goto || t.dataset.go);
+  const st = e.target.closest("[data-stage]");
+  if (st) return go(state.tab, st.dataset.stage);
+  const t = e.target.closest("[data-goto]");
+  if (t) { const [tab, stage] = t.dataset.goto.split("-"); go(tab, stage); }
 });
 document.addEventListener("keydown", e => {
-  if (e.target.matches("input,textarea") || e.altKey || e.ctrlKey || e.metaKey) return;
-  const c = cur(), i = ORDER.indexOf(c);
-  if (e.key === "ArrowRight" && ORDER[i + 1] && !(c === "games" && !state.game)) goto(ORDER[i + 1]);
-  if (e.key === "ArrowLeft" && ORDER[i - 1]) goto(ORDER[i - 1]);
+  if (e.target.matches("input,textarea") || e.altKey || e.ctrlKey || e.metaKey || !GAMES.includes(state.tab)) return;
+  const i = STAGES.findIndex(s => s.id === state.stage);
+  if (e.key === "ArrowRight" && i < STAGES.length - 1) go(state.tab, STAGES[i + 1].id);
+  if (e.key === "ArrowLeft" && i > 0) go(state.tab, STAGES[i - 1].id);
 });
 window.addEventListener("hashchange", () => { if (location.hash.slice(1) !== hashFor()) { fromHash(); render(); } });
 fromHash();
+syncTheme();
 render();
 </script>

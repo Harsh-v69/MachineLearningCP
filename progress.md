@@ -1,6 +1,6 @@
 # Progress: TAPE Extension — Adaptive Graph Validation & Solver Generalization
 
-**Overall status: all six phases have working code and results (about 97% of the plan). Phases 1 to 5 are the pipeline. Phase 6 (evaluation) has its core experiments done: ablation, memory test, weight tuning, proposer-quality sweep, and the Boxoban benchmark. The guide ruled out LLMs, so real-LLM runs and TAPE's LLM-native benchmarks are dropped (Sec 15). 66 tests pass, and everything is pushed to GitHub.**
+**Overall status: all six phases have working code and results (about 97% of the plan). Phases 1 to 5 are the pipeline. Phase 6 (evaluation) has its core experiments done: ablation, memory test, weight tuning, proposer-quality sweep, and the Boxoban benchmark. The guide ruled out LLMs, so real-LLM runs and TAPE's LLM-native benchmarks are dropped (Sec 15). 67 tests pass, and everything is pushed to GitHub.**
 
 **Status at a glance**
 
@@ -9,7 +9,7 @@
 | Pipeline (Phases 1 to 5) | Done, tested |
 | Benchmarks | Sokoban (4 hand-made levels), River Crossing, Rush Hour, and Boxoban (3000 real levels, three difficulty sets) |
 | Evaluation (Phase 6) | Ablation (Sec 14), experience store under state-dependent slip (14.1), ScoreWeights tuning (14.2), proposer sweep (14.3), Boxoban (Sec 16) |
-| Demo | Guided walkthrough `demo/index.html` with a project map, three playable games, and a results page (Sec 11) |
+| Demo | Tabbed walkthrough `demo/index.html`: a tab per game (Sokoban, River Crossing, Rush Hour, Boxoban), project map, results, light and dark mode (Sec 11) |
 | Main findings | The checker gives safety (River Crossing 0% to 100% safe) and better search (Boxoban solves 3 to 28 points more at the top budget). The adaptive solver cuts planning time where one piece moves. Memory helps on two games. Tuning found nothing better than defaults. |
 | Open | Paper writing, optional extra Boxoban files, a learned (non-LLM) proposer if the guide allows it |
 
@@ -89,7 +89,7 @@ MachineLearningCP/
 │   ├── run_boxoban.py            # Phase 6: Boxoban benchmark (Sec 16)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
 ├── demo/                         # template.html (hand-written) and index.html (generated), see §11
-└── tests/                        # 66 tests, all passing (see §9)
+└── tests/                        # 67 tests, all passing (see §9)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -312,7 +312,7 @@ Three benchmarks (Sokoban, river crossing, Rush Hour) now share Phases 1–5 unc
 
 ---
 
-## 9. Test coverage (66 tests, all passing)
+## 9. Test coverage (67 tests, all passing)
 
 ```
 tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -363,19 +363,16 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 
 ## 11. The live demo (for the mid-semester presentation)
 
-`demo/index.html` is a guided walkthrough called **Plan Check**, built so the guide can go through the project on their own. A route map on the left shows where you are: Start, Pick a game, then five pipeline steps, then Results. Arrow keys and the Back/Next buttons move between them.
+`demo/index.html` is a tabbed walkthrough called **Plan Check**. A tab bar runs across the top (Overview, Sokoban, River Crossing, Rush Hour, Boxoban, Results) with a Light / Dark switch beside it. The choice is remembered; until you choose, the page follows the system theme.
 
-- **Pick a game:** Sokoban (one box), River Crossing, Rush Hour. Each has its own board.
-- **Propose:** two plans from the planner, Plan A (good) and Plan B (has a bad move). Play or step through each on the board.
-- **Merge:** the plans drawn as one graph. States both plans reach are shared nodes.
-- **Check:** switch the rule checker Off and On for Plan B. Off, the plan runs and nothing warns you. On, the bad move is rejected (Sokoban corner, River Crossing outnumbered) or kept with low trust (Rush Hour, confidence 0.50). The graph is recolored by verdict.
-- **Choose:** A* and CP-SAT timed on the graph, which one the adaptive rule picked and why, and the cheapest path played on the board.
-- **Run:** a move slips, the world does not change, the system replans from the real state, and the slipped move's trust drops from 1.00 to 0.33 in the experience store.
-- **Results:** four charts (safety, speed, real levels on Boxoban, memory) and a short list of what the data does not show. The numbers are read from `results/ablation.csv` and `results/experience_test.md`.
+- **Overview:** one tile per game, the interactive project map (Input, Preparation, What we changed, Algorithms, Outcomes, Pipeline changes), and a table of the six phases with an Open link into the demo for each.
+- **Sokoban, River Crossing, Rush Hour (one tab each):** a header with the goal, the checker and the solution length, then five steps. Propose (two plans), Merge (one graph), Check (rule checker Off and On), Choose (A* and CP-SAT timed, chosen path played), Run (a slip, a replan, trust dropping to 0.33). The selected step is kept when you switch game tabs, so one step can be compared across games. Deep links such as `#river-check` work, and the left and right arrow keys move between steps.
+- **Boxoban:** one real medium-set level (currently level 6) replayed move by move. The same search budget is run with and without the checker: no plan within 10,000 nodes without it, a 43-move plan after 2,226 nodes with it. Below that, the solve-rate chart for all 3,000 levels with an Unfiltered / Medium / Hard switcher.
+- **Results:** safety, speed, a pointer to Boxoban, memory, and a "what this does not show" list. Numbers are read from `results/ablation.csv`, `results/experience_test.md` and `results/boxoban*.md`.
 
-**It is generated, not hand-authored.** `demo/template.html` is the hand-written page. `python experiments/export_demo.py` runs the real pipeline for all three games (finds a bad move by search, builds the graph, times both solvers, forces a slip and replans) and writes `demo/index.html`. Rerun it whenever the pipeline or the results files change. Edit `demo/template.html`, never `index.html`. `tests/test_export_demo.py` checks that every game's data is sound.
+**Generated, not hand-authored.** `demo/template.html` is the hand-written page. `python experiments/export_demo.py` runs the real pipeline for all three games (finds a bad move by search, builds the graph, times both solvers, forces a slip and replans), picks a Boxoban level where the two searches differ, and writes `demo/index.html`. Rerun it whenever the pipeline or the results files change. Edit `demo/template.html`, never `index.html`. `tests/test_export_demo.py` checks that every game's data and the Boxoban plan are sound.
 
-**Opening it:** double-click `demo/index.html`, or serve it with `.claude/launch.json` (`python -m http.server 8000 --directory demo`) and open `http://localhost:8000`. Deep links work, for example `#river-check`. The page uses Google Fonts when online and falls back to system fonts offline. It follows the system light or dark theme. The template declares `<meta charset="utf-8">` because Python's HTTP server sends no charset and non-ASCII text would otherwise turn into garbage.
+**Opening it:** double-click `demo/index.html`, or serve it with `.claude/launch.json` (`python -m http.server 8000 --directory demo`) and open `http://localhost:8000`. The page uses IBM Plex from Google Fonts when online and falls back to system fonts offline. The template declares `<meta charset="utf-8">` because Python's HTTP server sends no charset and non-ASCII text would otherwise turn into garbage.
 
 ---
 
@@ -526,3 +523,20 @@ Boxoban is DeepMind's public Sokoban level set (`github.com/google-deepmind/boxo
 - **This is not a new idea.** Pruning dead corners is standard in Sokoban solvers. What the result shows is that our Phase 2 checker works as that pruner on real external levels, not just on levels we wrote.
 - **Merging did not shorten paths.** Across all three sets (unfiltered 981 solved, medium 882, hard 817) the merged path was shorter than the best single plan on 1 level in total (2 moves saved) and longer on 19, 9 and 5 levels. The pipeline picks the cheapest path by Phase 4 cost (progress, trust, budget), not by move count, so a longer path can win. We report this as measured.
 - Limits: one file per set (`000.txt`; the `valid` split for unfiltered and medium), one checker rule, a search-based proposer we wrote. The `train` splits were not used, and other files in each set were not run. A first run on only the first 200 levels of each file gave the same picture, with wider intervals.
+
+---
+
+## 17. How far this is from a publishable paper
+
+The plan (Sec 1) is about 97% built, but the plan is not the same as a publishable product. A fair estimate of the distance to a paper a reviewer would accept:
+
+| Part | Weight | Done | Why |
+|---|---|---|---|
+| Working system and code | 25% | about 90% | Pipeline, four benchmarks, tests, demo all work |
+| Experiments and evidence | 30% | about 55% | Missing classical baselines (plain A*, a standard planner), a learned proposer, a second checker rule, per-component ablation on Boxoban |
+| Paper writing | 25% | about 35% | A full first draft exists, but related work is thin, there are no figures, claims need a verification pass, and it is not in a venue template |
+| Novelty and positioning | 20% | about 25% | The clearest result (dead-corner pruning) is a known technique; the contribution needs a sharper claim |
+
+That gives **about 50% of the way to a publishable product**. A realistic near-term target is a course report or student conference or workshop paper. A renowned journal needs a stronger contribution, mainly more novelty and stronger baselines, not more code.
+
+What moves it most, in order: (1) classical baselines and one harder game with a meaningful rule checker (Peg Solitaire or the 15 and 24 puzzles), (2) a soundness argument for each validator, (3) a learned non-LLM proposer, (4) figures and a venue template.

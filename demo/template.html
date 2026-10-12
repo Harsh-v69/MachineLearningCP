@@ -197,6 +197,9 @@ h2{font-size:clamp(26px,3.4vw,38px);line-height:1.08}
 .cface{position:absolute;width:var(--s);height:var(--s);left:calc(var(--s) / -2);top:calc(var(--s) / -2);background:#0E1313;border-radius:calc(var(--s) * .12);backface-visibility:hidden}
 .cface::after{content:"";position:absolute;inset:calc(var(--s) * .08);border-radius:calc(var(--s) * .14);background:var(--c,transparent)}
 .tile .thumb .cube-wrap{height:100%;overflow:visible}
+.phases.search td{line-height:1.3}
+.phases.search td.best{background:color-mix(in srgb,var(--ok) 16%,transparent)}
+.phases.search td.na{color:var(--muted)}
 .tryit{display:grid;gap:10px;justify-items:start;padding-top:16px;border-top:1px dashed var(--rule)}
 .b3{position:absolute;left:0;top:0;width:0;height:0;transform-style:preserve-3d}
 .f3{position:absolute;backface-visibility:hidden}
@@ -1027,6 +1030,25 @@ function hardBlock() {
     <div class="seg" role="group" aria-label="Harder game" style="margin-top:12px">${names.map((m, i) => `<button data-hset="${i}" aria-pressed="${i === hardSet}">${m}</button>`).join("")}</div></div>
     <div class="rows" id="hrows">${d.rows}</div></div>`;
 }
+function searchBlock() {
+  const S = D.results.search, algs = ["BFS", "DFS", "weighted A*", "meet in the middle"], n = v => Math.round(v).toLocaleString("en-US");
+  const rows = Object.entries(S.games).map(([game, g]) => {
+    const cells = algs.map(a => g[a] ? {...g[a]} : null), live = cells.filter(c => c && c.solved > 0);
+    const best = live.reduce((b, c) => !b || c.solved > b.solved || (c.solved === b.solved && c.nodes < b.nodes) ? c : b, null);
+    return `<tr><td>${esc(game)}</td>${cells.map(c => !c ? '<td class="na">n/a</td>' : `<td class="${c === best ? "best" : ""}">${Math.round(c.solved * 100)}%${c.nodes != null ? `<br><span class="picked">${n(c.nodes)} nodes</span>` : ""}</td>`).join("")}</tr>`;
+  }).join("");
+  const peg = S.games["Peg Solitaire"];
+  return `<div class="res" style="grid-template-columns:1fr"><div><h3>Do other search methods help?</h3>
+    <p class="claim" style="max-width:70ch">Four methods on every game they can run on, with no checkers, so only the algorithm differs. Share of instances solved within ${n(S.budget)} nodes, and mean nodes over the solved ones. The shaded cell has the most solved, then the fewest nodes. It ignores plan length, and DFS plans are often long.</p></div>
+    <div class="tbl"><table class="phases search"><thead><tr><th>Game</th>${algs.map(a => `<th>${a}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="limits" style="margin-top:0"><h3>Reading it</h3><ul>
+      <li><b>DFS helps on Peg Solitaire only.</b> Every solution there is exactly 31 jumps, so a depth first search loses nothing. From the real start it needs ${n(peg.DFS.nodes)} nodes. Weighted A* and BFS solve it in none of ${n(S.budget)}.</li>
+      <li><b>BFS is enough on the small games</b> (River Crossing, Rush Hour) and gives the shortest plan, but fails on every big one.</li>
+      <li><b>Weighted A* is the best general choice:</b> the sliding puzzle, Boxoban and short cube scrambles. DFS finds Boxoban plans about 2.5 times longer.</li>
+      <li><b>Meet in the middle</b> guarantees a shortest plan but did not beat A* on these short scrambles, and ran out on the 40 move 24-puzzle.</li>
+      <li><b>AO* does not apply.</b> It plans for actions with several possible outcomes. Every game here is deterministic, so there are no AND nodes and it reduces to A*. It would only matter for the slip model, where LAO* is the version that handles loops.</li>
+      <li>Node counts are expansions for BFS, DFS and A*, and generated states for meet in the middle, so compare those loosely.</li></ul></div></div>`;
+}
 function viewResults() {
   const R = D.results, ms = Math.max(...R.speed.map(x => x.base)), hard = R.boxoban[2].rows.at(-1);
   const lo = -1.0, hi = 0.3, W = 460, rowH = 34, H = R.memory.length * rowH + 44;
@@ -1053,6 +1075,7 @@ function viewResults() {
     <div class="res"><div><h3>Real levels</h3><p class="claim">Boxoban is a public set of Sokoban levels. On the hard set, at the largest search budget, ${hard.plain}% of levels are solved without the checker and ${hard.prune}% with it.</p></div>
       <div><button class="btn" data-goto="boxoban">Open the Boxoban tab</button></div></div>
     ${hardBlock()}
+    ${searchBlock()}
     <div class="res"><div><h3>Memory</h3><p class="claim">Change in replans per episode when the system remembers failed moves. Left of zero is better. Bars show one standard error.</p></div>
       <svg class="forest" viewBox="0 0 ${W} ${H}" role="img" aria-label="Replan change per game">${mem}
         <line x1="${X(0)}" x2="${X(0)}" y1="6" y2="${H - 26}" stroke="var(--muted)" stroke-dasharray="4 4"/>

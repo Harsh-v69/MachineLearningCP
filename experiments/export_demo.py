@@ -400,8 +400,10 @@ def read_results() -> dict:
                          for m in re.findall(r"\| ([\d,]+) \| (\d+)% \[[^\]]*\] \| (\d+)% \[", box)]}
 
     hard = json.loads((ROOT / "results" / "hard_games.json").read_text(encoding="utf-8"))
+    search = json.loads((ROOT / "results" / "search_methods.json").read_text(encoding="utf-8"))
     return {
         "hard": hard,
+        "search": search,
         "boxoban": [boxoban("Unfiltered", "boxoban_unfiltered.md"), boxoban("Medium", "boxoban.md"),
                     boxoban("Hard", "boxoban_hard.md")],
         "river": {"baseline": float(cell(river, "baseline")["success"]),

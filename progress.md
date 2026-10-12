@@ -1,6 +1,6 @@
 # Progress: TAPE Extension — Adaptive Graph Validation & Solver Generalization
 
-**Overall status: all six phases have working code and results (about 97% of the plan). Phases 1 to 5 are the pipeline. Phase 6 (evaluation) has its core experiments done: ablation, memory test, weight tuning, proposer-quality sweep, and the Boxoban benchmark. The guide ruled out LLMs, so real-LLM runs and TAPE's LLM-native benchmarks are dropped (Sec 15). 86 tests pass, and everything is pushed to GitHub.**
+**Overall status: all six phases have working code and results (about 97% of the plan). Phases 1 to 5 are the pipeline. Phase 6 (evaluation) has its core experiments done: ablation, memory test, weight tuning, proposer-quality sweep, and the Boxoban benchmark. The guide ruled out LLMs, so real-LLM runs and TAPE's LLM-native benchmarks are dropped (Sec 15). 90 tests pass, and everything is pushed to GitHub.**
 
 **Status at a glance**
 
@@ -94,7 +94,7 @@ MachineLearningCP/
 │   ├── run_hard_games.py         # Phase 6: Peg Solitaire, 24-puzzle, Rubik's cube (Sec 18)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
 ├── demo/                         # template.html (hand-written) and index.html (generated), see §11
-└── tests/                        # 86 tests, all passing (see §9)
+└── tests/                        # 90 tests, all passing (see §9)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -317,7 +317,7 @@ Three benchmarks (Sokoban, river crossing, Rush Hour) now share Phases 1–5 unc
 
 ---
 
-## 9. Test coverage (86 tests, all passing)
+## 9. Test coverage (90 tests, all passing)
 
 ```
 tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -589,3 +589,33 @@ The checker never lost a position the plain search solved, and gained 3 at depth
 - Only 60 instances per row (30 for the cube), from backwards-built or random-walk generators.
 
 **In the demo:** a tab each for Peg Solitaire, 24-Puzzle and Rubik's Cube, with the same five steps. The cube is a real 3D object built with CSS 3D transforms (no library, works offline): each face turn animates the layer in the right direction, and the cube can be dragged to look around. Animations pause while the browser tab is in the background and finish on a timer. For the two gate-only games the Check step shows the unsolvable start and the nodes spent with and without the check, instead of a rejected move. The Results tab has a "Harder games" block with a game switcher.
+
+---
+
+## 19. Do BFS, DFS and AO* help?
+
+`python experiments/compare_search.py` (table: `results/search_methods.md` and `.json`). BFS and DFS are in `src/tape/uninformed.py`; weighted A* and meet in the middle were already there. No checkers, so only the algorithm differs. Budget 100,000 nodes per search.
+
+| game (instances) | BFS | DFS | weighted A* | meet in the middle |
+|---|---|---|---|---|
+| River Crossing (1) | 100%, 28 nodes | 100%, 19 nodes (15 moves, not 9) | 100%, 26 nodes | n/a |
+| Rush Hour (1) | 100%, 20 | 100%, 18 (18 moves, not 6) | 100%, 12 | n/a |
+| Sokoban 2 boxes (1) | 100%, 1,363 | 0% | 100%, 107 | n/a |
+| Peg Solitaire, real start (1) | 0% | **100%, 10,845** | 0% | n/a |
+| Peg Solitaire, 22 jumps out (20) | 0% | 85%, 23,769 | 95%, 20,853 | n/a |
+| Boxoban medium (20) | 45% | 55% (93 moves, not 36) | 55%, 24,368 | n/a |
+| 24-puzzle, 20 move scramble (20) | 0% | 0% | 100%, 413 | 100%, 18,453 |
+| 24-puzzle, 40 move scramble (20) | 0% | 0% | 100%, 7,934 | 0% |
+| Rubik's cube, 5 move scramble (20) | 30% | 5% | 100%, 66 | 100%, 3,078 |
+| Rubik's cube, 6 move scramble (20) | 15% | 0% | 100%, 392 | 100%, 5,544 |
+
+**Answer.**
+- **DFS helps in one game, and by a lot:** Peg Solitaire from the real start. Every solution is exactly 31 jumps, so a depth first search loses nothing. It needs 10,845 nodes where weighted A* needs 139,048 (Sec 18) and BFS finds nothing in 400,000. With the pagoda checker pruning, DFS needs 6,455. On positions built backwards from the goal (22 jumps) A* is slightly better (95% against 85%). So DFS is the right proposer for the full game and A* for partial positions.
+- **BFS helps only where the state space is tiny** (River Crossing, Rush Hour), and it is the only one that always returns a shortest plan. On everything bigger it runs out. We already used BFS inside the demo for those games.
+- **Weighted A* stays the best general choice** (sliding puzzle, Boxoban, short cube scrambles). DFS finds Boxoban plans about 2.5 times longer.
+- **Meet in the middle** guarantees a shortest plan but, on short cube scrambles, used more nodes than A* with the sticker heuristic, and ran out on the 40 move 24-puzzle.
+- **AO* does not help.** AO* plans over AND/OR graphs, where an action can have several outcomes. Every game here is deterministic, so there are no AND nodes and AO* reduces to A*. It would only matter for the slip model (a move that sometimes does nothing). That has a loop (the slip returns to the same state), and the version for graphs with loops is LAO*. Worth trying only if we want planning that expects slips, rather than replanning after them. We did not implement it.
+
+**Caveats.** Node counts are expansions for BFS, DFS and A* and generated states for meet in the middle, so compare those loosely. Small instance counts (1 to 20 per row). Weighted A* returns non-optimal plans, so a lower node count there can come with longer plans. Cube scrambles are only 5 and 6 moves.
+
+**Demo.** The Results tab has a "Do other search methods help?" block with this table. The Rubik's Cube tab has a Randomize button: it scrambles the cube in your browser and solves it with a JavaScript copy of the meet in the middle search (48 of 48 random cubes solved in tests, at most 0.3 s for 7 move scrambles). The Peg Solitaire and 24-Puzzle tabs are now 3D as well: marbles that arc over their neighbour, and raised tiles that slide across a tray.

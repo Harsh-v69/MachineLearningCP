@@ -619,3 +619,11 @@ The checker never lost a position the plain search solved, and gained 3 at depth
 **Caveats.** Node counts are expansions for BFS, DFS and A* and generated states for meet in the middle, so compare those loosely. Small instance counts (1 to 20 per row). Weighted A* returns non-optimal plans, so a lower node count there can come with longer plans. Cube scrambles are only 5 and 6 moves.
 
 **Demo.** The Results tab has a "Do other search methods help?" block with this table. The Rubik's Cube tab has a Randomize button: it scrambles the cube in your browser and solves it with a JavaScript copy of the meet in the middle search (48 of 48 random cubes solved in tests, at most 0.3 s for 7 move scrambles). The Peg Solitaire and 24-Puzzle tabs are now 3D as well: marbles that arc over their neighbour, and raised tiles that slide across a tray.
+
+---
+
+## 20. Review deck and paper (documents)
+
+- **Review deck:** `docs/CP_Project_Review.pptx` (17 plain, editable slides; import into Canva with Create, Upload). It now covers all seven games: a Games and Benchmarks slide, a Harder Games results slide and an Other Search Methods results slide, plus updated progress, limits, conclusion and references. Numbers are read from `results/*.json`. Rebuild with `python docs/build_review_ppt.py`.
+- **Paper:** `paper/paper.md` is the source and `paper/paper.docx` the editable Word version (about 11 pages, 4 figures, 24 references). It adds the harder games (Sec 6.6), the search-method comparison with BFS, DFS, weighted A* and meet in the middle (Sec 6.7), related work on search methods, and a limitations entry for the comparison. Figures come from `python paper/make_figures.py`; the Word file from `python paper/build_paper_docx.py`. Install the document tools with `pip install -r docs/requirements-docs.txt`.
+- **Open before submission:** references [20], [22] and [23] in the paper were not independently checked (the others were checked against Crossref); the guide must confirm whether a learned proposer is allowed; the paper still needs a venue template and a read-through by the whole group.

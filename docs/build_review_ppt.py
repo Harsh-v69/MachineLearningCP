@@ -13,6 +13,12 @@ from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
+import json
+
+_R = Path(__file__).resolve().parents[1] / "results"
+HARD = json.loads((_R / "hard_games.json").read_text(encoding="utf-8"))
+SEARCH = json.loads((_R / "search_methods.json").read_text(encoding="utf-8"))
+
 INK, MUTED, ACCENT, RULE = RGBColor(0x1A, 0x1A, 0x1A), RGBColor(0x5A, 0x5A, 0x5A), RGBColor(0x1F, 0x4F, 0xC8), RGBColor(0xC8, 0xC8, 0xC8)
 FONT = "Calibri"
 
@@ -126,7 +132,7 @@ bullets(s, 0.6, 1.5, 12.1, 5.5, [
     "TAPE (Jeong et al., 2026) generates several candidate plans, merges them into one plan graph, picks a path with an external solver (ILP), executes it, and replans when reality differs.",
     "A plan graph is only as good as the plans behind it, and the solver is fixed in advance.",
     "Our project adds a checking and selection layer on top of the TAPE pipeline: validate moves, learn from failures, score moves, and choose the solver per task.",
-    "Tested on four benchmark families: Sokoban, River Crossing, Rush Hour and Boxoban.",
+    "Tested on seven games: Sokoban, River Crossing, Rush Hour, Peg Solitaire, the 24-puzzle, the Rubik's cube and 3,000 Boxoban levels.",
 ], size=22)
 
 # 3. Motivation --------------------------------------------------------
@@ -217,18 +223,32 @@ text(s, 8.3, 2.0, 4.5, 4.8, [
     ("one movable piece: A*; several pieces: CP-SAT", {"size": 15}),
 ])
 
+# 7b. Games and benchmarks ---------------------------------------------
+s = new_slide("Games and Benchmarks", "One interface, seven games, each with its own rule checker.")
+table(s, 0.6, 1.9, 12.1, [
+    ["Game", "Size", "Checker", "Proposer"],
+    ["Sokoban (4 levels)", "Up to 3 boxes, PSPACE-complete", "Dead corner rule", "BFS plus noisy walks"],
+    ["River Crossing", "3 pairs, 11-move optimum", "Outnumbered rule", "BFS plus noisy walks"],
+    ["Rush Hour", "6 by 6 board, PSPACE-complete", "Row gridlock rule", "BFS plus noisy walks"],
+    ["Boxoban", "3,000 real levels, 4 boxes", "Dead corner rule (prunes search)", "Weighted A*"],
+    ["Peg Solitaire", "About 3.6 million reachable positions", "Pagoda bound (proof)", "Weighted A*, DFS"],
+    ["24-puzzle", "About 7.8 x 10^24 states", "Parity rule (guards the start)", "Weighted A*"],
+    ["Rubik's cube 3x3x3", "About 4.3 x 10^19 states", "Cubie invariants (guards the start)", "Meet in the middle"],
+], col_w=[2.7, 3.7, 3.4, 2.3], size=13, row_h=0.52)
+text(s, 0.6, 6.3, 12.1, 0.8, "No language model is used anywhere. Proposers are programs: noisy walks, weighted A*, DFS, or a meet in the middle search.", size=15, color=MUTED)
+
 # 8. Coding progress ---------------------------------------------------
-s = new_slide("Coding Progress", "Target for this review: 40%. Completed: all five pipeline phases and the evaluation experiments.")
+s = new_slide("Coding Progress", "Target for this review: 40%. Completed: all five pipeline phases, the evaluation experiments and an interactive demo.")
 table(s, 0.6, 1.9, 12.1, [
     ["Phase", "What was coded", "Status"],
     ["1  TAPE baseline", "Environment interface, plan graph, CP-SAT solver, constrained execution, replanning", "Done"],
-    ["2  Graph validation", "Rule checkers: Sokoban corners, River Crossing safety, Rush Hour gridlock", "Done"],
+    ["2  Graph validation", "Rule checkers for every game: corners, safety, gridlock, pagoda bound, parity, cubie invariants", "Done"],
     ["3  Self-improving graph", "SQLite experience store with smoothed confidence", "Done"],
     ["4  Dynamic score", "Per-move cost from progress, confidence and budget", "Done"],
     ["5  Adaptive selection", "A* and CP-SAT, chosen by task complexity", "Done"],
-    ["6  Evaluation", "Ablation, memory test, weight tuning, proposer sweep, Boxoban", "Core done"],
+    ["6  Evaluation", "Ablation, memory, tuning, proposer sweep, Boxoban, three harder games, search methods", "Core done"],
 ], col_w=[3.0, 7.3, 1.8], size=15, row_h=0.55)
-text(s, 0.6, 6.0, 12.1, 1.0, "About 1,600 lines in src/tape, 1,050 in experiments, 750 in tests. 66 automated tests pass. Code: github.com/Harsh-v69/MachineLearningCP", size=16, color=MUTED)
+text(s, 0.6, 6.0, 12.1, 1.0, "About 2,300 lines in src/tape, 1,500 in experiments, 1,000 in tests. 90 automated tests pass. Interactive demo with a tab per game and a 3D Rubik's cube. Code: github.com/Harsh-v69/MachineLearningCP", size=16, color=MUTED)
 
 # 9. Coding: key parts -------------------------------------------------
 s = new_slide("Coding: Key Components")
@@ -253,7 +273,7 @@ text(s, 6.9, 1.95, 5.8, 4.6, [
     ("", {"size": 8}),
     ("Every game implements one interface: ACTIONS, step, is_goal, heuristic, complexity, render. A new game plugs in without touching the pipeline.", {"size": 16, "color": MUTED}),
     ("", {"size": 8}),
-    ("Benchmarks: Sokoban (4 levels), River Crossing, Rush Hour, Boxoban (3,000 real levels).", {"size": 16, "color": MUTED}),
+    ("Seven games: Sokoban, River Crossing, Rush Hour, Peg Solitaire, 24-puzzle, Rubik's cube, and 3,000 Boxoban levels.", {"size": 16, "color": MUTED}),
 ])
 
 # 10. Results 1 --------------------------------------------------------
@@ -292,6 +312,39 @@ bullets(s, 0.6, 5.2, 12.1, 2.0, [
     "It also expands 20% to 25% fewer nodes. Pruning dead corners is standard in Sokoban solvers; this shows our checker works as one on real levels.",
 ], size=18)
 
+# 11b. Results: harder games -------------------------------------------
+s = new_slide("Results and Discussion: Harder Games", "Peg Solitaire, 24-puzzle and Rubik's cube. 60 instances per row, 30 for the cube.")
+peg_rows = [["Jumps from the goal", "Solved, no checker", "Solved, pagoda checker", "Mean nodes, no checker / checker"]]
+for k, r in HARD["peg"].items():
+    peg_rows.append([k, f"{r['plain']['solved']:.0%}", f"{r['checker']['solved']:.0%}", f"{r['plain']['nodes']:,.0f} / {r['checker']['nodes']:,.0f}"])
+table(s, 0.6, 1.9, 12.1, peg_rows, col_w=[2.9, 2.9, 3.0, 3.3], size=15, row_h=0.46)
+ps = HARD["peg_start"]["2"]
+pz, cb = HARD["puzzle"], HARD["cube"]
+bullets(s, 0.6, 4.4, 12.1, 2.9, [
+    f"Peg Solitaire: the pagoda bound proves positions lost. From the real start it cuts the search from {ps['plain']['nodes']:,} to {ps['checker']['nodes']:,} nodes.",
+    f"24-puzzle and cube: the checker only guards the start. On an unsolvable start the plain search spends its whole budget (60,000 and 400,000 nodes), the check uses at most {max(pz['20']['waste_gate'], cb['4']['waste_gate']):.0f}.",
+    f"Weighted A* solves {pz['20']['solved']:.0%}, {pz['40']['solved']:.0%}, {pz['60']['solved']:.0%} and {pz['80']['solved']:.0%} of 24-puzzle scrambles of 20, 40, 60 and 80 moves. Meet in the middle solves every cube scramble of 4 to 8 moves.",
+], size=16)
+
+# 11c. Results: search methods -----------------------------------------
+s = new_slide("Results and Discussion: Other Search Methods", "Do BFS, DFS and A* variants help? Share solved within 100,000 nodes, with mean nodes in brackets.")
+def cell(g, alg):
+    c = SEARCH["games"][g].get(alg)
+    if c is None:
+        return "n/a"
+    return "0%" if c["nodes"] is None else f"{c['solved']:.0%} ({c['nodes']:,.0f})"
+pick = [("River Crossing", "River Crossing"), ("Rush Hour", "Rush Hour"), ("Peg Solitaire", "Peg Solitaire, real start"),
+        ("Boxoban (20 levels)", "Boxoban, 20 levels"), ("24-puzzle, 20 move scramble", "24-puzzle, 20 moves"),
+        ("Rubik's cube, 6 move scramble", "Rubik's cube, 6 moves")]
+rows = [["Game", "BFS", "DFS", "Weighted A*", "Meet in the middle"]]
+for g, label in pick:
+    rows.append([label] + [cell(g, a) for a in ("BFS", "DFS", "weighted A*", "meet in the middle")])
+table(s, 0.6, 1.9, 12.1, rows, col_w=[3.3, 2.1, 2.3, 2.2, 2.2], size=14, row_h=0.45)
+bullets(s, 0.6, 5.2, 12.1, 2.1, [
+    "DFS helps in one game: Peg Solitaire, where every solution is 31 jumps. BFS suffices only on the tiny games.",
+    "Weighted A* is the best general choice. AO* does not apply: every game is deterministic, so it reduces to A*.",
+], size=16)
+
 # 12. Results 3: memory, tuning, limits --------------------------------
 s = new_slide("Results and Discussion: Memory, Tuning, Limits")
 table(s, 0.6, 1.5, 6.4, [
@@ -309,20 +362,22 @@ bullets(s, 7.3, 2.1, 5.4, 4.8, [
     "Tuning the cost weights (80-point grid, held-out check) found nothing better than the defaults.",
     "Merging plans did not shorten paths: cost, not move count, is minimized.",
     "With a decent proposer, goal-reach rate barely changes; the value is safety and fewer wasted replans.",
-], size=17)
+    "Harder games: scrambles are random walks, and the cube is tested only to 8 moves.",
+], size=16)
 
 # 13. Conclusion -------------------------------------------------------
 s = new_slide("Conclusion")
 bullets(s, 0.6, 1.5, 12.1, 3.4, [
-    "We built a checking and selection layer on the TAPE pipeline and tested it on four benchmark families.",
+    "We built a checking and selection layer on the TAPE pipeline and tested it on seven games, with no language model.",
     "Rule checking makes plans safe (River Crossing 0% to 100% safe) and makes search solve more real levels (Boxoban, up to 28 points).",
     "Choosing A* or CP-SAT per task cuts planning time where one piece moves.",
     "Remembering failures reduces replans, but only when failures are state-dependent.",
-], size=21)
+    "On the harder games the checker prunes Peg Solitaire and guards unsolvable starts. DFS helps only Peg Solitaire; AO* does not apply.",
+], size=20)
 text(s, 0.6, 5.0, 12.1, 0.5, "Future work", size=20, bold=True, color=ACCENT)
 bullets(s, 0.6, 5.5, 12.1, 1.6, [
     "A learned, non-LLM proposer with realistic errors; more Boxoban files and a second checker rule.",
-    "Write up the results as a paper (draft in progress).",
+    "Finish the research paper (full draft written, with figures).",
 ], size=18)
 
 # 14. References -------------------------------------------------------
@@ -344,10 +399,14 @@ refs = [
     "[15] G. W. Flake, E. B. Baum, \"Rush Hour is PSPACE-complete,\" Theoretical Computer Science 270(1-2):895-911, 2002.",
     "[16] DeepMind, \"Boxoban levels,\" github.com/google-deepmind/boxoban-levels.",
     "[17] L. Perron, V. Furnon, \"OR-Tools,\" Google, developers.google.com/optimization.",
+    "[18] I. Pohl, \"Heuristic search viewed as path finding in a graph,\" Artificial Intelligence 1(3-4):193-204, 1970.",
+    "[19] R. E. Korf, \"Depth-first iterative-deepening,\" Artificial Intelligence 27(1):97-109, 1985.",
+    "[20] T. Rokicki et al., \"The diameter of the Rubik's Cube group is twenty,\" SIAM J. Discrete Math. 27(2):1082-1105, 2013.",
+    "[21] E. A. Hansen, S. Zilberstein, \"LAO*: A heuristic search algorithm that finds solutions with loops,\" Artificial Intelligence 129(1-2):35-62, 2001.",
 ]
 s = new_slide("References")
-text(s, 0.6, 1.4, 6.1, 5.9, [(r, {"size": 13, "after": 6}) for r in refs[:8]])
-text(s, 6.9, 1.4, 5.9, 5.9, [(r, {"size": 13, "after": 6}) for r in refs[8:]])
+text(s, 0.6, 1.4, 6.1, 5.9, [(r, {"size": 11, "after": 5}) for r in refs[:11]])
+text(s, 6.9, 1.4, 5.9, 5.9, [(r, {"size": 11, "after": 5}) for r in refs[11:]])
 
 out = Path(__file__).resolve().parent / "CP_Project_Review.pptx"
 prs.save(out)

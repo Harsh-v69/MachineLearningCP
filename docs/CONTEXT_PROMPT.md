@@ -106,6 +106,10 @@ Repo: https://github.com/Harsh-v69/MachineLearningCP (branch `main`). Windows ma
 
 A tabbed walkthrough with a Light / Dark switch. Tabs: Overview (game tiles, interactive project map, table of the six phases), Sokoban, River Crossing, Rush Hour, Peg Solitaire, 24-Puzzle, Rubik's Cube (each runs five steps: Propose, Merge, Check with the rule checker on and off, Choose with A* vs CP-SAT timings, Run with a forced slip and replan), Boxoban (one real level replayed with and without the checker, plus the 3,000-level solve-rate chart with a set switcher), and Results (safety, speed, harder games, memory, and what the data does not show). On the 24-Puzzle and Rubik's Cube the Check step shows an unsolvable start instead of a rejected move. The cube, Peg Solitaire and 24-puzzle are animated, draggable 3D objects (CSS 3D, no library). The cube tab has a Randomize button that scrambles and solves in the browser (JavaScript copy of the meet in the middle search). Every board and number comes from a live run of the code. Open `demo/index.html`, or serve it with `python -m http.server 8000 --directory demo`. Published artifact (private until shared): https://claude.ai/artifact/QKMajmwWBLJcgEhd4sANX1
 
+## Documents
+
+`docs/CP_Project_Review.pptx` is the 17 slide review deck (subject Machine Learning, guide Dr. Premanand P Ghadekar, Group 3: Divyanshu Gajbhiye, Vidhi Hadoltikar, Harshvardhan Rawat, Nirmit Hatti). `paper/paper.md` is the paper source, with `paper/paper.docx` as the Word version and figures in `paper/figures/`. Both are generated from the results files by scripts (`docs/build_review_ppt.py`, `paper/build_paper_docx.py`, `paper/make_figures.py`); edit the scripts or the markdown, then rebuild.
+
 ## What is still open
 
 - Write the paper. The supported claim is narrow (see result 4 and 5).

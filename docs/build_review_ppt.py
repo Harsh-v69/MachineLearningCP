@@ -405,6 +405,17 @@ bullets(s, 7.3, 2.1, 5.4, 4.8, [
     "Harder games: scrambles are random walks, and the cube is tested only to 8 moves.",
 ], size=16)
 
+# 12b. Team contributions ----------------------------------------------
+s = new_slide("Team Contributions", "Group 3. Each member owns one part of the project, from code to results.")
+table(s, 0.6, 1.9, 12.1, [
+    ["Member", "Role", "Work"],
+    ["Harshvardhan Rawat", "Project lead, core pipeline", "Plan graph, CP-SAT and A* solvers, adaptive selection, experience store, move scoring, replanning, integration"],
+    ["Divyanshu Gajbhiye", "Games, rule checkers, proposers", "Seven games, per-game checkers (corner, safety, gridlock, pagoda bound, parity, cube invariants), search proposers"],
+    ["Vidhi Hadoltikar", "Experiments and evaluation", "Ablation, memory test, weight tuning, proposer sweep, Boxoban, harder games, search-method comparison"],
+    ["Nirmit Hatti", "Demo, documentation, paper", "Interactive 3D demo, flow diagram, review deck, research paper, literature survey"],
+], col_w=[2.6, 2.9, 6.6], size=14, row_h=0.72)
+text(s, 0.6, 6.2, 12.1, 0.9, "Each member owns the tests for their files, and work is cross-reviewed in pairs. Guide: Dr. Premanand P Ghadekar.", size=16, color=MUTED)
+
 # 13. Conclusion -------------------------------------------------------
 s = new_slide("Conclusion")
 bullets(s, 0.6, 1.5, 12.1, 3.4, [

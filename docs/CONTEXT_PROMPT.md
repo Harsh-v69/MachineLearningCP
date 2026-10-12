@@ -112,7 +112,7 @@ Every game is a draggable 3D board (CSS 3D, no library). Propose names what prod
 
 ## Documents
 
-`docs/CP_Project_Review.pptx` is the 19 slide review deck (subject Machine Learning, guide Dr. Premanand P Ghadekar, Group 3: Divyanshu Gajbhiye, Vidhi Hadoltikar, Harshvardhan Rawat, Nirmit Hatti). `paper/paper.md` is the paper source, with `paper/paper.docx` as the Word version and figures in `paper/figures/`. Both are generated from the results files by scripts (`docs/build_review_ppt.py`, `paper/build_paper_docx.py`, `paper/make_figures.py`); edit the scripts or the markdown, then rebuild.
+`docs/CP_Project_Review.pptx` is the 20 slide review deck (subject Machine Learning, guide Dr. Premanand P Ghadekar, Group 3: Divyanshu Gajbhiye, Vidhi Hadoltikar, Harshvardhan Rawat, Nirmit Hatti). `paper/paper.md` is the paper source, with `paper/paper.docx` as the Word version and figures in `paper/figures/`. Both are generated from the results files by scripts (`docs/build_review_ppt.py`, `paper/build_paper_docx.py`, `paper/make_figures.py`); edit the scripts or the markdown, then rebuild.
 
 ## What is still open
 

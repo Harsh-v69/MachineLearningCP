@@ -178,7 +178,7 @@ GAMES = {
         plan=_cube_plan, bad=_cube_bad,
         gate=_gate(lambda b, v: BidirectionalProposer(node_budget=b, validator=v), 100_000),
         broken=lambda lv, v, s: _twist_corner(v, s),
-        static=lambda lv: {"n": lv.n, "layout": lv.net_layout()}),
+        static=lambda lv: {"n": lv.n, "slots": [[list(p), list(nm)] for p, nm in lv.slots]}),
     "sokoban": dict(
         level=SOKOBAN, validator=CornerDeadlockValidator(), ser=ser_sokoban, depth=20, piece="1 box",
         static=lambda lv: {"w": lv.width, "h": lv.height,

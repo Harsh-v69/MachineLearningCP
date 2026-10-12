@@ -1,0 +1,147 @@
+{
+ "n": 60,
+ "peg_start": {
+  "2": {
+   "plain": {
+    "solved": true,
+    "nodes": 139048
+   },
+   "checker": {
+    "solved": true,
+    "nodes": 82009
+   }
+  },
+  "4": {
+   "plain": {
+    "solved": true,
+    "nodes": 139324
+   },
+   "checker": {
+    "solved": true,
+    "nodes": 82257
+   }
+  }
+ },
+ "peg": {
+  "12": {
+   "plain": {
+    "solved": 1.0,
+    "nodes": 296.25
+   },
+   "checker": {
+    "solved": 1.0,
+    "nodes": 236.75
+   },
+   "only_checker": 0,
+   "only_plain": 0
+  },
+  "18": {
+   "plain": {
+    "solved": 1.0,
+    "nodes": 2776.016666666667
+   },
+   "checker": {
+    "solved": 1.0,
+    "nodes": 1913.7
+   },
+   "only_checker": 0,
+   "only_plain": 0
+  },
+  "22": {
+   "plain": {
+    "solved": 0.9333333333333333,
+    "nodes": 13779.633333333333
+   },
+   "checker": {
+    "solved": 0.9833333333333333,
+    "nodes": 9663.333333333334
+   },
+   "only_checker": 3,
+   "only_plain": 0
+  },
+  "26": {
+   "plain": {
+    "solved": 0.5833333333333334,
+    "nodes": 39170.11666666667
+   },
+   "checker": {
+    "solved": 0.75,
+    "nodes": 31817.216666666667
+   },
+   "only_checker": 10,
+   "only_plain": 0
+  }
+ },
+ "puzzle": {
+  "20": {
+   "solved": 1.0,
+   "gate_same": true,
+   "moves": 22.033333333333335,
+   "waste_plain": 60000.0,
+   "waste_gate": 1.0
+  },
+  "40": {
+   "solved": 0.95,
+   "gate_same": true,
+   "moves": 46.80701754385965,
+   "waste_plain": 60000.0,
+   "waste_gate": 1.0
+  },
+  "60": {
+   "solved": 0.7333333333333333,
+   "gate_same": true,
+   "moves": 62.59090909090909,
+   "waste_plain": 60000.0,
+   "waste_gate": 1.0
+  },
+  "80": {
+   "solved": 0.5666666666666667,
+   "gate_same": true,
+   "moves": 75.88235294117646,
+   "waste_plain": 60000.0,
+   "waste_gate": 1.0
+  }
+ },
+ "cube": {
+  "4": {
+   "solved": 1.0,
+   "nodes": 456.6,
+   "moves": 3.7,
+   "gate_same": true,
+   "waste_plain": 400010.0,
+   "waste_gate": 0.0
+  },
+  "5": {
+   "solved": 1.0,
+   "nodes": 3181.5,
+   "moves": 4.666666666666667,
+   "gate_same": true,
+   "waste_plain": 400010.0,
+   "waste_gate": 0.0
+  },
+  "6": {
+   "solved": 1.0,
+   "nodes": 5805.9,
+   "moves": 5.6,
+   "gate_same": true,
+   "waste_plain": 400010.0,
+   "waste_gate": 0.0
+  },
+  "7": {
+   "solved": 1.0,
+   "nodes": 37954.6,
+   "moves": 6.5,
+   "gate_same": true,
+   "waste_plain": 400010.0,
+   "waste_gate": 0.0
+  },
+  "8": {
+   "solved": 1.0,
+   "nodes": 71428.5,
+   "moves": 7.366666666666666,
+   "gate_same": true,
+   "waste_plain": 400010.0,
+   "waste_gate": 0.0
+  }
+ }
+}

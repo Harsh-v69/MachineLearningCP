@@ -1,15 +1,15 @@
 # Progress: TAPE Extension — Adaptive Graph Validation & Solver Generalization
 
-**Overall status: all six phases have working code and results (about 97% of the plan). Phases 1 to 5 are the pipeline. Phase 6 (evaluation) has its core experiments done: ablation, memory test, weight tuning, proposer-quality sweep, and the Boxoban benchmark. The guide ruled out LLMs, so real-LLM runs and TAPE's LLM-native benchmarks are dropped (Sec 15). 67 tests pass, and everything is pushed to GitHub.**
+**Overall status: all six phases have working code and results (about 97% of the plan). Phases 1 to 5 are the pipeline. Phase 6 (evaluation) has its core experiments done: ablation, memory test, weight tuning, proposer-quality sweep, and the Boxoban benchmark. The guide ruled out LLMs, so real-LLM runs and TAPE's LLM-native benchmarks are dropped (Sec 15). 86 tests pass, and everything is pushed to GitHub.**
 
 **Status at a glance**
 
 | Area | State |
 |---|---|
 | Pipeline (Phases 1 to 5) | Done, tested |
-| Benchmarks | Sokoban (4 hand-made levels), River Crossing, Rush Hour, and Boxoban (3000 real levels, three difficulty sets) |
+| Benchmarks | Sokoban (4 hand-made levels), River Crossing, Rush Hour, Boxoban (3000 real levels), and three harder games: Peg Solitaire, the 24-puzzle, the Rubik's cube (Sec 18) |
 | Evaluation (Phase 6) | Ablation (Sec 14), experience store under state-dependent slip (14.1), ScoreWeights tuning (14.2), proposer sweep (14.3), Boxoban (Sec 16) |
-| Demo | Tabbed walkthrough `demo/index.html`: a tab per game (Sokoban, River Crossing, Rush Hour, Boxoban), project map, results, light and dark mode (Sec 11) |
+| Demo | Tabbed walkthrough `demo/index.html`: a tab per game (Sokoban, River Crossing, Rush Hour, Boxoban, Peg Solitaire, 24-Puzzle, Rubik's Cube), project map, results, light and dark mode (Sec 11) |
 | Main findings | The checker gives safety (River Crossing 0% to 100% safe) and better search (Boxoban solves 3 to 28 points more at the top budget). The adaptive solver cuts planning time where one piece moves. Memory helps on two games. Tuning found nothing better than defaults. |
 | Open | Paper writing, optional extra Boxoban files, a learned (non-LLM) proposer if the guide allows it |
 
@@ -63,12 +63,16 @@ MachineLearningCP/
 │   ├── envs/
 │   │   ├── sokoban.py                   # benchmark 1 (Phase 1)
 │   │   ├── boxoban.py                   # loader for the public Boxoban level files (Sec 16)
+│   │   ├── peg_solitaire.py (+ _validator)   # Sec 18: pagoda-bound checker
+│   │   ├── sliding_puzzle.py (+ _validator)  # Sec 18: 24-puzzle, parity gate
+│   │   ├── rubiks_cube.py (+ _validator)     # Sec 18: 3x3x3 and 2x2x2, invariant gate
 │   │   ├── river_crossing.py            # benchmark 2 (§8.1): missionaries and cannibals
 │   │   ├── river_crossing_validator.py  # its Phase 2 validator: RiverSafetyValidator
 │   │   ├── rush_hour.py                 # benchmark 3 (§8.2): sliding-vehicle traffic jam
 │   │   └── rush_hour_validator.py       # its Phase 2 validator: RowGridlockValidator (§8.2.1)
 │   ├── llm.py                  # candidate plan generation: MockLLMClient, AdversarialMockLLMClient, QualityProposer, GeminiClient (unused)
 │   ├── search_proposer.py       # weighted A* proposer for levels too big for BFS (Sec 16)
+│   ├── bidirectional.py         # meet-in-the-middle proposer for the cube (Sec 18)
 │   ├── graph.py                # plan graph construction + validation/scoring hooks
 │   ├── solver.py                # CP-SAT path selection (OR-Tools)
 │   ├── executor.py             # constrained execution + mismatch-triggered replanning
@@ -87,9 +91,10 @@ MachineLearningCP/
 │   ├── tune_weights.py           # Phase 6: ScoreWeights grid search with held-out check (Sec 14.2)
 │   ├── run_proposer_sweep.py     # Phase 6: benefit vs proposer quality (Sec 14.3)
 │   ├── run_boxoban.py            # Phase 6: Boxoban benchmark (Sec 16)
+│   ├── run_hard_games.py         # Phase 6: Peg Solitaire, 24-puzzle, Rubik's cube (Sec 18)
 │   └── export_demo.py            # regenerates demo/index.html from a live pipeline run
 ├── demo/                         # template.html (hand-written) and index.html (generated), see §11
-└── tests/                        # 67 tests, all passing (see §9)
+└── tests/                        # 86 tests, all passing (see §9)
 ```
 
 Everything under `src/tape` is a plain Python package (no install step needed beyond the venv) — scripts add `src/` to `sys.path` themselves.
@@ -312,7 +317,7 @@ Three benchmarks (Sokoban, river crossing, Rush Hour) now share Phases 1–5 unc
 
 ---
 
-## 9. Test coverage (67 tests, all passing)
+## 9. Test coverage (86 tests, all passing)
 
 ```
 tests/test_sokoban.py       4  — environment legality: pushes, walls, box-into-wall, rendering
@@ -363,12 +368,12 @@ python experiments/run_baseline.py --level hard --episodes 5 --candidates 8 --ma
 
 ## 11. The live demo (for the mid-semester presentation)
 
-`demo/index.html` is a tabbed walkthrough called **Plan Check**. A tab bar runs across the top (Overview, Sokoban, River Crossing, Rush Hour, Boxoban, Results) with a Light / Dark switch beside it. The choice is remembered; until you choose, the page follows the system theme.
+`demo/index.html` is a tabbed walkthrough called **Plan Check**. A tab bar runs across the top (Overview, Sokoban, River Crossing, Rush Hour, Boxoban, Peg Solitaire, 24-Puzzle, Rubik's Cube, Results) with a Light / Dark switch beside it. The choice is remembered; until you choose, the page follows the system theme.
 
 - **Overview:** one tile per game, the interactive project map (Input, Preparation, What we changed, Algorithms, Outcomes, Pipeline changes), and a table of the six phases with an Open link into the demo for each.
-- **Sokoban, River Crossing, Rush Hour (one tab each):** a header with the goal, the checker and the solution length, then five steps. Propose (two plans), Merge (one graph), Check (rule checker Off and On), Choose (A* and CP-SAT timed, chosen path played), Run (a slip, a replan, trust dropping to 0.33). The selected step is kept when you switch game tabs, so one step can be compared across games. Deep links such as `#river-check` work, and the left and right arrow keys move between steps.
+- **Sokoban, River Crossing, Rush Hour, Peg Solitaire, 24-Puzzle, Rubik's Cube (one tab each):** a header with the goal, the checker and the solution length, then five steps. Propose (two plans), Merge (one graph), Check (rule checker Off and On), Choose (A* and CP-SAT timed, chosen path played), Run (a slip, a replan, trust dropping to 0.33). On the 24-Puzzle and the Rubik's Cube the checker only guards the start, so their Check step shows an unsolvable start and the nodes spent with and without the check instead of a rejected move. The selected step is kept when you switch game tabs, so one step can be compared across games. Deep links such as `#river-check` work, and the left and right arrow keys move between steps.
 - **Boxoban:** one real medium-set level (currently level 6) replayed move by move. The same search budget is run with and without the checker: no plan within 10,000 nodes without it, a 43-move plan after 2,226 nodes with it. Below that, the solve-rate chart for all 3,000 levels with an Unfiltered / Medium / Hard switcher.
-- **Results:** safety, speed, a pointer to Boxoban, memory, and a "what this does not show" list. Numbers are read from `results/ablation.csv`, `results/experience_test.md` and `results/boxoban*.md`.
+- **Results:** safety, speed, a pointer to Boxoban, a Harder games block (Peg Solitaire, 24-Puzzle, Rubik's Cube switcher), memory, and a "what this does not show" list. Numbers are read from `results/ablation.csv`, `results/experience_test.md` and `results/boxoban*.md`.
 
 **Generated, not hand-authored.** `demo/template.html` is the hand-written page. `python experiments/export_demo.py` runs the real pipeline for all three games (finds a bad move by search, builds the graph, times both solvers, forces a slip and replans), picks a Boxoban level where the two searches differ, and writes `demo/index.html`. Rerun it whenever the pipeline or the results files change. Edit `demo/template.html`, never `index.html`. `tests/test_export_demo.py` checks that every game's data and the Boxoban plan are sound.
 
@@ -533,10 +538,54 @@ The plan (Sec 1) is about 97% built, but the plan is not the same as a publishab
 | Part | Weight | Done | Why |
 |---|---|---|---|
 | Working system and code | 25% | about 90% | Pipeline, four benchmarks, tests, demo all work |
-| Experiments and evidence | 30% | about 55% | Missing classical baselines (plain A*, a standard planner), a learned proposer, a second checker rule, per-component ablation on Boxoban |
+| Experiments and evidence | 30% | about 60% | Done: ablation, memory, tuning, proposer sweep, Boxoban, three harder games. Missing: classical baselines (plain A*, a standard planner), a learned proposer, per-component ablation on Boxoban |
 | Paper writing | 25% | about 35% | A full first draft exists, but related work is thin, there are no figures, claims need a verification pass, and it is not in a venue template |
 | Novelty and positioning | 20% | about 25% | The clearest result (dead-corner pruning) is a known technique; the contribution needs a sharper claim |
 
-That gives **about 50% of the way to a publishable product**. A realistic near-term target is a course report or student conference or workshop paper. A renowned journal needs a stronger contribution, mainly more novelty and stronger baselines, not more code.
+That gives **about 55% of the way to a publishable product**. A realistic near-term target is a course report or student conference or workshop paper. A renowned journal needs a stronger contribution, mainly more novelty and stronger baselines, not more code.
 
-What moves it most, in order: (1) classical baselines and one harder game with a meaningful rule checker (Peg Solitaire or the 15 and 24 puzzles), (2) a soundness argument for each validator, (3) a learned non-LLM proposer, (4) figures and a venue template.
+What moves it most, in order: (1) classical baselines, (2) a written soundness argument for each validator (Peg Solitaire's pagoda bound and the cube invariants already have tests behind them), (3) a learned non-LLM proposer, (4) figures and a venue template. The harder-game item from the earlier list is now done (Sec 18).
+
+---
+
+## 18. Three harder games: Peg Solitaire, the 24-puzzle, the Rubik's cube
+
+The guide asked for a tough, very complex game. We added three, each through the same `Environment` interface, with no change to the pipeline.
+
+| Game | Size | Checker | What the checker does |
+|---|---|---|---|
+| Peg Solitaire (English board) | about 3.6 million reachable positions, every solution 31 jumps | Pagoda bound (`peg_solitaire_validator.py`) | Rejects, mid-play, positions that provably cannot reach the goal. Soft tier: a lone peg with no neighbour is accepted at 0.5. |
+| 24-puzzle (5x5 sliding tiles) | about 7.8e24 states | Parity rule (`sliding_puzzle_validator.py`) | Guards the start only. Legal moves never break parity. |
+| Rubik's cube 3x3x3 (and 2x2x2) | about 4.3e19 states | Cubie invariants (`rubiks_cube_validator.py`) | Guards the start only. Corner twists, edge flips and permutation parity must all balance. |
+
+**Proposers (no LLM).** Peg Solitaire and the 24-puzzle reuse the weighted A* proposer (heuristics: sum of distances to the centre, and Manhattan distance). The cube uses `bidirectional.py`, a meet-in-the-middle search from the start and from the solved cube, which is the only way plain Python reaches useful depths. The cube's moves are built from geometry (every sticker is a position plus a normal, a turn rotates one layer), not typed in; tests confirm each turn has the right order and that `(R U R' U')` repeated six times is the identity.
+
+**Soundness evidence.**
+- Peg Solitaire: a pagoda is a weight per hole where a jump never raises the total, so a position whose total is below the goal's weight cannot win. Twelve pagodas come from a small linear programme and every inequality is re-checked. A test samples positions the checker rejects and proves each one unsolvable by exhaustive search (at least 20 checked).
+- Cube: no false rejects over 600 random scrambles (3x3x3 and 2x2x2), and a twisted corner, a flipped edge and two swapped edges are all caught.
+- 24-puzzle: the parity rule is a standard theorem; tests confirm it holds across hundreds of moves and flags the classic swapped-tile twin.
+
+**Experiment:** `python experiments/run_hard_games.py --n 60` (tables: `results/hard_games.md` and `.json`).
+
+*Peg Solitaire.* From the real start position the checker cuts the search from 139,048 to 82,009 nodes (41% fewer; weight 2). On 60 positions built by playing jumps backwards from the goal (so every one is solvable), within a 60,000-node budget:
+
+| jumps from the goal | solved, no checker | solved, checker | mean nodes, no checker | mean nodes, checker |
+|---|---|---|---|---|
+| 12 | 100% | 100% | 296 | 237 |
+| 18 | 100% | 100% | 2,776 | 1,914 |
+| 22 | 93% | 98% | 13,780 | 9,663 |
+| 26 | 58% | 75% | 39,170 | 31,817 |
+
+The checker never lost a position the plain search solved, and gained 3 at depth 22 and 10 at depth 26. At depth 26 the budget cap shrinks the node saving.
+
+*24-puzzle.* Weighted A* (weight 3, 60,000 nodes) solves random-walk scrambles of 20, 40, 60 and 80 moves 100%, 95%, 73% and 57% of the time. The parity rule changes no result on a solvable start. On an unsolvable start (two tiles swapped) the plain search wastes the whole 60,000 nodes and the gate stops after 1.
+
+*Rubik's cube.* Meet-in-the-middle solves every scramble of 4 to 8 moves (30 per depth) within 400,000 nodes, using about 460 nodes at depth 4 and 71,000 at depth 8. The invariant rules change no result on a solvable cube. On a cube with one twisted corner the plain search wastes all 400,000 nodes and the gate uses 0.
+
+**Reading it honestly.**
+- Peg Solitaire is the one game where the checker helps during play, and the effect is moderate and consistent (about 20 to 30% fewer nodes, more positions solved near the budget limit).
+- For the 24-puzzle and the cube the checker is a gate on the start, not a planning improvement. It is real and cheap, but it saves effort only when the input can be unsolvable.
+- Scrambles are random walks, which are easier than uniformly random instances (those need around 100 moves on the 24-puzzle). The cube is tested only to 8-move scrambles; real cubes need up to 20, which this simple search cannot reach. Plans are not optimal.
+- Only 60 instances per row (30 for the cube), from backwards-built or random-walk generators.
+
+**In the demo:** a tab each for Peg Solitaire, 24-Puzzle and Rubik's Cube, with the same five steps. For the two gate-only games the Check step shows the unsolvable start and the nodes spent with and without the check, instead of a rejected move. The Results tab has a "Harder games" block with a game switcher.

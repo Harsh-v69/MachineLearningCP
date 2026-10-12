@@ -532,6 +532,7 @@ const MAP = [
        `Speed: ${sp.name} planning drops from ${sp.base.toFixed(0)} ms to ${sp.adaptive.toFixed(0)} ms.`,
        `Memory: clearly fewer replans on ${helped} of ${r.memory.length} games.`,
        `Boxoban: with the checker ${Math.min(...top.map(x => x.prune))}% to ${Math.max(...top.map(x => x.prune))}% of real levels solved across three sets, ${Math.min(...top.map(x => x.plain))}% to ${Math.max(...top.map(x => x.plain))}% without.`,
+       `Harder games: Peg Solitaire solves ${Math.round(r.hard.peg["26"].checker.solved * 100)}% of the hardest positions with the checker and ${Math.round(r.hard.peg["26"].plain.solved * 100)}% without. On an unsolvable 24-puzzle or cube the check saves the whole search.`,
        "Tuning the cost weights found nothing better than the defaults."];
    }},
   {tag: "Across all", title: "Pipeline changes", short: "Since the original paper", side: true, go: "sokoban-propose", goText: "Walk the pipeline",
@@ -549,7 +550,7 @@ const PHASES = [
   ["3", "Self-improving graph", "Experience store that lowers trust in moves that failed before", "Done", "sokoban-run"],
   ["4", "Dynamic move score", "Cost from goal progress, trust and step budget", "Done", "sokoban-choose"],
   ["5", "Adaptive selection", "A* or CP-SAT, chosen by how many pieces move", "Done", "river-choose"],
-  ["6", "Evaluation", "Ablation, memory test, weight tuning, proposer sweep, Boxoban", "Core done", "results"]
+  ["6", "Evaluation", "Ablation, memory test, weight tuning, proposer sweep, Boxoban, three harder games", "Core done", "results"]
 ];
 
 function viewOverview() {
@@ -814,7 +815,9 @@ function viewResults() {
       <li>The checker filters bad plans. It cannot invent a plan that no proposal contains.</li>
       <li>Tuning the cost weights found nothing better than the defaults.</li>
       <li>On Boxoban the checker is the standard dead corner rule, and the merged path is never shorter than the best single plan.</li>
-      <li>Memory gave no gain on two box Sokoban, and Rush Hour is within noise.</li></ul></div>
+      <li>Memory gave no gain on two box Sokoban, and Rush Hour is within noise.</li>
+      <li>On the 24-puzzle and the cube the checker only guards the start. It changes no result on a solvable one.</li>
+      <li>Harder game scrambles are random walks, easier than random instances, and the cube is tested only to 8 move scrambles.</li></ul></div>
   </div>`;
 }
 

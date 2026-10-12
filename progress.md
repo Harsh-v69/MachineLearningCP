@@ -641,3 +641,45 @@ The checker never lost a position the plain search solved, and gained 3 at depth
 - **Every game is now 3D:** Sokoban and Boxoban (walls, sliding crates, a ball for the player), River Crossing (banks, river, boat; a bank turns red when cannibals outnumber missionaries), Rush Hour (vehicles as raised blocks), plus the earlier Peg Solitaire, 24-puzzle and cube. All are CSS 3D, no library, draggable.
 - **Randomize for the 24-puzzle:** 10 to 40 move scrambles, solved in the browser by a JavaScript weighted A* (2 to 22 ms in tests). It also fixed a bug in the cube's Randomize, whose first frame was the demo's start state instead of a solved cube.
 - **Flow diagram:** `docs/pipeline_diagram.html` now lists all seven games, says the proposer is not an LLM, and notes that ALFWorld, MuSiQue and GSM8K-Hard are out of scope.
+
+---
+
+## 22. Team contributions
+
+Group 3, guided by Dr. Premanand P Ghadekar. The project splits into four parts, and each member owns one: they know it well enough to explain and demonstrate it, and they own its tests. Work is cross-reviewed in pairs (Harshvardhan with Divyanshu, Vidhi with Nirmit), with one short weekly check-in against this file.
+
+| Member | Role | Owns | Phase |
+|---|---|---|---|
+| Harshvardhan Rawat | Project lead, core pipeline | Plan graph, CP-SAT and A* solvers, adaptive selection, experience store, move scoring, replanning, integration | 1, 3, 4, 5 |
+| Divyanshu Gajbhiye | Games, rule checkers, proposers | Seven games, per-game checkers, search-based plan proposers | 2 |
+| Vidhi Hadoltikar | Experiments and evaluation | Ablation, memory test, weight tuning, proposer sweep, Boxoban, harder games, search-method comparison | 6 |
+| Nirmit Hatti | Demo, documentation, paper | Interactive 3D demo, flow diagram, review deck, research paper, literature survey | all (presentation) |
+
+### Harshvardhan Rawat: project lead and core pipeline
+- **Work:** the game interface every environment implements; the plan graph where identical states merge; the CP-SAT solver, the A* search and the rule that picks between them (one movable piece: A*; several: CP-SAT); the executor that replans from the real state on a mismatch; the SQLite experience store (one recorded failure drops trust from 1.00 to 0.33); the per-move cost from progress, trust and step budget. Also the integration of all parts, the repository and the full test suite.
+- **Files:** `src/tape/env_base.py`, `graph.py`, `solver.py`, `path_selector.py`, `executor.py`, `experience.py`, `scoring.py`, `metrics.py`. Tests: `test_graph.py`, `test_solver.py`, `test_pipeline.py`, `test_experience.py`, `test_scoring.py`, `test_path_selector.py`.
+- **Be ready to explain:** why A* for one piece and CP-SAT for several; how the cost trades progress, trust and budget; what happens on a mismatch.
+- **Show:** the Choose and Run steps of any game tab in the demo.
+
+### Divyanshu Gajbhiye: games, rule checkers and proposers
+- **Work:** the seven games behind one interface (Sokoban, River Crossing, Rush Hour, Boxoban, Peg Solitaire, the 24-puzzle, the Rubik's cube) and a checker for each: dead corner, outnumbered, gridlock, pagoda bound, parity rule, cubie invariants. The plan proposers: noisy and adversarial walks, weighted A*, meet in the middle, BFS and DFS. The cube's moves are built from sticker geometry, and the pagoda weights from a small linear programme.
+- **Files:** `src/tape/envs/*`, `validator.py`, `llm.py`, `search_proposer.py`, `bidirectional.py`, `uninformed.py`. Tests: `test_sokoban.py`, `test_validator.py`, `test_river_crossing.py`, `test_rush_hour*.py`, `test_boxoban.py`, `test_peg_solitaire.py`, `test_sliding_puzzle.py`, `test_rubiks_cube.py`, `test_uninformed.py`, `test_hard_level.py`, `test_stress.py`.
+- **Be ready to explain:** why River Crossing's `step()` does not enforce safety; how a pagoda proves a position lost; why the 24-puzzle and cube checkers only guard the start.
+- **Show:** the Check step, with the rule checker switched on and off.
+
+### Vidhi Hadoltikar: experiments and evaluation
+- **Work:** every experiment and its statistics: the ablation with an independent safety audit (Sec 14), the experience store under state-dependent failure (14.1), the weight tuning and its null result (14.2), the proposer-quality sweep (14.3), the 3,000 Boxoban levels (Sec 16), the harder games (Sec 18) and the BFS/DFS/A* comparison (Sec 19). Wilson intervals and paired differences with standard errors.
+- **Files:** `experiments/run_ablation.py`, `run_experience_test.py`, `tune_weights.py`, `run_proposer_sweep.py`, `run_boxoban.py`, `run_hard_games.py`, `compare_search.py`, `results/`.
+- **Be ready to explain:** why "safe success" is the metric and not plain success; why paired differences; why tuning found nothing better than the defaults; what the data does not show.
+- **Show:** the Results tab.
+
+### Nirmit Hatti: demo, documentation and paper
+- **Work:** the browser demo (a tab per game, 3D draggable boards, Randomize for the cube and 24-puzzle, slip against wrong move) and the generator that builds it from live runs; the pipeline flow diagram; the review deck; the research paper with its figures; the literature survey and references; this file.
+- **Files:** `demo/`, `experiments/export_demo.py`, `docs/`, `paper/`, `progress.md`. Test: `test_export_demo.py`.
+- **Be ready to explain:** why the demo is generated rather than hand-typed; how to rebuild the deck and paper from the results files; the limits section of the paper.
+- **Show:** the Overview tab and the project map.
+
+### Using this split honestly
+- Say you own a part only after you have read its files, run its tests and the demo tab for it, and made at least one small real contribution (a test, a rerun with another seed, a rewritten paragraph).
+- Do not claim code you cannot explain.
+- Check the course policy on disclosing AI-assisted work.

@@ -627,3 +627,17 @@ The checker never lost a position the plain search solved, and gained 3 at depth
 - **Review deck:** `docs/CP_Project_Review.pptx` (17 plain, editable slides; import into Canva with Create, Upload). It now covers all seven games: a Games and Benchmarks slide, a Harder Games results slide and an Other Search Methods results slide, plus updated progress, limits, conclusion and references. Numbers are read from `results/*.json`. Rebuild with `python docs/build_review_ppt.py`.
 - **Paper:** `paper/paper.md` is the source and `paper/paper.docx` the editable Word version (about 11 pages, 4 figures, 24 references). It adds the harder games (Sec 6.6), the search-method comparison with BFS, DFS, weighted A* and meet in the middle (Sec 6.7), related work on search methods, and a limitations entry for the comparison. Figures come from `python paper/make_figures.py`; the Word file from `python paper/build_paper_docx.py`. Install the document tools with `pip install -r docs/requirements-docs.txt`.
 - **Open before submission:** references [20], [22] and [23] in the paper were not independently checked (the others were checked against Crossref); the guide must confirm whether a learned proposer is allowed; the paper still needs a venue template and a read-through by the whole group.
+
+---
+
+## 21. Harsher failures, more 3D, randomize for the 24-puzzle
+
+- **Peg Solitaire Plan B is now a greedy proposer** (always make the jump that brings the pegs closest to the centre). It takes 28 jumps, ends stuck with 4 pegs, and the pagoda bound flags it at jump 25. That is a more natural bad plan than the random line used before. Every game's Propose step now says what produced each plan.
+- **Run has two scenarios: a slip and a wrong move.** A slip only means nothing happened. A wrong move means a different legal move happened. For each game the exporter tries the alternatives at several steps and keeps the worst one:
+  - **lost:** the checker flags the new position at once. River Crossing: `2C` planned, `2M` happens, cannibals now outnumber missionaries, and an unchecked planner still plans on from that position.
+  - **deadend:** the position can never be won, but the checker's rules do not flag the wrong move, so only a full search shows it. Peg Solitaire (after 12 jumps, `33L` instead of `32U`): the search visits 38,920 positions to prove there is no plan, 16,978 with the pagoda checker pruning. Sokoban: 120 against 72.
+  - **detour:** still solvable, only longer. 24-puzzle, Rubik's cube, Rush Hour (two extra moves each).
+  A wrong move that burns the budget with no proof either way is labelled **stuck**, not lost. One Peg Solitaire candidate looked stuck under weighted A* but depth first search solved it in 10,840 nodes, which is why the probe for that game is DFS.
+- **Every game is now 3D:** Sokoban and Boxoban (walls, sliding crates, a ball for the player), River Crossing (banks, river, boat; a bank turns red when cannibals outnumber missionaries), Rush Hour (vehicles as raised blocks), plus the earlier Peg Solitaire, 24-puzzle and cube. All are CSS 3D, no library, draggable.
+- **Randomize for the 24-puzzle:** 10 to 40 move scrambles, solved in the browser by a JavaScript weighted A* (2 to 22 ms in tests). It also fixed a bug in the cube's Randomize, whose first frame was the demo's start state instead of a solved cube.
+- **Flow diagram:** `docs/pipeline_diagram.html` now lists all seven games, says the proposer is not an LLM, and notes that ALFWorld, MuSiQue and GSM8K-Hard are out of scope.

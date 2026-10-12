@@ -200,6 +200,16 @@ h2{font-size:clamp(26px,3.4vw,38px);line-height:1.08}
 .phases.search td{line-height:1.3}
 .phases.search td.best{background:color-mix(in srgb,var(--ok) 16%,transparent)}
 .phases.search td.na{color:var(--muted)}
+.wall-top{background:#35494C}.wall-side{background:#222F31}
+.crate-top{background:#E8AA58}.crate-side{background:#B97C2E}
+.crate.on .crate-top{background:#62C98F}.crate.on .crate-side{background:#2F8F5C}
+.mb.pl-mb{background:radial-gradient(circle at 36% 30%,#A6E6F0,#0A6B7D 55%,#063F4A);box-shadow:inset -3px -4px 8px rgba(0,30,40,.5)}
+.goalring{border:3px dashed var(--ok);border-radius:50%}
+.vtop{background:var(--vc);display:grid;place-items:center;font:600 16px var(--mono);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55);border-radius:6px}
+.vside{background:color-mix(in srgb,var(--vc) 58%,#000)}
+.bank-top{background:#34504F;transition:background .3s}.bank-top.danger{background:#8A3A2E}.bank-side{background:#1B2B2D}
+.water-top{background:color-mix(in srgb,var(--accent) 38%,#0A1A1C)}.water-side{background:#0C2226}
+.boat-top{background:#E9E3D3;display:grid;place-items:center;font:600 13px var(--mono);color:#10201F}.boat-side{background:#8A7A5A}
 .tryit{display:grid;gap:10px;justify-items:start;padding-top:16px;border-top:1px dashed var(--rule)}
 .b3{position:absolute;left:0;top:0;width:0;height:0;transform-style:preserve-3d}
 .f3{position:absolute;backface-visibility:hidden}
@@ -294,85 +304,6 @@ const svgEl = (tag, attrs = {}, parent) => {
   return e;
 };
 
-/* ---------- boards: each returns {svg, show(state, action)} ---------- */
-function sokobanBoard(g) {
-  const S = g.static, C = 44;
-  const svg = svgEl("svg", {viewBox: `0 0 ${S.w * C} ${S.h * C}`, role: "img", "aria-label": "Sokoban board"});
-  svgEl("rect", {width: S.w * C, height: S.h * C, class: "b-floor"}, svg);
-  S.walls.forEach(([r, c]) => svgEl("rect", {x: c * C, y: r * C, width: C, height: C, class: "b-wall"}, svg));
-  S.goals.forEach(([r, c]) => svgEl("circle", {cx: c * C + C / 2, cy: r * C + C / 2, r: C * .32, class: "b-goal"}, svg));
-  const goalSet = new Set(S.goals.map(String));
-  let boxes = [];
-  const player = svgEl("g", {class: "b-player mv"}, svg);
-  svgEl("circle", {cx: C / 2, cy: C / 2, r: C * .3}, player);
-  const at = (el, r, c) => { el.style.transform = `translate(${c * C}px,${r * C}px)`; };
-  function show(st) {
-    at(player, st.p[0], st.p[1]);
-    const next = st.b.slice(), used = new Set(), pairs = [];
-    boxes.forEach(b => {
-      let bestI = -1, bestD = 1e9;
-      next.forEach((n, i) => { if (used.has(i)) return; const d = Math.abs(n[0] - b.pos[0]) + Math.abs(n[1] - b.pos[1]); if (d < bestD) { bestD = d; bestI = i; } });
-      if (bestI >= 0) { used.add(bestI); pairs.push([b, next[bestI]]); }
-    });
-    next.forEach((n, i) => {
-      if (used.has(i)) return;
-      const el = svgEl("g", {class: "b-box mv"}, svg);
-      svgEl("rect", {x: 5, y: 5, width: C - 10, height: C - 10, rx: 4}, el);
-      const b = {el, pos: n}; boxes.push(b); pairs.push([b, n]);
-    });
-    pairs.forEach(([b, n]) => { b.pos = n; at(b.el, n[0], n[1]); b.el.classList.toggle("on", goalSet.has(String(n))); });
-    svg.appendChild(player);
-  }
-  return {svg, show};
-}
-
-function riverBoard(g) {
-  const n = g.static.n, W = 600, H = 250;
-  const svg = svgEl("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "River crossing board"});
-  const left = svgEl("rect", {x: 6, y: 30, width: 190, height: 190, rx: 10, class: "b-bank"}, svg);
-  svgEl("rect", {x: 196, y: 30, width: 208, height: 190, class: "b-river"}, svg);
-  const right = svgEl("rect", {x: 404, y: 30, width: 190, height: 190, rx: 10, class: "b-bank"}, svg);
-  const people = svgEl("g", {}, svg);
-  const boat = svgEl("g", {class: "mv"}, svg);
-  svgEl("path", {d: "M0 0 H90 L76 22 H14 Z", class: "b-boat"}, boat);
-  const cap = svgEl("text", {x: 45, y: -8, "text-anchor": "middle", class: "b-txt"}, boat);
-  const draw = (x0, m, c) => {
-    for (let i = 0; i < m; i++) svgEl("circle", {cx: x0 + 26 + (i % 3) * 52, cy: 66 + Math.floor(i / 3) * 0, r: 16, class: "b-m"}, people);
-    for (let i = 0; i < c; i++) svgEl("rect", {x: x0 + 10 + (i % 3) * 52, y: 118, width: 32, height: 32, rx: 5, class: "b-c"}, people);
-  };
-  const lab = (x, t) => { const e = svgEl("text", {x, y: 18, class: "b-label"}, svg); e.textContent = t; };
-  lab(8, "missionaries: round, cannibals: square");
-  function show(st, action) {
-    people.innerHTML = "";
-    draw(6, st.m, st.c);
-    draw(404, n - st.m, n - st.c);
-    const dangerL = st.m > 0 && st.c > st.m, dangerR = (n - st.m) > 0 && (n - st.c) > (n - st.m);
-    left.classList.toggle("danger", dangerL);
-    right.classList.toggle("danger", dangerR);
-    boat.style.transform = `translate(${st.boat ? 206 : 304}px, 176px)`;
-    cap.textContent = action || "";
-  }
-  return {svg, show};
-}
-
-function rushBoard(g) {
-  const S = g.static, C = 56, exitRow = g.start.find(p => p[0] === "X")[1];
-  const svg = svgEl("svg", {viewBox: `0 0 ${S.w * C + 34} ${S.h * C}`, role: "img", "aria-label": "Rush Hour board"});
-  for (let r = 0; r < S.h; r++) for (let c = 0; c < S.w; c++) svgEl("rect", {x: c * C, y: r * C, width: C, height: C, class: "b-grid"}, svg);
-  svgEl("rect", {x: S.w * C + 4, y: exitRow * C + 14, width: 26, height: C - 28, rx: 4, class: "b-exit"}, svg);
-  const fills = ["var(--v1)", "var(--v2)", "var(--v3)", "var(--v4)"];
-  let k = 0;
-  const els = {};
-  Object.keys(S.vehicles).sort().forEach(v => {
-    const m = S.vehicles[v], gEl = svgEl("g", {class: "b-veh mv"}, svg);
-    const w = (m.o === "H" ? m.len * C : C) - 10, h = (m.o === "V" ? m.len * C : C) - 10;
-    svgEl("rect", {x: 5, y: 5, width: w, height: h, rx: 9, fill: v === "X" ? "var(--accent)" : fills[k++ % 4]}, gEl);
-    const t = svgEl("text", {x: 5 + w / 2, y: 5 + h / 2 + 5, "text-anchor": "middle"}, gEl); t.textContent = v;
-    els[v] = gEl;
-  });
-  function show(st) { st.forEach(([v, r, c]) => { els[v].style.transform = `translate(${c * C}px,${r * C}px)`; }); }
-  return {svg, show};
-}
 /* ---------- shared 3D scaffolding (CSS 3D transforms, no library) ---------- */
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -390,19 +321,23 @@ function attachDrag(wrap, view, apply, maxRx = -5) {
   wrap.addEventListener("pointercancel", end);
 }
 
-function scene3d(opts, rx, ry, onView) {
+/* a scene: wrapper, a rotating root, and a registry of billboards (flat sprites that always face the viewer) */
+function scene3d(opts, rx, ry) {
   const wrap = document.createElement("div");
   wrap.className = "cube-wrap";
-  wrap.innerHTML = `<div class="cube-scene"><div class="cube3d"></div></div>${opts.compact ? "" : '<div class="cube-hint">Drag to look around</div>'}`;
-  const root = wrap.querySelector(".cube3d"), view = {rx, ry};
-  const apply = () => { root.style.transform = `rotateX(${view.rx}deg) rotateY(${view.ry}deg)`; if (onView) onView(view); };
+  wrap.innerHTML = `<div class="cube-scene"><div class="cube3d"></div></div>${opts.compact ? "" : `<div class="cube-hint">${opts.hint || "Drag to look around"}</div>`}`;
+  const root = wrap.querySelector(".cube3d"), view = {rx, ry}, bill = new Set();
+  const apply = () => {
+    root.style.transform = `rotateX(${view.rx}deg) rotateY(${view.ry}deg)`;
+    bill.forEach(m => { m.style.transform = `rotateY(${-view.ry}deg) rotateX(${-view.rx}deg) scale(var(--sc, 1))`; });
+  };
   if (!opts.compact) attachDrag(wrap, view, apply, opts.below ? 85 : -5);
   apply();
-  return {wrap, root, view, apply};
+  return {wrap, root, view, apply, bill};
 }
 
-/* a box centred on its own origin: w wide, h tall, d deep; top and side are CSS backgrounds */
-function box3d(w, h, d, topBg, sideBg, topClass = "") {
+/* a box centred on its own origin: w wide, h tall, d deep. Backgrounds are inline CSS, or classes. */
+function box3d(w, h, d, topBg, sideBg, topClass = "", sideClass = "") {
   const el = document.createElement("div");
   el.className = "b3";
   const face = (cls, fw, fh, tf, bg) => {
@@ -413,19 +348,164 @@ function box3d(w, h, d, topBg, sideBg, topClass = "") {
     return f;
   };
   const top = face(topClass, w, d, `rotateX(90deg) translateZ(${h / 2}px)`, topBg);
-  face("", w, h, `translateZ(${d / 2}px)`, sideBg);
-  face("", w, h, `rotateY(180deg) translateZ(${d / 2}px)`, sideBg);
-  face("", d, h, `rotateY(90deg) translateZ(${w / 2}px)`, sideBg);
-  face("", d, h, `rotateY(-90deg) translateZ(${w / 2}px)`, sideBg);
+  face(sideClass, w, h, `translateZ(${d / 2}px)`, sideBg);
+  face(sideClass, w, h, `rotateY(180deg) translateZ(${d / 2}px)`, sideBg);
+  face(sideClass, d, h, `rotateY(90deg) translateZ(${w / 2}px)`, sideBg);
+  face(sideClass, d, h, `rotateY(-90deg) translateZ(${w / 2}px)`, sideBg);
   return {el, top};
+}
+
+/* a ball that always faces the viewer: a 0-size container (positioned by the caller) holding a billboard disc */
+function ball3d(sc, R, cls = "", shadow = true) {
+  const el = document.createElement("div");
+  el.className = "peg3";
+  if (shadow) el.innerHTML = `<div class="peg-shadow" style="width:${R * 2}px;height:${R * 2}px;left:${-R}px;top:${-R}px;transform:translateY(${R - .7}px) rotateX(90deg)"></div>`;
+  const mb = document.createElement("div");
+  mb.className = "mb " + cls;
+  mb.style.cssText = `width:${R * 2}px;height:${R * 2}px;left:${-R}px;top:${-R}px`;
+  el.appendChild(mb);
+  sc.bill.add(mb);
+  return {el, mb};
+}
+
+/* ---------- Sokoban and Boxoban: raised walls, crates that slide, a ball for the player ---------- */
+function sokobanBoard(g, opts = {}) {
+  const S = g.static, C = opts.C || (Math.max(S.w, S.h) > 8 ? 34 : 50), TH = 8, WH = C * .62, BH = C * .6, R = C * .3;
+  const sc = scene3d(opts, -54, -18), root = sc.root;
+  const X = c => (c - (S.w - 1) / 2) * C, Z = r => (r - (S.h - 1) / 2) * C;
+  const floor = box3d(S.w * C, TH, S.h * C, "color-mix(in srgb, var(--ink) 14%, var(--surface))", "#16201F");
+  floor.el.style.transform = `translate3d(0,${TH / 2}px,0)`;
+  root.appendChild(floor.el);
+  S.goals.forEach(([r, c]) => {
+    const gm = document.createElement("div");
+    gm.className = "b3";
+    gm.style.transform = `translate3d(${X(c)}px,-0.8px,${Z(r)}px)`;
+    gm.innerHTML = `<div class="f3 goalring" style="width:${C * .62}px;height:${C * .62}px;left:${-C * .31}px;top:${-C * .31}px;transform:rotateX(90deg)"></div>`;
+    root.appendChild(gm);
+  });
+  S.walls.forEach(([r, c]) => {
+    const w = box3d(C, WH, C, "", "", "wall-top", "wall-side");
+    w.el.style.transform = `translate3d(${X(c)}px,${-WH / 2}px,${Z(r)}px)`;
+    root.appendChild(w.el);
+  });
+  const goalSet = new Set(S.goals.map(String));
+  const player = ball3d(sc, R, "pl-mb");
+  player.el.classList.add("mv");
+  root.appendChild(player.el);
+  const at = (el, r, c, y) => { el.style.transform = `translate3d(${X(c)}px,${y}px,${Z(r)}px)`; };
+  let crates = [];
+  function show(st) {
+    at(player.el, st.p[0], st.p[1], -R);
+    const next = st.b.slice(), used = new Set(), pairs = [];
+    crates.forEach(b => {
+      let bestI = -1, bestD = 1e9;
+      next.forEach((n, i) => { if (used.has(i)) return; const d = Math.abs(n[0] - b.pos[0]) + Math.abs(n[1] - b.pos[1]); if (d < bestD) { bestD = d; bestI = i; } });
+      if (bestI >= 0) { used.add(bestI); pairs.push([b, next[bestI]]); }
+    });
+    next.forEach((n, i) => {
+      if (used.has(i)) return;
+      const b = box3d(C - 8, BH, C - 8, "", "", "crate-top", "crate-side");
+      b.el.classList.add("mv", "crate");
+      root.appendChild(b.el);
+      const o = {el: b.el, pos: n};
+      crates.push(o);
+      pairs.push([o, n]);
+    });
+    pairs.forEach(([b, n]) => { b.pos = n; at(b.el, n[0], n[1], -BH / 2); b.el.classList.toggle("on", goalSet.has(String(n))); });
+    sc.apply();
+  }
+  return {svg: sc.wrap, show};
+}
+
+/* ---------- River Crossing: two banks, a river, a boat. Round = missionary, square = cannibal ---------- */
+function riverBoard(g, opts = {}) {
+  const n = g.static.n, K = opts.compact ? .4 : .72, TH = 14 * K;
+  const sc = scene3d({...opts, hint: "Round: missionary. Square: cannibal. Drag to look around."}, -50, -16), root = sc.root;
+  const bank = x => {
+    const b = box3d(150 * K, TH, 130 * K, "", "", "bank-top", "bank-side");
+    b.el.style.transform = `translate3d(${x * K}px,${TH / 2}px,0)`;
+    root.appendChild(b.el);
+    return b;
+  };
+  const left = bank(-175), right = bank(175);
+  const water = box3d(200 * K, 6 * K, 130 * K, "", "", "water-top", "water-side");
+  water.el.style.transform = `translate3d(0,${5 * K + 3 * K}px,0)`;
+  root.appendChild(water.el);
+  const boat = box3d(86 * K, 12 * K, 42 * K, "", "", "boat-top", "boat-side");
+  boat.el.classList.add("mv");
+  root.appendChild(boat.el);
+  boat.top.style.fontSize = 13 * K + "px";
+  const crowd = document.createElement("div");
+  crowd.className = "b3";
+  root.appendChild(crowd);
+  const person = (x, z, isM) => {
+    if (isM) {
+      const b = ball3d(sc, 14 * K, "pl-mb");
+      b.el.style.transform = `translate3d(${x}px,${-14 * K}px,${z}px)`;
+      crowd.appendChild(b.el);
+    } else {
+      const c = box3d(25 * K, 25 * K, 25 * K, "", "", "crate-top", "crate-side");
+      c.el.style.transform = `translate3d(${x}px,${-12.5 * K}px,${z}px)`;
+      crowd.appendChild(c.el);
+    }
+  };
+  function show(st, action) {
+    crowd.innerHTML = "";
+    [...sc.bill].forEach(m => { if (!m.isConnected) sc.bill.delete(m); });
+    const side = (cx, m, c) => {
+      for (let i = 0; i < m; i++) person((cx + (i - 1) * 42) * K, -30 * K, true);
+      for (let i = 0; i < c; i++) person((cx + (i - 1) * 42) * K, 30 * K, false);
+    };
+    side(-175, st.m, st.c);
+    side(175, n - st.m, n - st.c);
+    left.top.classList.toggle("danger", st.m > 0 && st.c > st.m);
+    right.top.classList.toggle("danger", n - st.m > 0 && n - st.c > n - st.m);
+    boat.el.style.transform = `translate3d(${(st.boat ? -52 : 52) * K}px,${-1 * K}px,0)`;
+    boat.top.textContent = action ? action.split(" ")[0] : "";
+    sc.apply();
+  }
+  return {svg: sc.wrap, show};
+}
+
+/* ---------- Rush Hour: vehicles as raised blocks sliding on a grid ---------- */
+function rushBoard(g, opts = {}) {
+  const S = g.static, C = opts.C || 56, H = C * .36;
+  const sc = scene3d(opts, -54, -20), root = sc.root;
+  const X = c => (c - S.w / 2) * C, Z = r => (r - S.h / 2) * C;
+  const slab = box3d(S.w * C, 8, S.h * C,
+    `linear-gradient(var(--rule) 1px, transparent 1px) 0 0/${C}px ${C}px, linear-gradient(90deg, var(--rule) 1px, transparent 1px) 0 0/${C}px ${C}px, #1D2B2C`, "#131D1E");
+  slab.el.style.transform = "translate3d(0,4px,0)";
+  root.appendChild(slab.el);
+  const exitRow = g.start.find(p => p[0] === "X")[1];
+  const exit = box3d(12, 6, C - 16, "var(--ok)", "#2A6B47");
+  exit.el.style.transform = `translate3d(${X(S.w) + 8}px,-3px,${Z(exitRow) + C / 2}px)`;
+  root.appendChild(exit.el);
+  const fills = ["var(--v1)", "var(--v2)", "var(--v3)", "var(--v4)"];
+  let k = 0;
+  const veh = {};
+  Object.keys(S.vehicles).sort().forEach(v => {
+    const m = S.vehicles[v], w = (m.o === "H" ? m.len * C : C) - 8, d = (m.o === "V" ? m.len * C : C) - 8;
+    const b = box3d(w, H, d, "", "", "vtop", "vside");
+    b.el.classList.add("mv");
+    b.el.style.setProperty("--vc", v === "X" ? "var(--accent)" : fills[k++ % 4]);
+    b.top.textContent = v;
+    root.appendChild(b.el);
+    veh[v] = {el: b.el, m};
+  });
+  function show(st) {
+    st.forEach(([v, r, c]) => {
+      const {el, m} = veh[v];
+      el.style.transform = `translate3d(${X(c) + (m.o === "H" ? m.len * C : C) / 2}px,${-H / 2}px,${Z(r) + (m.o === "V" ? m.len * C : C) / 2}px)`;
+    });
+  }
+  return {svg: sc.wrap, show};
 }
 
 /* ---------- Peg Solitaire: marbles that arc over their neighbour ---------- */
 function pegBoard(g, opts = {}) {
   const C = opts.C || 46, T = 10, R = C * .33, S = g.static, key = p => p[0] + "," + p[1];
-  const marbles = {}, bill = new Set();
-  const billboard = view => bill.forEach(m => { m.style.transform = `rotateY(${-view.ry}deg) rotateX(${-view.rx}deg) scale(var(--sc, 1))`; });
-  const sc = scene3d(opts, -50, -24, billboard), root = sc.root;
+  const marbles = {};
+  const sc = scene3d(opts, -50, -24), root = sc.root;
   const at = (p, y = -R) => `translate3d(${(p[1] - 3) * C}px,${y}px,${(p[0] - 3) * C}px)`;
   const holeBg = (centre) => (centre ? "radial-gradient(circle, transparent 0 47%, var(--ok) 48% 55%, transparent 56%)," : "") +
     "radial-gradient(circle, #0B1011 0 30%, #223133 31% 39%, #3A5154 40%)";
@@ -434,35 +514,23 @@ function pegBoard(g, opts = {}) {
     t.el.style.transform = `translate3d(${(p[1] - 3) * C}px,${T / 2}px,${(p[0] - 3) * C}px)`;
     root.appendChild(t.el);
   });
-  function makeMarble(withShadow) {
-    const el = document.createElement("div");
-    el.className = "peg3";
-    if (withShadow) el.innerHTML = `<div class="peg-shadow" style="width:${R * 2}px;height:${R * 2}px;left:${-R}px;top:${-R}px;transform:translateY(${R - .7}px) rotateX(90deg)"></div>`;
-    const mb = document.createElement("div");
-    mb.className = "mb";
-    mb.style.cssText = `width:${R * 2}px;height:${R * 2}px;left:${-R}px;top:${-R}px`;
-    el.appendChild(mb);
-    bill.add(mb);
-    return {el, mb};
-  }
   S.cells.forEach(p => {
-    const m = makeMarble(true);
+    const m = ball3d(sc, R);
     m.el.style.transform = at(p);
     m.el.classList.add("off");
     root.appendChild(m.el);
     marbles[key(p)] = m.el;
   });
-  billboard(sc.view);
-
+  sc.apply();
   let current = null, finish = null;
   const paint = st => { const on = new Set(st.map(key)); for (const k in marbles) marbles[k].classList.toggle("off", !on.has(k)); };
   const D = {U: [-1, 0], D: [1, 0], L: [0, -1], R: [0, 1]};
   function jump(a, over, b, reverse, st) {
     marbles[key(a)].classList.add("off");
-    const fly = makeMarble(false);
+    const fly = ball3d(sc, R, "", false);
     fly.el.style.transform = at(a);
     root.appendChild(fly.el);
-    billboard(sc.view);
+    sc.apply();
     const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     const anim = fly.el.animate([{transform: at(a)}, {transform: at(mid, -R - C * .95)}, {transform: at(b)}], {duration: 560, easing: "ease-in-out", fill: "forwards"});
     const pop = setTimeout(() => marbles[key(over)].classList.toggle("off", !reverse), reverse ? 330 : 230);
@@ -470,7 +538,7 @@ function pegBoard(g, opts = {}) {
     finish = () => {
       clearTimeout(timer); clearTimeout(pop);
       anim.cancel();
-      bill.delete(fly.mb);
+      sc.bill.delete(fly.mb);
       fly.el.remove();
       paint(st);
       finish = null;
@@ -586,6 +654,7 @@ function cubeBoard(g, opts = {}) {
   }
   return {svg: wrap, show};
 }
+
 /* browser copy of the meet in the middle search, so a visitor can scramble and solve their own cube */
 function randomCube(st, len) {
   const names = Object.keys(st.perms), inv = n => n.endsWith("2") ? n : n.endsWith("'") ? n[0] : n + "'";
@@ -625,6 +694,50 @@ function randomCube(st, len) {
   let s = start;
   solution.forEach(m => { s = apply(s, m); solutionStates.push(s); });
   return {scramble, scrambleStates, solution, solutionStates, solved: key(s) === goalKey};
+}
+function randomPuzzle(st, len) {
+  const n = st.n, goal = [...Array(n * n - 1).keys()].map(i => i + 1).concat(0);
+  const dirs = {U: -n, D: n, L: -1, R: 1}, opp = {U: "D", D: "U", L: "R", R: "L"};
+  const can = (b, a) => a === "U" ? b >= n : a === "D" ? b < n * (n - 1) : a === "L" ? b % n > 0 : b % n < n - 1;
+  const slide = (s, a) => { const b = s.indexOf(0), t = b + dirs[a], c = s.slice(); c[b] = c[t]; c[t] = 0; return c; };
+  let cur = goal.slice(), last = "";
+  const scramble = [], scrambleStates = [];
+  for (let i = 0; i < len; i++) {
+    const b = cur.indexOf(0), pool = Object.keys(dirs).filter(a => can(b, a) && a !== opp[last]);
+    const a = pool[Math.floor(Math.random() * pool.length)];
+    cur = slide(cur, a); last = a;
+    scramble.push(a); scrambleStates.push(cur);
+  }
+  const man = s => { let h = 0; for (let i = 0; i < s.length; i++) { const v = s[i]; if (v) h += Math.abs(Math.floor(i / n) - Math.floor((v - 1) / n)) + Math.abs(i % n - (v - 1) % n); } return h; };
+  const key = s => String.fromCharCode(...s.map(c => c + 48));
+  const W = 3, BUDGET = 200000, heap = [];
+  const push = e => { heap.push(e); let i = heap.length - 1; while (i && heap[(i - 1) >> 1][0] > heap[i][0]) { const p = (i - 1) >> 1; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { let m = i; const l = 2 * i + 1, r = l + 1; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  const start = cur, goalKey = key(goal), bestG = new Map([[key(start), 0]]), parent = new Map(), closed = new Set();
+  push([W * man(start), 0, start]);
+  let found = false, expanded = 0;
+  while (heap.length && expanded < BUDGET) {
+    const [, g, s] = pop(), sk = key(s);
+    if (closed.has(sk)) continue;
+    closed.add(sk); expanded++;
+    if (sk === goalKey) { found = true; break; }
+    const b = s.indexOf(0);
+    for (const a of Object.keys(dirs)) {
+      if (!can(b, a)) continue;
+      const t = slide(s, a), tk = key(t);
+      if (closed.has(tk) || g + 1 >= (bestG.get(tk) ?? 1e9)) continue;
+      bestG.set(tk, g + 1); parent.set(tk, [sk, a, s]);
+      push([g + 1 + W * man(t), g + 1, t]);
+    }
+  }
+  const solution = [], solutionStates = [];
+  if (found) {
+    for (let k = goalKey, e; (e = parent.get(k)); k = e[0]) { solution.push(e[1]); }
+    solution.reverse();
+    let s = start;
+    solution.forEach(a => { s = slide(s, a); solutionStates.push(s); });
+  }
+  return {scramble, scrambleStates, solution, solutionStates, solved: found, goal};
 }
 const BOARDS = {sokoban: sokobanBoard, river: riverBoard, rush: rushBoard, peg: pegBoard, puzzle: tileBoard, cube: cubeBoard};
 
@@ -812,16 +925,20 @@ function stageShell(stage, gid, left, right) {
   return `<div class="view">${head(stage, gid)}<div class="stage"><div class="boardwrap" id="left">${left}</div><div class="panel" id="right">${right}</div></div></div>`;
 }
 
+const TRY = {
+  cube: {lens: [4, 5, 6, 7], def: 6, what: "cube", note: "Scrambles the cube, then solves it with a JavaScript copy of the same meet in the middle search. It runs in your browser."},
+  puzzle: {lens: [10, 20, 30, 40], def: 20, what: "puzzle", note: "Scrambles the tiles, then solves them with a JavaScript copy of the same weighted A* search. It runs in your browser."}
+};
 function viewPropose(gid) {
-  const g = G[gid];
+  const T = TRY[gid];
   return stageShell("propose", gid, "", `
     <div class="seg" role="group" aria-label="Plan"><button data-plan="0" aria-pressed="true">Plan A</button><button data-plan="1" aria-pressed="false">Plan B</button></div>
     <div><h3 id="pname">Plan A</h3><p class="picked" id="pinfo"></p></div>
-    <div class="chips" id="chips"></div>${gid === "cube" ? `
+    <div class="chips" id="chips"></div>${T ? `
     <div class="tryit"><div class="tag">Try your own</div>
-      <div class="seg" role="group" aria-label="Scramble length">${[4, 5, 6, 7].map(k => `<button data-len="${k}" aria-pressed="${k === 6}">${k} moves</button>`).join("")}</div>
-      <div><button class="btn primary" id="rand">Randomize the cube</button></div>
-      <p class="picked" id="randnote">Scrambles the cube, then solves it with a JavaScript copy of the same meet in the middle search. It runs in your browser.</p></div>` : ""}`);
+      <div class="seg" role="group" aria-label="Scramble length">${T.lens.map(k => `<button data-len="${k}" aria-pressed="${k === T.def}">${k} moves</button>`).join("")}</div>
+      <div><button class="btn primary" id="rand">Randomize the ${T.what}</button></div>
+      <p class="picked" id="randnote">${T.note}</p></div>` : ""}`);
 }
 function mountPropose(gid) {
   const g = G[gid], plans = [g.good.steps, g.bad_plain.steps];
@@ -831,7 +948,7 @@ function mountPropose(gid) {
     if (player) player.stop();
     $("#chips").innerHTML = chipsHtml(plans[k], "plain");
     $("#pname").textContent = k ? "Plan B" : "Plan A";
-    $("#pinfo").textContent = `${plans[k].length} moves`;
+    $("#pinfo").textContent = `${plans[k].length} moves, from ${g.by[k]}`;
     document.querySelectorAll("[data-plan]").forEach(b => b.setAttribute("aria-pressed", b.dataset.plan == k));
     player = makePlayer($("#left"), gid, framesFrom(g, plans[k]), i => mark && mark(i));
     mark = bindChips($("#right"), player);
@@ -839,7 +956,7 @@ function mountPropose(gid) {
   };
   $("#right").addEventListener("click", e => { const b = e.target.closest("[data-plan]"); if (b) load(+b.dataset.plan); });
   load(0);
-  if (gid !== "cube") return;
+  if (!TRY[gid]) return;
   $("#right").addEventListener("click", e => {
     const b = e.target.closest("[data-len]");
     if (b) document.querySelectorAll("[data-len]").forEach(x => x.setAttribute("aria-pressed", x === b));
@@ -848,8 +965,10 @@ function mountPropose(gid) {
     const len = +document.querySelector("[data-len][aria-pressed=true]").dataset.len;
     $("#randnote").textContent = "Solving...";
     await new Promise(r => setTimeout(r, 40));
-    const t0 = performance.now(), r = randomCube(G.cube.static, len), ms = Math.round(performance.now() - t0);
-    const frames = [{state: G.cube.start, label: "Start"}]
+    const t0 = performance.now(), r = gid === "cube" ? randomCube(G.cube.static, len) : randomPuzzle(G.puzzle.static, len), ms = Math.round(performance.now() - t0);
+    if (!r.solved) { $("#randnote").textContent = "The search ran out of budget. Try a shorter scramble."; return; }
+    const solved = gid === "cube" ? G.cube.static.solved : r.goal;
+    const frames = [{state: solved, label: "Solved"}]
       .concat(r.scramble.map((a, i) => ({state: r.scrambleStates[i], action: a, label: `Scramble ${a}`, pill: "scramble", tone: "warn"})))
       .concat(r.solution.map((a, i) => ({state: r.solutionStates[i], action: a, label: `Solve ${a}`, pill: "solve", tone: "ok"})));
     if (player) player.stop();
@@ -858,7 +977,7 @@ function mountPropose(gid) {
     $("#pname").textContent = "Your scramble";
     $("#pinfo").textContent = `${r.scramble.length} scramble moves, then ${r.solution.length} to solve`;
     $("#randnote").textContent = `Solved in ${r.solution.length} moves, found in ${ms} ms.`;
-    player = makePlayer($("#left"), "cube", frames, i => mark && mark(i));
+    player = makePlayer($("#left"), gid, frames, i => mark && mark(i));
     mark = bindChips($("#right"), player);
     mark(0);
     player.play();
@@ -953,31 +1072,69 @@ function mountChoose(gid) {
 }
 
 function viewRun(gid) {
-  const g = G[gid], r = g.run;
   return stageShell("run", gid, "", `
-    <ul class="timeline">
+    <div><div class="tag" style="margin-bottom:8px">What goes wrong</div>
+      <div class="seg" role="group" aria-label="Failure"><button data-scn="slip" aria-pressed="true">A slip</button><button data-scn="wrong" aria-pressed="false">A wrong move</button></div></div>
+    <div id="runbody"></div>
+    <div class="chips" id="chips"></div>`);
+}
+function runBody(gid, scn) {
+  const g = G[gid], r = g.run, w = g.wrong, n = v => v.toLocaleString("en-US");
+  if (scn === "slip") return `<ul class="timeline">
       <li class="acc"><i></i><span>Follow the chosen path for ${r.slip_at} moves.</span></li>
       <li class="bad"><i></i><span>Move <b class="mono">${esc(r.slipped_action)}</b> slips. The world did not change.</span></li>
       <li class="acc"><i></i><span>Plan again from the real state with ${r.method === "astar" ? "A*" : "CP-SAT"}. ${r.after_actions.length} moves to go.</span></li>
     </ul>
-    <div class="verdict ok"><b>The slip is remembered.</b><span>Trust in that move drops from 1.00 to ${r.memory_conf.toFixed(2)}, so later plans lean away from it.</span></div>
-    <div class="chips" id="chips"></div>`);
+    <div class="verdict ok"><b>The slip is remembered.</b><span>Trust in that move drops from 1.00 to ${r.memory_conf.toFixed(2)}, so later plans lean away from it.</span></div>`;
+  const third = {
+    lost: () => `<li class="bad"><i></i><span>The checker flags the new position at once: ${esc(cap(w.reason))}.</span></li>`,
+    deadend: () => `<li class="bad"><i></i><span>The new position cannot be won. Only a full search shows it.</span></li>`,
+    stuck: () => `<li class="bad"><i></i><span>No plan within ${n(w.probe.budget)} nodes, and nothing proves the position lost.</span></li>`,
+    detour: () => `<li class="acc"><i></i><span>Still solvable. Plan again: ${w.after_actions.length} moves to go, was ${w.remaining}.</span></li>`}[w.kind]();
+  const card = (cls, tag, big, sub) => `<div class="cmpc ${cls}"><span class="tag">${tag}</span><div class="big">${big}</div><div class="sub">${sub}</div></div>`;
+  const cards = {
+    lost: () => card("lose", "No checker", w.probe.solved ? "Plans on" : `${n(w.probe.nodes)} nodes`, w.probe.solved ? "It finds a plan from a lost position and keeps playing." : "spent before giving up.") + card("win", "With checker", "0 nodes", "It stops at once."),
+    deadend: () => card("lose", "No checker", `${n(w.probe.nodes)} nodes`, "to prove there is no plan.") + card("win", "With checker", `${n(w.checked_nodes)} nodes`, "Rules prune the proof. They did not flag the wrong move."),
+    stuck: () => card("lose", "No checker", `${n(w.probe.budget)} nodes`, "and still no answer.") + card("lose", "With checker", `${n(w.checked_nodes)} nodes`, "The rules cannot decide this one either."),
+    detour: () => ""}[w.kind]();
+  const head = `<ul class="timeline">
+      <li class="acc"><i></i><span>Follow the chosen path for ${w.step} moves.</span></li>
+      <li class="bad"><i></i><span>The plan says <b class="mono">${esc(w.planned)}</b>, but <b class="mono">${esc(w.wrong)}</b> happens instead.</span></li>${third}</ul>`;
+  if (w.kind === "detour") return head + `<div class="verdict ok"><b>Still solvable, but longer.</b><span>${w.after_actions.length} moves to go instead of ${w.remaining}. The wrong move cost ${Math.max(0, w.after_actions.length - w.remaining)} extra moves.</span></div>`;
+  return head + `<div class="cmp">${cards}</div><div class="verdict bad"><b>The game cannot go on from here.</b><span>${w.kind === "stuck" ? "This is an edge case the checker does not settle." : "Replanning cannot help. The system should stop and report it."}</span></div>`;
 }
 function mountRun(gid) {
-  const g = G[gid], r = g.run;
-  const before = r.before_actions.map((a, i) => ({a, s: r.before[i], ok: true, conf: 1, phase: "run"}));
-  const slip = {a: r.slipped_action + " (slip)", s: r.real, ok: false, conf: 1};
-  const after = r.after_actions.map((a, i) => ({a, s: r.after[i], ok: true, conf: 1}));
-  const all = before.concat([slip], after);
-  const frames = [{state: g.start, label: "Start"}].concat(all.map((s, i) => {
-    const kind = i < before.length ? "run" : i === before.length ? "slip" : "replan";
-    return {state: s.s, action: s.a, label: kind === "slip" ? `${r.slipped_action} did not happen` : `Move ${s.a}`,
-      tone: kind === "slip" ? "bad" : kind === "replan" ? "ok" : "", pill: kind === "slip" ? "slip" : kind === "replan" ? "replanned" : ""};
-  }));
-  $("#chips").innerHTML = all.map((s, i) => `<button class="chip ${i === before.length ? "bad" : ""}" data-i="${i + 1}">${esc(s.a)}</button>`).join("");
-  let mark;
-  player = makePlayer($("#left"), gid, frames, i => mark && mark(i));
-  mark = bindChips($("#right"), player); mark(0);
+  const g = G[gid], r = g.run, w = g.wrong;
+  let scn = "slip", mark;
+  const draw = () => {
+    if (player) player.stop();
+    document.querySelectorAll("[data-scn]").forEach(b => b.setAttribute("aria-pressed", b.dataset.scn === scn));
+    $("#runbody").innerHTML = runBody(gid, scn);
+    let all, kindAt, label;
+    if (scn === "slip") {
+      const before = r.before_actions.map((a, i) => ({a, s: r.before[i]}));
+      all = before.concat([{a: r.slipped_action + " (slip)", s: r.real}], r.after_actions.map((a, i) => ({a, s: r.after[i]})));
+      kindAt = i => i < before.length ? "run" : i === before.length ? "bad" : "replan";
+      label = (s, k) => k === "bad" ? `${r.slipped_action} did not happen` : `Move ${s.a}`;
+    } else {
+      const before = w.before_actions.map((a, i) => ({a, s: w.before[i]}));
+      const after = w.kind === "detour" ? w.after_actions.map((a, i) => ({a, s: w.after[i]})) : [];
+      all = before.concat([{a: w.wrong + " (wrong)", s: w.real}], after);
+      kindAt = i => i < before.length ? "run" : i === before.length ? "bad" : "replan";
+      label = (s, k) => k === "bad" ? `${w.planned} planned, ${w.wrong} happened` : `Move ${s.a}`;
+    }
+    const frames = [{state: g.start, label: "Start"}].concat(all.map((s, i) => {
+      const k = kindAt(i);
+      return {state: s.s, action: s.a, label: label(s, k), tone: k === "bad" ? "bad" : k === "replan" ? "ok" : "",
+        pill: k === "bad" ? (scn === "slip" ? "slip" : "wrong move") : k === "replan" ? "replanned" : ""};
+    }));
+    $("#chips").innerHTML = all.map((s, i) => `<button class="chip ${kindAt(i) === "bad" ? "bad" : ""}" data-i="${i + 1}">${esc(s.a)}</button>`).join("");
+    player = makePlayer($("#left"), gid, frames, i => mark && mark(i));
+    mark = bindChips($("#right"), player);
+    mark(0);
+  };
+  $("#right").addEventListener("click", e => { const b = e.target.closest("[data-scn]"); if (b && b.dataset.scn !== scn) { scn = b.dataset.scn; draw(); } });
+  draw();
 }
 
 function boxRows(i) {
@@ -1112,7 +1269,8 @@ function render() {
   const html = t === "overview" ? viewOverview() : t === "boxoban" ? viewBoxoban() : t === "results" ? viewResults() : viewGame(t);
   $("#main").innerHTML = html + `<footer class="foot">Every board, plan and number on this page comes from a live run of the project code. Source: github.com/Harsh-v69/MachineLearningCP</footer>`;
   if (t === "overview") document.querySelectorAll("[data-thumb]").forEach(el => {
-    const id = el.dataset.thumb, b = id === "boxoban" ? sokobanBoard(D.boxoban) : id === "cube" ? cubeBoard(G[id], {S: 34, compact: true}) : id === "peg" ? pegBoard(G[id], {C: 24, compact: true}) : id === "puzzle" ? tileBoard(G[id], {C: 30, compact: true}) : BOARDS[id](G[id]);
+    const id = el.dataset.thumb, small = {sokoban: {C: 26}, rush: {C: 30}, peg: {C: 24}, puzzle: {C: 30}, cube: {S: 34}},
+      b = id === "boxoban" ? sokobanBoard(D.boxoban, {compact: true, C: 18}) : BOARDS[id](G[id], {compact: true, ...(small[id] || {})});
     b.show(id === "boxoban" ? D.boxoban.start : G[id].start);
     el.appendChild(b.svg);
   });

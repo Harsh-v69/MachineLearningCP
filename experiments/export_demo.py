@@ -99,21 +99,21 @@ def _peg_plan(level, state, validator):
 
 
 def _peg_bad(level, validator, start, good):
-    """A random line of play that walks into a position the pagoda bound rules out."""
-    for seed in range(5000):
-        rng, s, plan, first = random.Random(seed), start, [], None
-        while True:
-            moves = [(a, n) for a in level.ACTIONS for n, ok in [level.step(s, a)] if ok]
-            if not moves:
-                break
-            a, n = rng.choice(moves)
-            if first is None and not validator.validate(level, s, a, n).accept:
-                first = len(plan)
-            plan.append(a)
-            s = n
-        if first is not None and first >= 14:
-            return plan[:first], plan[first], "rejected", plan
-    raise RuntimeError("no random game hit the pagoda bound")
+    """Plan B from a greedy proposer: always make the jump that brings the pegs
+    closest to the centre. It looks sensible, then paints itself into a corner."""
+    s_, plan, first = start, [], None
+    while True:
+        moves = [(level.heuristic(n), a, n) for a in level.ACTIONS for n, ok in [level.step(s_, a)] if ok]
+        if not moves:
+            break
+        _, a, n = min(moves, key=lambda t: t[0])
+        if first is None and not validator.validate(level, s_, a, n).accept:
+            first = len(plan)
+        plan.append(a)
+        s_ = n
+    if first is None:
+        raise RuntimeError("the greedy walk never hit the pagoda bound")
+    return plan[:first], plan[first], "rejected", plan
 
 
 def _static_bad(plan_fn):
@@ -138,6 +138,97 @@ def _cube_bad(level, validator, start, good):
         if rest and (best is None or 1 + len(rest[0]) < len(best)):
             best = [a] + rest[0]
     return [], None, "static", best
+
+
+def _probe_astar(weight, budget, depth):
+    def probe(level, state, validator=None):
+        p = WeightedAStarProposer(weights=(weight,), node_budget=budget, validator=validator)
+        plans = p.generate_candidate_plans(level, state, 1, depth)
+        return (plans[0] if plans else None), p.expansions, budget
+    return probe
+
+
+def _probe_dfs(budget, depth):
+    def probe(level, state, validator=None):
+        from tape.uninformed import DFSProposer
+        p = DFSProposer(node_budget=budget, validator=validator)
+        plans = p.generate_candidate_plans(level, state, 1, depth)
+        return (plans[0] if plans else None), p.expansions, budget
+    return probe
+
+
+def _probe_bfs(level, state, validator=None):
+    from tape.uninformed import BFSProposer
+    p = BFSProposer(node_budget=50_000, validator=validator)
+    plans = p.generate_candidate_plans(level, state, 1, 40)
+    return (plans[0] if plans else None), p.expansions, 50_000
+
+
+def _probe_cube(level, state, validator=None):
+    p = BidirectionalProposer(node_budget=100_000, validator=validator)
+    plans = p.generate_candidate_plans(level, state, 1, 12)
+    return (plans[0] if plans else None), p.expansions, 100_000
+
+
+def wrong_move(g, level, validator, sol, ser):
+    """The worst thing that can happen at one step of the chosen path: a different
+    legal move happens instead of the planned one. Ranked:
+      lost    the checker flags the new position, and an unchecked planner either
+              plans on regardless or burns many nodes (River Crossing, Sokoban)
+      deadend the checker misses it, but the search runs dry with no plan (Sokoban)
+      detour  still solvable, only longer (sliding puzzle, cube, Rush Hour)"""
+    probe = g.get("probe") or _probe_bfs
+    n_steps = len(sol.actions)
+    ks = g.get("wrong_steps") or list(range(1, max(2, n_steps - 1)))
+    if callable(ks):
+        ks = ks(n_steps)
+    best, best_key = None, None
+    for k in ks:
+        st = sol.node_path[k]
+        for a in level.ACTIONS:
+            if a == sol.actions[k]:
+                continue
+            nxt, moved = level.step(st, a)
+            if not moved:
+                continue
+            v = validator.validate(level, st, a, nxt)
+            plan, nodes, budget = probe(level, nxt)
+            lost = not v.accept
+            if lost and (plan is not None or nodes > 2000):
+                rank, extra = 5, nodes
+            elif not lost and plan is None and nodes < budget:
+                rank, extra = 4, nodes
+            elif lost:
+                rank, extra = 3, nodes
+            elif plan is None:
+                rank, extra = 2, nodes  # budget ran out: nobody knows, so it ranks below a proof
+            else:
+                rank, extra = 1, len(plan) - (n_steps - k - 1)
+            if best_key is None or (rank, extra) > best_key:
+                best_key = (rank, extra)
+                best = dict(k=k, a=a, nxt=nxt, v=v, plan=plan, nodes=nodes, budget=budget, rank=rank)
+        if best_key and best_key[0] >= 4:
+            break
+    k, nxt = best["k"], best["nxt"]
+    out = {
+        # lost: the checker flags it. deadend: the search ran dry with no plan but the checker missed it.
+        # stuck: the budget ran out, so nobody knows. detour: still solvable.
+        "kind": {5: "lost", 4: "deadend", 3: "lost", 2: "stuck", 1: "detour"}[best["rank"]],
+        "step": k, "planned": sol.actions[k], "wrong": best["a"],
+        "before_actions": sol.actions[:k], "before": [ser(x) for x in sol.node_path[1:k + 1]],
+        "real": ser(nxt), "reason": best["v"].reason if not best["v"].accept else "",
+        "probe": {"solved": best["plan"] is not None, "nodes": best["nodes"], "budget": best["budget"]},
+        "remaining": n_steps - k - 1,
+    }
+    if best["rank"] in (2, 4):  # the checker does not help here: show its own search effort
+        out["checked_nodes"] = probe(level, nxt, validator)[1]
+    if best["plan"] is not None and best["rank"] in (1, 3, 5):
+        cur, states = nxt, []
+        for x in best["plan"]:
+            cur, _ = level.step(cur, x)
+            states.append(ser(cur))
+        out["after_actions"], out["after"] = best["plan"], states
+    return out
 
 
 def _gate(prop_factory, budget):
@@ -165,17 +256,20 @@ _CUBE_VAL = CubeSolvabilityValidator(CUBE_3)
 GAMES = {
     "peg": dict(
         level=PEG, validator=PegPagodaValidator(), ser=ser_peg, depth=40, piece="32 pegs",
-        plan=_peg_plan, bad=_peg_bad,
+        plan=_peg_plan, bad=_peg_bad, by=("weighted A* search", "a greedy walk"),
+        probe=_probe_dfs(50_000, 40), wrong_steps=lambda n: list(range(4, n - 1, 4)),
         static=lambda lv: {"cells": [list(c) for c in lv.cells], "center": [3, 3]}),
     "puzzle": dict(
         level=PUZZLE, validator=SlidingParityValidator(), ser=ser_flat, depth=80, piece="1 blank",
-        plan=_puz_search(2), bad=_static_bad(_puz_search(8)),
+        plan=_puz_search(2), bad=_static_bad(_puz_search(8)), by=("weighted A*, weight 2", "weighted A*, weight 8"),
+        probe=_probe_astar(2, 20_000, 400), wrong_steps=lambda n: [n // 2],
         gate=_gate(lambda b, v: WeightedAStarProposer(weights=(3,), node_budget=b, validator=v), 20_000),
         broken=lambda lv, v, s: lv.unsolvable_twin(s),
         static=lambda lv: {"n": lv.n}),
     "cube": dict(
         level=CUBE, validator=_CUBE_VAL, ser=ser_flat, depth=12, piece="1 cube",
-        plan=_cube_plan, bad=_cube_bad,
+        plan=_cube_plan, bad=_cube_bad, by=("meet in the middle, shortest", "the best plan that opens differently"),
+        probe=_probe_cube, wrong_steps=lambda n: [n // 2],
         gate=_gate(lambda b, v: BidirectionalProposer(node_budget=b, validator=v), 100_000),
         broken=lambda lv, v, s: _twist_corner(v, s),
         static=lambda lv: {"n": lv.n, "slots": [[list(p), list(nm)] for p, nm in lv.slots],
@@ -334,6 +428,8 @@ def build_game(gid: str) -> dict:
         "bad_kind": kind,
         "bad_at": len(prefix),
         "gate": gate,
+        "by": list(g.get("by") or ("BFS, shortest plan", "a planner that ignores the rule")),
+        "wrong": wrong_move(g, level, validator, sol, g["ser"]),
         "graph": plan_graph(g, start, plans),
         "graph_stats": {"nodes": pg.graph.number_of_nodes(), "edges": pg.graph.number_of_edges(),
                         "rejected": pg.validator_rejections},

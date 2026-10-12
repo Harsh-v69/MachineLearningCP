@@ -65,9 +65,9 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
 </style>
 
 <div class="wrap">
-  <p class="eyebrow">System Architecture · Phases 1 to 5</p>
+  <p class="eyebrow">System Architecture · Phases 1 to 6</p>
   <h1>From raw environment state to a validated optimal path</h1>
-  <p class="dek">Everything left of the blue box is benchmark-agnostic: it operates on states and actions, not on Sokoban pushes specifically. Three benchmarks (Sokoban, river crossing, Rush Hour) now share it unchanged; swapping in ALFWorld, MuSiQue, or GSM8K-Hard means implementing the same kind of environment adapter, not rebuilding the pipeline.</p>
+  <p class="dek">Everything left of the blue box is benchmark-agnostic: it operates on states and actions, not on Sokoban pushes specifically. Seven games (Sokoban, Boxoban, river crossing, Rush Hour, Peg Solitaire, the 24-puzzle, the Rubik&#8217;s cube) now share it unchanged. No language model is used: a plan proposer, which can be a search or a program, supplies the candidates. Adding another game means implementing the same kind of environment adapter, not rebuilding the pipeline.</p>
 
   <figure>
     <svg viewBox="0 0 1520 660" role="img" aria-label="Pipeline flow: an environment state produces multiple candidate plans, which are merged into a plan graph, filtered by a domain validator, priced using confidence and experience history, then solved by an adaptively chosen search method into a validated optimal path, which is executed and either succeeds or triggers a replan.">
@@ -81,12 +81,14 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
       <rect x="20" y="100" width="160" height="110" fill="none" stroke="currentColor" stroke-width="1.5"/>
       <text x="100" y="130" text-anchor="middle" font-size="12" font-weight="700">ENVIRONMENT</text>
       <text x="100" y="150" text-anchor="middle" font-size="10.5">state s</text>
-      <text x="100" y="170" text-anchor="middle" font-size="9.5">(player, boxes,</text>
-      <text x="100" y="182" text-anchor="middle" font-size="9.5">goals, walls)</text>
-      <text x="100" y="225" text-anchor="middle" font-size="9" fill="currentColor">Sokoban · River Crossing</text>
-      <text x="100" y="237" text-anchor="middle" font-size="9" fill="currentColor">Rush Hour (built)</text>
-      <text x="100" y="252" text-anchor="middle" font-size="9" fill="var(--muted)">ALFWorld · MuSiQue</text>
-      <text x="100" y="264" text-anchor="middle" font-size="9" fill="var(--muted)">GSM8K-Hard (planned)</text>
+      <text x="100" y="170" text-anchor="middle" font-size="9.5">(pieces, positions,</text>
+      <text x="100" y="182" text-anchor="middle" font-size="9.5">goal, rules)</text>
+      <text x="100" y="225" text-anchor="middle" font-size="9" fill="currentColor">Sokoban · Boxoban</text>
+      <text x="100" y="237" text-anchor="middle" font-size="9" fill="currentColor">River Crossing · Rush Hour</text>
+      <text x="100" y="249" text-anchor="middle" font-size="9" fill="currentColor">Peg Solitaire · 24-puzzle</text>
+      <text x="100" y="261" text-anchor="middle" font-size="9" fill="currentColor">Rubik&#8217;s cube (all built)</text>
+      <text x="100" y="277" text-anchor="middle" font-size="9" fill="var(--muted)">ALFWorld · MuSiQue · GSM8K-Hard</text>
+      <text x="100" y="289" text-anchor="middle" font-size="9" fill="var(--muted)">(dropped: need an LLM)</text>
 
       <line x1="180" y1="155" x2="222" y2="155" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)"/>
       <text x="201" y="145" text-anchor="middle" font-size="9">sample N</text>
@@ -94,7 +96,7 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
       <!-- CANDIDATE PLANS -->
       <rect x="225" y="100" width="190" height="110" fill="none" stroke="currentColor" stroke-width="1.5"/>
       <text x="320" y="125" text-anchor="middle" font-size="12" font-weight="700">CANDIDATE PLANS</text>
-      <text x="320" y="141" text-anchor="middle" font-size="9.5">LLM proposes N action</text>
+      <text x="320" y="141" text-anchor="middle" font-size="9.5">proposer gives N action</text>
       <text x="320" y="153" text-anchor="middle" font-size="9.5">sequences (Phase 1)</text>
       <!-- mini sequences -->
       <g stroke="currentColor" stroke-width="1.2">
@@ -223,10 +225,10 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
 
   <h2>Stage by stage</h2>
   <ol class="stage-list">
-    <li><b>Environment</b> &mdash; any benchmark's <code>step(state, action)</code> and <code>is_goal(state)</code>. Sokoban, river crossing, and Rush Hour are built and share every phase below unchanged; ALFWorld, MuSiQue, and GSM8K-Hard (TAPE's own named benchmarks) are the same abstraction, not yet implemented.</li>
-    <li><b>Candidate plans</b> (Phase 1) &mdash; the LLM proposes several action sequences from the current state, not one.</li>
+    <li><b>Environment</b> &mdash; any benchmark's <code>step(state, action)</code> and <code>is_goal(state)</code>. All seven games (Sokoban, Boxoban, river crossing, Rush Hour, Peg Solitaire, the 24-puzzle, the Rubik&#8217;s cube) are built and share every phase below unchanged. ALFWorld, MuSiQue, and GSM8K-Hard (TAPE's own benchmarks) need a language model and are out of scope.</li>
+    <li><b>Candidate plans</b> (Phase 1) &mdash; a proposer (noisy walks, weighted A*, DFS or a meet in the middle search, never an LLM) gives several action sequences from the current state, not one.</li>
     <li><b>Plan graph</b> (Phase 1) &mdash; every candidate is simulated step by step; identical resulting states collapse onto one shared node.</li>
-    <li><b>Validator</b> (Phase 2) &mdash; each transition is checked against domain rules the environment itself doesn't enforce (e.g. a Sokoban corner deadlock). Rejected transitions never become edges; uncertain ones get a lower confidence instead of a hard reject.</li>
+    <li><b>Validator</b> (Phase 2) &mdash; each transition is checked against domain rules the environment itself doesn't enforce (e.g. a Sokoban corner deadlock, a Peg Solitaire pagoda bound, a Rubik&#8217;s cube invariant). Rejected transitions never become edges; uncertain ones get a lower confidence instead of a hard reject.</li>
     <li><b>Experience store</b> (Phase 3) &mdash; every executed transition's outcome (matched vs. mismatched prediction) is recorded per state/action, and multiplies that transition's confidence in future graphs.</li>
     <li><b>Cost</b> (Phase 4) &mdash; combines confidence, how much a step regresses away from the goal, and how much of the step budget is spent, into one edge weight.</li>
     <li><b>Adaptive select</b> (Phase 5) &mdash; A* (using the Phase 4 score as its heuristic) when the task is a single shortest-path problem; CP-SAT when multiple constraints have to be satisfied jointly.</li>
@@ -234,5 +236,5 @@ footer{margin-top:8px; padding-top:16px; border-top:1px solid var(--line-strong)
     <li><b>Execute &amp; replan</b> &mdash; the path is run step by step; a mismatch between predicted and actual state triggers a fresh planning round from the real state, and both outcomes feed back into the experience store.</li>
   </ol>
 
-  <footer>Phases 1&ndash;5 built and tested (54 automated tests) across three benchmarks (Sokoban, river crossing, Rush Hour) &middot; Phase 6 (cross-benchmark evaluation) and TAPE's own remaining benchmarks (ALFWorld, MuSiQue, GSM8K-Hard) are what's left.</footer>
+  <footer>All six phases have working code and results (90 automated tests) across seven games &middot; Phase 6 core experiments are done; TAPE's LLM-based benchmarks (ALFWorld, MuSiQue, GSM8K-Hard) are out of scope.</footer>
 </div>

@@ -189,12 +189,6 @@ h2{font-size:clamp(26px,3.4vw,38px);line-height:1.08}
 .forest .nm{fill:var(--ink);font:500 13px var(--body)}
 
 
-.b-hole{fill:var(--sunken);stroke:var(--rule);stroke-width:2}
-.b-peg{fill:var(--crate);stroke:var(--ink);stroke-width:2;transition:opacity .25s,transform .25s;transform-box:fill-box;transform-origin:center}
-.b-peg.off{opacity:0;transform:scale(.4)}
-.b-tile rect{fill:var(--surface);stroke:var(--ink);stroke-width:2}
-.b-tile.home rect{fill:color-mix(in srgb,var(--accent) 30%,var(--surface))}
-.b-tile text{font:600 22px var(--display);fill:var(--ink)}
 .cube-wrap{width:100%;height:320px;display:grid;place-items:center;position:relative;touch-action:none;cursor:grab;user-select:none;overflow:hidden}
 .cube-wrap:active{cursor:grabbing}
 .cube-hint{position:absolute;left:0;right:0;bottom:6px;text-align:center;font:500 12px var(--mono);color:var(--muted)}
@@ -203,6 +197,16 @@ h2{font-size:clamp(26px,3.4vw,38px);line-height:1.08}
 .cface{position:absolute;width:var(--s);height:var(--s);left:calc(var(--s) / -2);top:calc(var(--s) / -2);background:#0E1313;border-radius:calc(var(--s) * .12);backface-visibility:hidden}
 .cface::after{content:"";position:absolute;inset:calc(var(--s) * .08);border-radius:calc(var(--s) * .14);background:var(--c,transparent)}
 .tile .thumb .cube-wrap{height:100%;overflow:visible}
+.tryit{display:grid;gap:10px;justify-items:start;padding-top:16px;border-top:1px dashed var(--rule)}
+.b3{position:absolute;left:0;top:0;width:0;height:0;transform-style:preserve-3d}
+.f3{position:absolute;backface-visibility:hidden}
+.peg3{position:absolute;left:0;top:0;width:0;height:0;transform-style:preserve-3d}
+.mb{position:absolute;border-radius:50%;background:radial-gradient(circle at 36% 30%,#F9DAA6,#D68D33 48%,#7B4812);box-shadow:inset -3px -4px 8px rgba(60,30,0,.45);transition:transform .25s,opacity .25s}
+.peg3.off .mb{--sc:.35;opacity:0}
+.peg-shadow{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(0,0,0,.55),transparent 70%);transition:opacity .25s}
+.peg3.off .peg-shadow{opacity:0}
+.t3top{display:grid;place-items:center;font-family:var(--display);font-weight:600;color:#10201F;background:linear-gradient(145deg,#F3F6F6,#CBD6D6);transition:background .3s}
+.t3top.home{background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 55%,#fff),color-mix(in srgb,var(--accent) 80%,#fff))}
 /* pages */
 main{margin:0 auto;max-width:1200px;padding:36px clamp(16px,4vw,40px) 40px;width:100%}
 .page-head .lede{max-width:64ch}
@@ -366,63 +370,167 @@ function rushBoard(g) {
   function show(st) { st.forEach(([v, r, c]) => { els[v].style.transform = `translate(${c * C}px,${r * C}px)`; }); }
   return {svg, show};
 }
-function pegBoard(g) {
-  const S = g.static, C = 54, svg = svgEl("svg", {viewBox: `0 0 ${7 * C} ${7 * C}`, role: "img", "aria-label": "Peg solitaire board"});
-  const pegs = {};
-  S.cells.forEach(([r, c]) => {
-    const cx = c * C + C / 2, cy = r * C + C / 2;
-    svgEl("circle", {cx, cy, r: C * .36, class: "b-hole"}, svg);
-    if (r === S.center[0] && c === S.center[1]) svgEl("circle", {cx, cy, r: C * .46, class: "b-goal"}, svg);
+/* ---------- shared 3D scaffolding (CSS 3D transforms, no library) ---------- */
+const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function attachDrag(wrap, view, apply, maxRx = -5) {
+  let drag = null;
+  wrap.addEventListener("pointerdown", e => { drag = {x: e.clientX, y: e.clientY, rx: view.rx, ry: view.ry}; wrap.setPointerCapture(e.pointerId); });
+  wrap.addEventListener("pointermove", e => {
+    if (!drag) return;
+    view.ry = drag.ry + (e.clientX - drag.x) * .6;
+    view.rx = Math.max(-85, Math.min(maxRx, drag.rx - (e.clientY - drag.y) * .6));
+    apply();
   });
-  S.cells.forEach(([r, c]) => { pegs[`${r},${c}`] = svgEl("circle", {cx: c * C + C / 2, cy: r * C + C / 2, r: C * .3, class: "b-peg off"}, svg); });
-  function show(st) {
-    const on = new Set(st.map(p => p.join(",")));
-    for (const k in pegs) pegs[k].classList.toggle("off", !on.has(k));
-  }
-  return {svg, show};
+  const end = () => { drag = null; };
+  wrap.addEventListener("pointerup", end);
+  wrap.addEventListener("pointercancel", end);
 }
 
-function tileBoard(g) {
-  const n = g.static.n, C = 62, svg = svgEl("svg", {viewBox: `0 0 ${n * C} ${n * C}`, role: "img", "aria-label": "Sliding tile board"});
-  svgEl("rect", {width: n * C, height: n * C, class: "b-floor"}, svg);
+function scene3d(opts, rx, ry, onView) {
+  const wrap = document.createElement("div");
+  wrap.className = "cube-wrap";
+  wrap.innerHTML = `<div class="cube-scene"><div class="cube3d"></div></div>${opts.compact ? "" : '<div class="cube-hint">Drag to look around</div>'}`;
+  const root = wrap.querySelector(".cube3d"), view = {rx, ry};
+  const apply = () => { root.style.transform = `rotateX(${view.rx}deg) rotateY(${view.ry}deg)`; if (onView) onView(view); };
+  if (!opts.compact) attachDrag(wrap, view, apply, opts.below ? 85 : -5);
+  apply();
+  return {wrap, root, view, apply};
+}
+
+/* a box centred on its own origin: w wide, h tall, d deep; top and side are CSS backgrounds */
+function box3d(w, h, d, topBg, sideBg, topClass = "") {
+  const el = document.createElement("div");
+  el.className = "b3";
+  const face = (cls, fw, fh, tf, bg) => {
+    const f = document.createElement("div");
+    f.className = "f3 " + cls;
+    f.style.cssText = `width:${fw}px;height:${fh}px;left:${-fw / 2}px;top:${-fh / 2}px;transform:${tf}${bg ? ";background:" + bg : ""}`;
+    el.appendChild(f);
+    return f;
+  };
+  const top = face(topClass, w, d, `rotateX(90deg) translateZ(${h / 2}px)`, topBg);
+  face("", w, h, `translateZ(${d / 2}px)`, sideBg);
+  face("", w, h, `rotateY(180deg) translateZ(${d / 2}px)`, sideBg);
+  face("", d, h, `rotateY(90deg) translateZ(${w / 2}px)`, sideBg);
+  face("", d, h, `rotateY(-90deg) translateZ(${w / 2}px)`, sideBg);
+  return {el, top};
+}
+
+/* ---------- Peg Solitaire: marbles that arc over their neighbour ---------- */
+function pegBoard(g, opts = {}) {
+  const C = opts.C || 46, T = 10, R = C * .33, S = g.static, key = p => p[0] + "," + p[1];
+  const marbles = {}, bill = new Set();
+  const billboard = view => bill.forEach(m => { m.style.transform = `rotateY(${-view.ry}deg) rotateX(${-view.rx}deg) scale(var(--sc, 1))`; });
+  const sc = scene3d(opts, -50, -24, billboard), root = sc.root;
+  const at = (p, y = -R) => `translate3d(${(p[1] - 3) * C}px,${y}px,${(p[0] - 3) * C}px)`;
+  const holeBg = (centre) => (centre ? "radial-gradient(circle, transparent 0 47%, var(--ok) 48% 55%, transparent 56%)," : "") +
+    "radial-gradient(circle, #0B1011 0 30%, #223133 31% 39%, #3A5154 40%)";
+  S.cells.forEach(p => {
+    const t = box3d(C - 2, T, C - 2, holeBg(p[0] === S.center[0] && p[1] === S.center[1]), "#1B2829");
+    t.el.style.transform = `translate3d(${(p[1] - 3) * C}px,${T / 2}px,${(p[0] - 3) * C}px)`;
+    root.appendChild(t.el);
+  });
+  function makeMarble(withShadow) {
+    const el = document.createElement("div");
+    el.className = "peg3";
+    if (withShadow) el.innerHTML = `<div class="peg-shadow" style="width:${R * 2}px;height:${R * 2}px;left:${-R}px;top:${-R}px;transform:translateY(${R - .7}px) rotateX(90deg)"></div>`;
+    const mb = document.createElement("div");
+    mb.className = "mb";
+    mb.style.cssText = `width:${R * 2}px;height:${R * 2}px;left:${-R}px;top:${-R}px`;
+    el.appendChild(mb);
+    bill.add(mb);
+    return {el, mb};
+  }
+  S.cells.forEach(p => {
+    const m = makeMarble(true);
+    m.el.style.transform = at(p);
+    m.el.classList.add("off");
+    root.appendChild(m.el);
+    marbles[key(p)] = m.el;
+  });
+  billboard(sc.view);
+
+  let current = null, finish = null;
+  const paint = st => { const on = new Set(st.map(key)); for (const k in marbles) marbles[k].classList.toggle("off", !on.has(k)); };
+  const D = {U: [-1, 0], D: [1, 0], L: [0, -1], R: [0, 1]};
+  function jump(a, over, b, reverse, st) {
+    marbles[key(a)].classList.add("off");
+    const fly = makeMarble(false);
+    fly.el.style.transform = at(a);
+    root.appendChild(fly.el);
+    billboard(sc.view);
+    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const anim = fly.el.animate([{transform: at(a)}, {transform: at(mid, -R - C * .95)}, {transform: at(b)}], {duration: 560, easing: "ease-in-out", fill: "forwards"});
+    const pop = setTimeout(() => marbles[key(over)].classList.toggle("off", !reverse), reverse ? 330 : 230);
+    const timer = setTimeout(() => finish && finish(), 640);
+    finish = () => {
+      clearTimeout(timer); clearTimeout(pop);
+      anim.cancel();
+      bill.delete(fly.mb);
+      fly.el.remove();
+      paint(st);
+      finish = null;
+    };
+    anim.onfinish = () => finish && finish();
+  }
+  function show(st, action, meta) {
+    if (finish) finish();
+    const prev = current;
+    current = st;
+    const parse = a => { const m = a && /^(\d)(\d)([UDLR])/.exec(a); if (!m) return null; const r = +m[1], c = +m[2], d = D[m[3]]; return [[r, c], [r + d[0], c + d[1]], [r + 2 * d[0], c + 2 * d[1]]]; };
+    const same = prev && prev.length === st.length && prev.every((p, i) => key(p) === key(st[i]));
+    const mv = prev && !same && meta && !reduceMotion() ? (meta.step === 1 ? parse(action) : meta.step === -1 ? parse(meta.prevAction) : null) : null;
+    if (mv) jump(mv[0], mv[1], mv[2], meta.step === -1, st);
+    else paint(st);
+  }
+  return {svg: sc.wrap, show};
+}
+
+/* ---------- 24-puzzle: raised tiles sliding across a tray ---------- */
+function tileBoard(g, opts = {}) {
+  const n = g.static.n, C = opts.C || 58, H = 13, W = C - 4;
+  const sc = scene3d(opts, -54, -14), root = sc.root;
+  const tray = box3d(n * C + 16, 10, n * C + 16, "#0F1617", "#0A1011");
+  tray.el.style.transform = "translate3d(0,5px,0)";
+  root.appendChild(tray.el);
   const tiles = {};
   for (let v = 1; v < n * n; v++) {
-    const el = svgEl("g", {class: "b-tile mv"}, svg);
-    svgEl("rect", {x: 3, y: 3, width: C - 6, height: C - 6, rx: 6}, el);
-    const t = svgEl("text", {x: C / 2, y: C / 2 + 8, "text-anchor": "middle"}, el); t.textContent = v;
-    tiles[v] = el;
+    const t = box3d(W, H, W, "", "color-mix(in srgb, var(--ink) 30%, var(--surface))", "t3top");
+    t.top.style.fontSize = C * .4 + "px";
+    t.top.textContent = v;
+    t.el.classList.add("mv");
+    root.appendChild(t.el);
+    tiles[v] = t;
   }
   function show(st) {
     st.forEach((v, i) => {
       if (!v) return;
-      tiles[v].style.transform = `translate(${(i % n) * C}px,${Math.floor(i / n) * C}px)`;
-      tiles[v].classList.toggle("home", i === v - 1);
+      const t = tiles[v];
+      t.el.style.transform = `translate3d(${((i % n) - (n - 1) / 2) * C}px,${-H / 2}px,${(Math.floor(i / n) - (n - 1) / 2) * C}px)`;
+      t.top.classList.toggle("home", i === v - 1);
     });
   }
-  return {svg, show};
+  return {svg: sc.wrap, show};
 }
 
+/* ---------- Rubik's cube ---------- */
 const CUBE_COLOURS = ["#F4F4EF", "#EBC72B", "#2FA55E", "#2F6BD1", "#D63D31", "#EE8A2C"];
 const FACE_CSS = {"0,0,1": "", "0,0,-1": "rotateY(180deg)", "1,0,0": "rotateY(90deg)", "-1,0,0": "rotateY(-90deg)", "0,1,0": "rotateX(90deg)", "0,-1,0": "rotateX(-90deg)"};
 // clockwise quarter turn of each face, seen from outside, as a CSS rotation of its layer: [axis, layer coordinate, degrees]
 const TURN = {U: ["Y", 1, -90], D: ["Y", -1, 90], R: ["X", 1, 90], L: ["X", -1, -90], F: ["Z", 1, 90], B: ["Z", -1, -90]};
 const invMove = m => m.endsWith("2") ? m : m.endsWith("'") ? m[0] : m + "'";
-const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function cubeBoard(g, opts = {}) {
   const S = opts.S || 58, slots = g.static.slots;
-  const wrap = document.createElement("div");
-  wrap.className = "cube-wrap";
+  const sc = scene3d({...opts, below: true}, -26, -38), cube = sc.root, wrap = sc.wrap;
   wrap.style.setProperty("--s", S + "px");
-  if (opts.S) wrap.style.height = S * 3.3 + "px";
-  wrap.innerHTML = `<div class="cube-scene"><div class="cube3d"></div></div>${opts.S ? "" : '<div class="cube-hint">Drag to look around</div>'}`;
-  const cube = wrap.querySelector(".cube3d");
   const cubies = {}, faces = [];
   for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
     const el = document.createElement("div");
     el.className = "cubie";
     el.style.transform = `translate3d(${x * S}px,${-y * S}px,${z * S}px)`;
-    cubies[`${x},${y},${z}`] = {el, x, y, z, faces: {}};
+    cubies[`${x},${y},${z}`] = {el, x, y, z};
     cube.appendChild(el);
   }
   slots.forEach(([pos, normal], i) => {
@@ -433,25 +541,8 @@ function cubeBoard(g, opts = {}) {
     c.el.appendChild(f);
     faces[i] = f;
   });
-  for (const k in cubies) {  // the 3x3x3 has no sticker-less cubie, but the centre one is hidden inside
-    const c = cubies[k];
-    if (!c.el.childElementCount) c.el.style.display = "none";
-  }
-  let rx = -26, ry = -38, current = null, finish = null;
-  const view = () => { cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`; };
-  view();
-  let drag = null;
-  wrap.addEventListener("pointerdown", e => { drag = {x: e.clientX, y: e.clientY, rx, ry}; wrap.setPointerCapture(e.pointerId); });
-  wrap.addEventListener("pointermove", e => {
-    if (!drag) return;
-    ry = drag.ry + (e.clientX - drag.x) * .6;
-    rx = Math.max(-80, Math.min(80, drag.rx - (e.clientY - drag.y) * .6));
-    view();
-  });
-  const end = () => { drag = null; };
-  wrap.addEventListener("pointerup", end);
-  wrap.addEventListener("pointercancel", end);
-
+  for (const k in cubies) if (!cubies[k].el.childElementCount) cubies[k].el.style.display = "none";
+  let current = null, finish = null;
   const paint = st => st.forEach((c, i) => faces[i].style.setProperty("--c", CUBE_COLOURS[c]));
   function turn(move, target) {
     const [axis, coord, deg] = TURN[move[0]];
@@ -491,6 +582,46 @@ function cubeBoard(g, opts = {}) {
     else paint(st);
   }
   return {svg: wrap, show};
+}
+/* browser copy of the meet in the middle search, so a visitor can scramble and solve their own cube */
+function randomCube(st, len) {
+  const names = Object.keys(st.perms), inv = n => n.endsWith("2") ? n : n.endsWith("'") ? n[0] : n + "'";
+  const apply = (s, m) => st.perms[m].map(i => s[i]);
+  const key = s => String.fromCharCode(...s.map(c => c + 48));
+  let cur = st.solved.slice(), last = "";
+  const scramble = [], scrambleStates = [];
+  for (let i = 0; i < len; i++) {
+    const pool = names.filter(n => n[0] !== last);
+    const m = pool[Math.floor(Math.random() * pool.length)];
+    cur = apply(cur, m); last = m[0];
+    scramble.push(m); scrambleStates.push(cur);
+  }
+  const start = cur, goalKey = key(st.solved);
+  const fwd = new Map([[key(start), null]]), bwd = new Map([[goalKey, null]]);
+  let ff = [start], fb = [st.solved], meet = null;
+  while (meet === null && ff.length && fb.length) {
+    const forward = ff.length <= fb.length;
+    const seen = forward ? fwd : bwd, other = forward ? bwd : fwd, next = [];
+    for (const s of (forward ? ff : fb)) {
+      const sk = key(s);
+      for (const m of names) {
+        const n = apply(s, forward ? m : inv(m)), nk = key(n);
+        if (seen.has(nk)) continue;
+        seen.set(nk, {parent: sk, move: m});
+        next.push(n);
+        if (meet === null && other.has(nk)) meet = nk;
+      }
+    }
+    if (forward) ff = next; else fb = next;
+  }
+  const head = [], tail = [];
+  for (let k = meet, e; (e = fwd.get(k)); k = e.parent) head.push(e.move);
+  for (let k = meet, e; (e = bwd.get(k)); k = e.parent) tail.push(e.move);
+  const solution = meet === null ? [] : head.reverse().concat(tail);
+  const solutionStates = [];
+  let s = start;
+  solution.forEach(m => { s = apply(s, m); solutionStates.push(s); });
+  return {scramble, scrambleStates, solution, solutionStates, solved: key(s) === goalKey};
 }
 const BOARDS = {sokoban: sokobanBoard, river: riverBoard, rush: rushBoard, peg: pegBoard, puzzle: tileBoard, cube: cubeBoard};
 
@@ -536,7 +667,7 @@ function makePlayer(host, gid, frames, onFrame) {
   host.addEventListener("click", host._h);
   range.addEventListener("input", () => { stop(); go(+range.value); });
   go(0);
-  return {go, stop, get index() { return i; }};
+  return {go, stop, play: () => play.click(), get index() { return i; }};
 }
 
 const chipsHtml = (steps, mode) => steps.map((s, i) => {
@@ -683,7 +814,11 @@ function viewPropose(gid) {
   return stageShell("propose", gid, "", `
     <div class="seg" role="group" aria-label="Plan"><button data-plan="0" aria-pressed="true">Plan A</button><button data-plan="1" aria-pressed="false">Plan B</button></div>
     <div><h3 id="pname">Plan A</h3><p class="picked" id="pinfo"></p></div>
-    <div class="chips" id="chips"></div>`);
+    <div class="chips" id="chips"></div>${gid === "cube" ? `
+    <div class="tryit"><div class="tag">Try your own</div>
+      <div class="seg" role="group" aria-label="Scramble length">${[4, 5, 6, 7].map(k => `<button data-len="${k}" aria-pressed="${k === 6}">${k} moves</button>`).join("")}</div>
+      <div><button class="btn primary" id="rand">Randomize the cube</button></div>
+      <p class="picked" id="randnote">Scrambles the cube, then solves it with a JavaScript copy of the same meet in the middle search. It runs in your browser.</p></div>` : ""}`);
 }
 function mountPropose(gid) {
   const g = G[gid], plans = [g.good.steps, g.bad_plain.steps];
@@ -701,6 +836,30 @@ function mountPropose(gid) {
   };
   $("#right").addEventListener("click", e => { const b = e.target.closest("[data-plan]"); if (b) load(+b.dataset.plan); });
   load(0);
+  if (gid !== "cube") return;
+  $("#right").addEventListener("click", e => {
+    const b = e.target.closest("[data-len]");
+    if (b) document.querySelectorAll("[data-len]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  });
+  $("#rand").addEventListener("click", async () => {
+    const len = +document.querySelector("[data-len][aria-pressed=true]").dataset.len;
+    $("#randnote").textContent = "Solving...";
+    await new Promise(r => setTimeout(r, 40));
+    const t0 = performance.now(), r = randomCube(G.cube.static, len), ms = Math.round(performance.now() - t0);
+    const frames = [{state: G.cube.start, label: "Start"}]
+      .concat(r.scramble.map((a, i) => ({state: r.scrambleStates[i], action: a, label: `Scramble ${a}`, pill: "scramble", tone: "warn"})))
+      .concat(r.solution.map((a, i) => ({state: r.solutionStates[i], action: a, label: `Solve ${a}`, pill: "solve", tone: "ok"})));
+    if (player) player.stop();
+    $("#chips").innerHTML = frames.slice(1).map((f, i) => `<button class="chip ${f.tone}" data-i="${i + 1}" title="${f.pill}">${esc(f.action)}</button>`).join("");
+    document.querySelectorAll("[data-plan]").forEach(x => x.setAttribute("aria-pressed", "false"));
+    $("#pname").textContent = "Your scramble";
+    $("#pinfo").textContent = `${r.scramble.length} scramble moves, then ${r.solution.length} to solve`;
+    $("#randnote").textContent = `Solved in ${r.solution.length} moves, found in ${ms} ms.`;
+    player = makePlayer($("#left"), "cube", frames, i => mark && mark(i));
+    mark = bindChips($("#right"), player);
+    mark(0);
+    player.play();
+  });
 }
 
 function viewMerge(gid) {
@@ -930,7 +1089,7 @@ function render() {
   const html = t === "overview" ? viewOverview() : t === "boxoban" ? viewBoxoban() : t === "results" ? viewResults() : viewGame(t);
   $("#main").innerHTML = html + `<footer class="foot">Every board, plan and number on this page comes from a live run of the project code. Source: github.com/Harsh-v69/MachineLearningCP</footer>`;
   if (t === "overview") document.querySelectorAll("[data-thumb]").forEach(el => {
-    const id = el.dataset.thumb, b = id === "boxoban" ? sokobanBoard(D.boxoban) : id === "cube" ? cubeBoard(G[id], {S: 34}) : BOARDS[id](G[id]);
+    const id = el.dataset.thumb, b = id === "boxoban" ? sokobanBoard(D.boxoban) : id === "cube" ? cubeBoard(G[id], {S: 34, compact: true}) : id === "peg" ? pegBoard(G[id], {C: 24, compact: true}) : id === "puzzle" ? tileBoard(G[id], {C: 30, compact: true}) : BOARDS[id](G[id]);
     b.show(id === "boxoban" ? D.boxoban.start : G[id].start);
     el.appendChild(b.svg);
   });

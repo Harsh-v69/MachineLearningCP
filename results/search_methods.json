@@ -1,0 +1,205 @@
+{
+ "budget": 100000,
+ "games": {
+  "River Crossing": {
+   "n": 1,
+   "BFS": {
+    "solved": 1.0,
+    "nodes": 28.0,
+    "moves": 9.0
+   },
+   "DFS": {
+    "solved": 1.0,
+    "nodes": 19.0,
+    "moves": 15.0
+   },
+   "weighted A*": {
+    "solved": 1.0,
+    "nodes": 26.0,
+    "moves": 9.0
+   }
+  },
+  "Rush Hour": {
+   "n": 1,
+   "BFS": {
+    "solved": 1.0,
+    "nodes": 20.0,
+    "moves": 6.0
+   },
+   "DFS": {
+    "solved": 1.0,
+    "nodes": 18.0,
+    "moves": 18.0
+   },
+   "weighted A*": {
+    "solved": 1.0,
+    "nodes": 12.0,
+    "moves": 6.0
+   }
+  },
+  "Sokoban": {
+   "n": 1,
+   "BFS": {
+    "solved": 1.0,
+    "nodes": 1363.0,
+    "moves": 11.0
+   },
+   "DFS": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   },
+   "weighted A*": {
+    "solved": 1.0,
+    "nodes": 107.0,
+    "moves": 11.0
+   }
+  },
+  "Peg Solitaire": {
+   "n": 1,
+   "BFS": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   },
+   "DFS": {
+    "solved": 1.0,
+    "nodes": 10845.0,
+    "moves": 31.0
+   },
+   "weighted A*": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   }
+  },
+  "Boxoban (20 levels)": {
+   "n": 20,
+   "BFS": {
+    "solved": 0.45,
+    "nodes": 41347.444444444445,
+    "moves": 33.77777777777778
+   },
+   "DFS": {
+    "solved": 0.55,
+    "nodes": 37834.72727272727,
+    "moves": 93.36363636363636
+   },
+   "weighted A*": {
+    "solved": 0.55,
+    "nodes": 24367.81818181818,
+    "moves": 36.54545454545455
+   }
+  },
+  "Peg Solitaire, 22 jumps out": {
+   "n": 20,
+   "BFS": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   },
+   "DFS": {
+    "solved": 0.85,
+    "nodes": 23769.176470588234,
+    "moves": 22.0
+   },
+   "weighted A*": {
+    "solved": 0.95,
+    "nodes": 20852.78947368421,
+    "moves": 22.0
+   }
+  },
+  "24-puzzle, 20 move scramble": {
+   "n": 20,
+   "BFS": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   },
+   "DFS": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   },
+   "weighted A*": {
+    "solved": 1.0,
+    "nodes": 412.85,
+    "moves": 23.6
+   },
+   "meet in the middle": {
+    "solved": 1.0,
+    "nodes": 18453.1,
+    "moves": 19.5
+   }
+  },
+  "24-puzzle, 40 move scramble": {
+   "n": 20,
+   "BFS": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   },
+   "DFS": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   },
+   "weighted A*": {
+    "solved": 1.0,
+    "nodes": 7934.25,
+    "moves": 48.1
+   },
+   "meet in the middle": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   }
+  },
+  "Rubik's cube, 5 move scramble": {
+   "n": 20,
+   "BFS": {
+    "solved": 0.3,
+    "nodes": 30754.666666666668,
+    "moves": 3.8333333333333335
+   },
+   "DFS": {
+    "solved": 0.05,
+    "nodes": 27728.0,
+    "moves": 12.0
+   },
+   "weighted A*": {
+    "solved": 1.0,
+    "nodes": 66.05,
+    "moves": 4.65
+   },
+   "meet in the middle": {
+    "solved": 1.0,
+    "nodes": 3077.55,
+    "moves": 4.65
+   }
+  },
+  "Rubik's cube, 6 move scramble": {
+   "n": 20,
+   "BFS": {
+    "solved": 0.15,
+    "nodes": 11676.0,
+    "moves": 4.0
+   },
+   "DFS": {
+    "solved": 0.0,
+    "nodes": null,
+    "moves": null
+   },
+   "weighted A*": {
+    "solved": 1.0,
+    "nodes": 391.65,
+    "moves": 5.55
+   },
+   "meet in the middle": {
+    "solved": 1.0,
+    "nodes": 5544.0,
+    "moves": 5.55
+   }
+  }
+ }
+}

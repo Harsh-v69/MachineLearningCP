@@ -40,6 +40,13 @@ class SlidingPuzzle:
             for i in range(n * n):
                 self._man[v][i] = abs(i // n - gr) + abs(i % n - gc)
 
+    @property
+    def solved(self):
+        return self.goal
+
+    def inverse(self, action: str) -> str:
+        return {"U": "D", "D": "U", "L": "R", "R": "L"}[action]
+
     def with_start(self, start) -> "SlidingPuzzle":
         return SlidingPuzzle(self.n, start)
 

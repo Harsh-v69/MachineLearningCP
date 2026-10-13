@@ -234,7 +234,9 @@ def add_table(rows):
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT
             p.paragraph_format.space_before = p.paragraph_format.space_after = Pt(1.5)
             rr = p.add_run(val.strip())
-            rr.font.size, rr.font.name = Pt(9 if len(rows[0]) <= 4 else 7.5), FONT
+            rr.font.size, rr.font.name = Pt(8 if len(rows[0]) <= 4 else 7), FONT
+            if j:
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             rr.bold = True if i == 0 else None
             shade_border(cell)
     sp = doc.add_paragraph()
@@ -285,9 +287,9 @@ while i < len(body):
             while i < len(body) and not body[i].strip():
                 i += 1
             p = para(align=WD_ALIGN_PARAGRAPH.JUSTIFY, indent=True, size=9, before=2, after=6)
-            r = p.add_run("Abstract")
+            r = p.add_run("Abstract—")
             r.bold, r.italic, r.font.size, r.font.name = True, True, Pt(9), FONT
-            r = p.add_run(" - " + body[i].strip())
+            r = p.add_run(body[i].strip())
             r.bold, r.font.size, r.font.name = True, Pt(9), FONT
             i += 1
             continue
@@ -315,7 +317,7 @@ while i < len(body):
         continue
     if ln.startswith("Keywords:"):
         p = para(align=WD_ALIGN_PARAGRAPH.JUSTIFY, indent=True, size=9, before=2, after=6)
-        r = p.add_run("Keywords - ")
+        r = p.add_run("Index Terms—")
         r.bold = r.italic = True
         r.font.size, r.font.name = Pt(9), FONT
         r = p.add_run(ln[len("Keywords:"):].strip())
@@ -331,11 +333,11 @@ while i < len(body):
     if ln.startswith("TABLE: "):
         tab_no += 1
         cap = para(align=WD_ALIGN_PARAGRAPH.CENTER, before=6, after=0, keep_next=True)
-        r = cap.add_run(f"TABLE {tab_no}")
-        r.font.size, r.font.name = Pt(10), FONT
+        r = cap.add_run(f"TABLE {ROMAN[tab_no - 1]}")
+        r.font.size, r.font.name, r.font.small_caps = Pt(8), FONT, True
         t2 = para(align=WD_ALIGN_PARAGRAPH.CENTER, before=0, after=4, keep_next=True)
         r = t2.add_run(ln[7:].strip().upper())
-        r.font.size, r.font.name = Pt(10), FONT
+        r.font.size, r.font.name, r.font.small_caps = Pt(8), FONT, True
         i += 1
         if body[i].strip() == "@search_table":
             add_table(search_rows())
@@ -356,9 +358,10 @@ while i < len(body):
         pic.paragraph_format.space_before = Pt(4)
         pic.paragraph_format.keep_with_next = True
         pic.add_run().add_picture(str(HERE / m.group(2)), width=Pt(240))
-        c = para(align=WD_ALIGN_PARAGRAPH.CENTER, size=9, before=2, after=8)
-        r = c.add_run(m.group(1).strip())
-        r.font.size, r.font.name = Pt(9), FONT
+        cap_txt = m.group(1).strip()
+        c = para(align=WD_ALIGN_PARAGRAPH.JUSTIFY if len(cap_txt) > 60 else WD_ALIGN_PARAGRAPH.CENTER, before=2, after=8)
+        r = c.add_run(cap_txt)
+        r.font.size, r.font.name = Pt(8), FONT
         i += 1
         continue
     if ln.startswith("> "):
@@ -366,7 +369,9 @@ while i < len(body):
         continue
     if in_refs and ln.startswith("["):
         p = para(align=WD_ALIGN_PARAGRAPH.JUSTIFY)
-        runs(p, ln, size=10, ital=True)
+        p.paragraph_format.left_indent, p.paragraph_format.first_line_indent = Pt(20), Pt(-20)
+        p.paragraph_format.tab_stops.add_tab_stop(Pt(20))
+        runs(p, re.sub(r"^(\[\d+\]) ", lambda m: m.group(1) + "	", ln), size=8, ital=True)
     else:
         p = para(align=WD_ALIGN_PARAGRAPH.JUSTIFY, indent=True)
         runs(p, ln)

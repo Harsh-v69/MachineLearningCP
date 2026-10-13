@@ -272,6 +272,102 @@ def equation(text, number):
     r2.font.name, r2.font.size = FONT, Pt(10)
 
 
+
+# ------------------------------------------------------------ native Word canvas
+from docx.oxml import parse_xml
+
+EMU = 12700
+NS = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+      'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+      'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+      'xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" '
+      'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"')
+_ids = iter(range(200, 400))
+
+
+def _xml_esc(t):
+    return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _para(text, size, bold=False, vert=False):
+    b = "<w:b/>" if bold else ""
+    return (f'<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>'
+            f'<w:r><w:rPr><w:rFonts w:ascii="{FONT}" w:hAnsi="{FONT}" w:cs="{FONT}"/>{b}<w:sz w:val="{size}"/></w:rPr>'
+            f'<w:t xml:space="preserve">{_xml_esc(text)}</w:t></w:r></w:p>')
+
+
+def _box(x, y, w, h, title, desc, fill, line_w):
+    i = next(_ids)
+    body = _para(title, 17, bold=True) + (_para(desc, 14) if desc else "")
+    return (f'<wps:wsp><wps:cNvPr id="{i}" name="Stage {i}"/><wps:cNvSpPr/><wps:spPr>'
+            f'<a:xfrm><a:off x="{int(x*EMU)}" y="{int(y*EMU)}"/><a:ext cx="{int(w*EMU)}" cy="{int(h*EMU)}"/></a:xfrm>'
+            f'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="{fill}"/></a:solidFill>'
+            f'<a:ln w="{int(line_w*EMU)}"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:ln></wps:spPr>'
+            f'<wps:txbx><w:txbxContent>{body}</w:txbxContent></wps:txbx>'
+            f'<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="36000" tIns="18000" rIns="36000" bIns="18000" anchor="ctr" anchorCtr="0"><a:noAutofit/></wps:bodyPr></wps:wsp>')
+
+
+def _label(x, y, w, h, text):
+    i = next(_ids)
+    return (f'<wps:wsp><wps:cNvPr id="{i}" name="Label {i}"/><wps:cNvSpPr txBox="1"/><wps:spPr>'
+            f'<a:xfrm><a:off x="{int(x*EMU)}" y="{int(y*EMU)}"/><a:ext cx="{int(w*EMU)}" cy="{int(h*EMU)}"/></a:xfrm>'
+            f'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></wps:spPr>'
+            f'<wps:txbx><w:txbxContent>{_para(text, 13)}</w:txbxContent></wps:txbx>'
+            f'<wps:bodyPr rot="0" vert="vert270" wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>')
+
+
+def _line(x0, y0, x1, y1, arrow=False):
+    i = next(_ids)
+    fl = (' flipH="1"' if x1 < x0 else "") + (' flipV="1"' if y1 < y0 else "")
+    tail = '<a:tailEnd type="triangle" w="med" len="med"/>' if arrow else ""
+    return (f'<wps:wsp><wps:cNvPr id="{i}" name="Arrow {i}"/><wps:cNvCnPr/><wps:spPr>'
+            f'<a:xfrm{fl}><a:off x="{int(min(x0,x1)*EMU)}" y="{int(min(y0,y1)*EMU)}"/>'
+            f'<a:ext cx="{int(abs(x1-x0)*EMU)}" cy="{int(abs(y1-y0)*EMU)}"/></a:xfrm>'
+            f'<a:prstGeom prst="line"><a:avLst/></a:prstGeom>'
+            f'<a:ln w="9525"><a:solidFill><a:srgbClr val="000000"/></a:solidFill>{tail}</a:ln></wps:spPr><wps:bodyPr/></wps:wsp>')
+
+
+def pipeline_canvas():
+    """Fig. 1 as real Word shapes on a drawing canvas. Box heights follow the amount of text
+    and box widths follow its importance, so the sizes differ."""
+    stages = [  # title, description, width, ours
+        ("Environment", "state, legal moves, goal test", 150, False),
+        ("Propose", "candidate plans from the current state", 190, False),
+        ("Merge", "replay every plan and join equal states into one directed graph", 214, False),
+        ("Check", "a per-game validator rejects or discounts moves; the experience store scales confidence by past failures", 226, True),
+        ("Choose", "price each move, then run A* if one piece moves and CP-SAT if several do", 226, True),
+        ("Run", "execute the path; on a mismatch, record the failure and replan from the real state", 178, False),
+    ]
+    W, cx, gap = 242, 108, 15
+    y, boxes = 0, []
+    for title, desc, w, ours in stages:
+        lines = -(-len(desc) * 3.15 // (w - 8))
+        h = 6 + 10 + lines * 8.6
+        boxes.append((cx - w / 2, y, w, h, title, desc, ours))
+        y += h + gap
+    H = y - gap
+    shapes = []
+    for k, (x, yy, w, h, t, d, ours) in enumerate(boxes):
+        shapes.append(_box(x, yy, w, h, t, d, "D9D9D9" if ours else "FFFFFF", 1.5 if ours else 0.75))
+        if k:
+            px, py, pw, ph = boxes[k - 1][:4]
+            shapes.append(_line(cx, py + ph, cx, yy, arrow=True))
+    lx = 236
+    run, prop = boxes[-1], boxes[1]
+    ym_run, ym_prop = run[1] + run[3] / 2, prop[1] + prop[3] / 2
+    shapes.append(_line(run[0] + run[2], ym_run, lx, ym_run))
+    shapes.append(_line(lx, ym_run, lx, ym_prop))
+    shapes.append(_line(lx, ym_prop, prop[0] + prop[2], ym_prop, arrow=True))
+    shapes.append(_label(lx - 12, (ym_run + ym_prop) / 2 - 22, 10, 44, "replan"))
+    xml = (f'<w:drawing {NS}><wp:inline distT="0" distB="0" distL="0" distR="0">'
+           f'<wp:extent cx="{int(W*EMU)}" cy="{int(H*EMU)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>'
+           f'<wp:docPr id="199" name="Pipeline canvas"/><wp:cNvGraphicFramePr/>'
+           f'<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas">'
+           f'<wpc:wpc><wpc:bg><a:noFill/></wpc:bg><wpc:whole><a:ln><a:noFill/></a:ln></wpc:whole>'
+           + "".join(shapes) + '</wpc:wpc></a:graphicData></a:graphic></wp:inline></w:drawing>')
+    return parse_xml(xml)
+
+
 sec_no, sub_no, fig_no, tab_no = 0, 0, 0, 0
 in_refs, i = False, 0
 body = lines[lines.index(next(l for l in lines if l.startswith("## Abstract"))):]
@@ -357,7 +453,10 @@ while i < len(body):
         pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
         pic.paragraph_format.space_before = Pt(4)
         pic.paragraph_format.keep_with_next = True
-        pic.add_run().add_picture(str(HERE / m.group(2)), width=Pt(240))
+        if m.group(2) == "canvas:pipeline":
+            pic.add_run()._r.append(pipeline_canvas())
+        else:
+            pic.add_run().add_picture(str(HERE / m.group(2)), width=Pt(240))
         cap_txt = m.group(1).strip()
         c = para(align=WD_ALIGN_PARAGRAPH.JUSTIFY if len(cap_txt) > 60 else WD_ALIGN_PARAGRAPH.CENTER, before=2, after=8)
         r = c.add_run(cap_txt)

@@ -30,9 +30,10 @@ ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
 
 CONFERENCE = "2026 International Conference on Computational Intelligence Systems and Devices (ICCISD)"
 COPYRIGHT = "979-8-3315-6371-4/26/$31.00 ©2026 IEEE"
-AUTHORS = [  # (name, email); department and institute are the same for the group
-    ("Divyanshu Gajbhiye", "[email to add]"),
-    ("Vidhi Hadoltikar", "[email to add]"),
+AUTHORS = [  # (name, email); department and institute are the same for everyone
+    ("Prof. Dr. Premanand P. Ghadekar", "premanand.ghadekar@vit.edu"),
+    ("Divyanshu Gajbhiye", "divyanshu.gajbhiye24@vit.edu"),
+    ("Vidhi Hadoltikar", "vidhi.hadoltikar24@vit.edu"),
     ("Harshvardhan Rawat", "harshvardhan.rawat24@vit.edu"),
     ("Nirmit Hatti", "nirmit.hatti24@vit.edu"),
 ]
@@ -146,22 +147,18 @@ tp = para(align=WD_ALIGN_PARAGRAPH.CENTER, before=10, after=12)
 r = tp.add_run(title)
 r.bold, r.font.size, r.font.name = True, Pt(24), FONT
 
-tbl = doc.add_table(rows=2, cols=3)
+tbl = doc.add_table(rows=2, cols=6)  # six narrow columns so that two authors can sit centred under three
 tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
 tbl.autofit = False
-slots = [(0, 0), (0, 1), (0, 2), (1, 1)]  # four authors: three in the first row, one centred under them
-ordinals = ["st", "nd", "rd", "th"]
-for (name, email), (ri, ci), sup in zip(AUTHORS, slots, ordinals):
-    cell = tbl.cell(ri, ci)
-    cell.width = Pt(168)
+for row in tbl.rows:
+    for c in row.cells:
+        c.width = Pt(84)
+spans = [((0, 0), (0, 1)), ((0, 2), (0, 3)), ((0, 4), (0, 5)), ((1, 1), (1, 2)), ((1, 3), (1, 4))]
+for (name, email), (start, end) in zip(AUTHORS, spans):
+    cell = tbl.cell(*start).merge(tbl.cell(*end))
     first = cell.paragraphs[0]
     first.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    n = AUTHORS.index((name, email)) + 1
-    a = first.add_run(str(n))
-    a.font.size, a.font.name = Pt(9), FONT
-    b = first.add_run(sup)
-    b.font.size, b.font.name, b.font.superscript = Pt(9), FONT, True
-    c = first.add_run(f" {name}")
+    c = first.add_run(name)
     c.font.size, c.font.name = Pt(9), FONT
     for t in (DEPT, INSTITUTE, CITY, email):
         q = cell.add_paragraph()
@@ -171,10 +168,7 @@ for (name, email), (ri, ci), sup in zip(AUTHORS, slots, ordinals):
         rr.font.size, rr.font.name = Pt(9), FONT
     for pp in cell.paragraphs:
         pp.paragraph_format.space_after = Pt(0)
-for ci in range(3):
-    tbl.cell(1, ci).paragraphs[0].paragraph_format.space_after = Pt(0)
-# row spacing between the two author rows
-tbl.rows[0].height = Pt(66)
+tbl.rows[0].height = Pt(66)  # space between the two author rows
 doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
 # ------------------------------------------------------------ two-column body

@@ -215,7 +215,16 @@ def add_table(rows):
         e.set(qn("w:type"), "dxa")
         mar.append(e)
     tblPr.append(mar)
-    widths = [Pt(245 * w / sum(weight)) for w in weight]
+    TOTAL = 232  # points; the column is 245.8 wide, so the table stays inside it
+    widths = [Pt(TOTAL * w / sum(weight)) for w in weight]
+    for j, w in enumerate(widths):
+        t.columns[j].width = w  # the grid, so Word does not stretch the table
+    for old in tblPr.findall(qn("w:tblW")):
+        tblPr.remove(old)
+    tw = OxmlElement("w:tblW")
+    tw.set(qn("w:w"), str(int(TOTAL * 20)))
+    tw.set(qn("w:type"), "dxa")
+    tblPr.append(tw)
     for i, row in enumerate(rows):
         for j, val in enumerate(row):
             cell = t.cell(i, j)

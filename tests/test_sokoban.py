@@ -40,14 +40,21 @@ def _levels(boxes, seeds, depth):
 
 
 def test_astar_and_idastar_match_bfs_on_random_levels():
-    cases = list(_levels(1, range(12), 25)) + list(_levels(2, range(100, 105), 30))
-    for p, s in cases:
+    cases = [(p, s, 40) for p, s in _levels(1, range(40), 40)]
+    cases += [(p, s, 60) for p, s in _levels(2, range(100, 115), 60)]
+    nontrivial, hard = 0, 0
+    for p, s, depth in cases:
         b = bfs.solve(p, s)  # BFS ignores h and prune
+        assert b.status == "ok" and b.cost <= depth  # reverse play guarantees solvability
+        if b.cost == 0:
+            continue  # already solved: says nothing about h or prune
         a = astar.solve(p, s)
         i = idastar.solve(p, s)
-        assert b.status == "ok" and b.cost <= 30  # reverse play guarantees solvability
         assert a.status == "ok" and i.status == "ok"
         assert a.cost == b.cost == i.cost, "inadmissible h or unsound prune"
+        nontrivial += 1
+        hard += b.cost >= 5
+    assert nontrivial >= 15 and hard >= 5, (nontrivial, hard)
 
 
 def test_random_start_is_a_legal_state():

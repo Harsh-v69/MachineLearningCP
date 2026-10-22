@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import random
+import sys
 from dataclasses import dataclass
 from typing import Callable, List, Tuple
 
@@ -63,4 +64,6 @@ def make_instances(name, per_bucket, seed, tol=1, max_tries=5000):
                 continue
             out.append(Instance(p, s, int(T), o))
             got += 1
+        if got < per_bucket:
+            print(f"[make_instances] {name} T*={target}: only {got}/{per_bucket} instances after {tries} tries", file=sys.stderr)
     return out

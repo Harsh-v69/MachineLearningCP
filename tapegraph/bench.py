@@ -73,28 +73,33 @@ def run_agents(a):
 
 
 def run_constrained(a):
-    """min length s.t. length <= T*+slack and resource <= floor(res_frac * resource of the unconstrained optimum)."""
+    """min length s.t. length <= T*+slack and resource <= floor(res_frac * resource of the unconstrained optimum).
+    Every instance yields a row: solver="skipped" when R cannot be derived (base A* failed) or is proven infeasible."""
     rows, skipped = [], 0
     for inst in make_instances(a.bench, a.n, a.seed):
         p, B = inst.problem, inst.T + a.slack
+        head = {"bench": a.bench, "T": inst.T}
         base = astar.solve(p, inst.start, budget=B, max_nodes=a.max_nodes)
-        if base.status != "ok":
+        if base.status != "ok":  # cannot derive R
             skipped += 1
+            rows.append({**head, "solver": "skipped", "status": base.status, "ok": 0})
             continue
         R = math.floor(a.res_frac * base.res)
         results = {n: SOLVERS[n](p, inst.start, budget=B, res_budget=R, max_nodes=a.max_nodes)
                    for n in ("astar", "ilp") if _usable(n)}
-        if results["astar"].status != "ok":  # infeasible at this resource budget
+        ra = results["astar"]
+        if ra.status == "no_path":  # proven infeasible at this resource budget
             skipped += 1
+            rows.append({**head, "solver": "skipped", "status": "infeasible", "ok": 0, "R": R})
             continue
         for n, r in results.items():
             rows.append({
-                "bench": a.bench, "T": inst.T, "solver": n, "status": r.status, "ok": int(r.status == "ok"), "R": R,
+                **head, "solver": n, "status": r.status, "ok": int(r.status == "ok"), "R": R,
                 "cost": r.cost if r.status == "ok" else "",
-                "agrees_with_astar": int(r.status == results["astar"].status and r.cost == results["astar"].cost),
+                "agrees_with_astar": int(ra.status == "ok" and r.status == "ok" and r.cost == ra.cost),
                 "nodes": r.nodes, "seconds": round(r.seconds, 5),
             })
-    print(f"[constrained] skipped {skipped} infeasible/unsolved instances")
+    print(f"[constrained] skipped {skipped} infeasible/unsolved instances (recorded as solver=skipped rows)")
     _write(Path(a.out) / f"constrained_{a.bench}.csv", rows)
 
 
@@ -121,6 +126,20 @@ def summarize(rows, group, metrics):
     return out
 
 
+STATUSES = ["ok", "no_path", "node_limit", "too_large", "timeout", "infeasible"]
+
+
+def status_table(rows, group=("bench", "solver")):
+    """Per group: n and the count of each status value (canonical statuses first, then any others seen)."""
+    seen = list(dict.fromkeys(r["status"] for r in rows))
+    cols = [s for s in STATUSES if s in seen] + [s for s in seen if s not in STATUSES]
+    counts = defaultdict(lambda: defaultdict(int))
+    for r in rows:
+        counts[tuple(r[k] for k in group)][r["status"]] += 1
+    return [{**dict(zip(group, key)), "n": sum(c.values()), **{s: c[s] for s in cols}}
+            for key, c in sorted(counts.items())]
+
+
 def _md(rows):
     if not rows:
         return "_no data_\n"
@@ -133,19 +152,24 @@ def _md(rows):
 def run_report(a):
     out = Path(a.out)
     sections = [
-        ("Solvers (unconstrained, budget = T*+slack; ok = fraction solved within the node cap)", "solvers_*.csv",
+        ("Solvers (unconstrained, budget = T*+slack; ok = fraction solved within the node cap; cost means are over solved instances only)", "solvers_*.csv",
          ["bench", "T", "solver"], ["ok", "cost_ratio", "nodes", "seconds"]),
         ("Agents (success within budget under noise)", "agents_*.csv", ["bench", "T", "method"],
          ["success", "mean_steps", "solves", "seconds"]),
-        ("Constrained (length + resource budget; agrees_with_astar = rate of identical status and cost)",
+        ("Constrained (length + resource budget; agrees_with_astar = rate of both solved with identical cost; solver=skipped rows are instances with no derivable or feasible R; cost means are over solved instances only)",
          "constrained_*.csv", ["bench", "T", "solver"], ["ok", "agrees_with_astar", "cost", "nodes", "seconds"]),
     ]
     md = ["# Results\n"]
+    loaded = {}
     for title, pattern, group, metrics in sections:
         rows = []
         for f in sorted(out.glob(pattern)):
             rows += [{k: _num(v) for k, v in r.items()} for r in csv.DictReader(open(f))]
+        loaded[pattern] = rows
         md.append(f"## {title}\n\n" + _md(summarize(rows, group, metrics)))
+    for title, pattern in (("Failure breakdown: solvers (count of rows per status)", "solvers_*.csv"),
+                           ("Failure breakdown: constrained (count of rows per status; skipped = no derivable/feasible R)", "constrained_*.csv")):
+        md.append(f"## {title}\n\n" + _md(status_table(loaded[pattern])))
     (out / "results.md").write_text("\n".join(md))
     print(f"[saved] {out / 'results.md'}")
 

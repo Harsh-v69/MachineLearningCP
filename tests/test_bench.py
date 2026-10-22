@@ -35,3 +35,48 @@ def test_constrained_records_ilp_timeout(tmp_path, monkeypatch):
     bench.main()
     rows = [r for r in csv.DictReader(open(tmp_path / "constrained_river.csv")) if r["solver"] == "ilp"]
     assert rows and all(r["status"] == "timeout" and r["ok"] == "0" and r["agrees_with_astar"] == "0" for r in rows)
+    monkeypatch.setattr(sys, "argv", ["bench", "report", "--out", str(tmp_path)])
+    bench.main()
+    md = (tmp_path / "results.md").read_text()
+    section = md[md.index("Failure breakdown: constrained"):]
+    header, ilp = None, None
+    for l in section.splitlines():
+        cells = [c.strip() for c in l.strip("|").split("|")]
+        header = cells if cells[0] == "bench" else header
+        ilp = dict(zip(header, cells)) if cells[:2] == ["river", "ilp"] else ilp
+    assert ilp["timeout"] == ilp["n"] != "0" and ilp["ok"] == "0"
+
+
+def _run_constrained(tmp_path, monkeypatch, *extra):
+    monkeypatch.setattr(sys, "argv", ["bench", "constrained", "--bench", "river", "--n", "1", "--out", str(tmp_path), *extra])
+    bench.main()
+    return list(csv.DictReader(open(tmp_path / "constrained_river.csv")))
+
+
+def test_summarize_keeps_failure_groups():
+    rows = [{"bench": "b", "T": 5, "solver": "s", "ok": 0, "cost": ""}]
+    assert bench.summarize(rows, ["bench", "T", "solver"], ["ok", "cost"]) == [
+        {"bench": "b", "T": 5, "solver": "s", "n": 1, "ok": 0, "cost": ""}]
+
+
+def test_constrained_writes_skipped_row_when_infeasible(tmp_path, monkeypatch):
+    from tapegraph.problem import Result
+    monkeypatch.setitem(bench.SOLVERS, "astar", lambda *a, **k: Result("no_path"))
+    rows = _run_constrained(tmp_path, monkeypatch)
+    assert len(rows) == 6 and {(r["solver"], r["status"], r["ok"]) for r in rows} == {("skipped", "infeasible", "0")}
+
+
+def test_constrained_writes_skipped_row_when_base_fails(tmp_path, monkeypatch):
+    from tapegraph.problem import Result
+    monkeypatch.setattr(bench.astar, "solve", lambda *a, **k: Result("node_limit"))
+    rows = _run_constrained(tmp_path, monkeypatch)
+    assert len(rows) == 6 and {(r["solver"], r["status"], r["ok"]) for r in rows} == {("skipped", "node_limit", "0")}
+
+
+def test_constrained_failed_astar_keeps_both_rows_with_zero_agreement(tmp_path, monkeypatch):
+    from tapegraph.problem import Result
+    monkeypatch.setitem(bench.SOLVERS, "astar", lambda *a, **k: Result("node_limit"))
+    rows = _run_constrained(tmp_path, monkeypatch)
+    assert {r["solver"] for r in rows} >= {"astar"}
+    assert all(r["agrees_with_astar"] == "0" for r in rows)
+    assert all(r["cost"] == "" for r in rows if r["solver"] == "astar")

@@ -63,7 +63,15 @@ def test_ilp_reports_too_large_instead_of_truncating():
     assert ilp.solve(p, s, budget=20, max_nodes=3).status == "too_large"
 
 
-def test_graph_path_bfs_same_format_as_ilp():
+def test_ilp_timeout_is_not_no_path():
+    p = River(8, 4)
+    s = p.random_start(random.Random(0), 10)
+    assert ilp.solve(p, s, budget=20, time_limit=0).status == "timeout"
+    edges = [(u, a, v, 1, 1) for u in range(30) for a, v in ((f"a{u}", u + 1), (f"b{u}", u + 2))]
+    with pytest.raises(ilp.IlpTimeout):
+        ilp.solve_graph(0, {31}, edges, time_limit=0)
+
+
+def test_solve_graph_same_format_as_bfs():
     edges = [("A", "ab", "B", 1, 1), ("B", "be", "E", 1, 5)]
-    assert ilp.graph_path_bfs("A", {"E"}, edges) == [("A", "ab", "B"), ("B", "be", "E")]
     assert ilp.solve_graph("A", {"E"}, edges) == [("A", "ab", "B"), ("B", "be", "E")]

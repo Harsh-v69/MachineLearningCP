@@ -12,7 +12,7 @@ INF = math.inf
 
 @dataclass
 class Result:
-    status: str  # ok | no_path | node_limit | too_large
+    status: str  # ok | no_path | node_limit | too_large | timeout
     path: List[str] = field(default_factory=list)
     states: List[State] = field(default_factory=list)  # len(path) + 1 when ok
     cost: float = INF

@@ -16,6 +16,10 @@ except ImportError:  # the rest of the package works without it
 SCALE = 1000  # CP-SAT needs integers
 
 
+class IlpTimeout(Exception):
+    """CP-SAT stopped without proving optimality or infeasibility."""
+
+
 def solve_graph(start, goals, edges, res_budget=None, cost_budget=None, time_limit=10.0):
     """Min-cost start->goal path on an explicit graph as a unit-flow ILP.
 
@@ -47,18 +51,21 @@ def solve_graph(start, goals, edges, res_budget=None, cost_budget=None, time_lim
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit)
     solver.parameters.num_search_workers = 8
-    if solver.Solve(m) not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+    status = solver.Solve(m)
+    if status == cp_model.INFEASIBLE:
         return None
+    if status != cp_model.OPTIMAL:
+        raise IlpTimeout(solver.StatusName(status))
     path, cur, seen = [], start, {start}
     while not (cur in z and solver.Value(z[cur])):
         step = [i for i in out[cur] if solver.Value(x[i])]
         if not step:
-            return None
+            raise IlpTimeout("broken flow")
         u, a, v, _, _ = edges[step[0]]
         path.append((u, a, v))
         cur = v
-        if cur in seen:  # only possible for a non-optimal answer at the time limit
-            return None
+        if cur in seen:  # only possible for a non-optimal answer
+            raise IlpTimeout("cycle in reconstruction")
         seen.add(cur)
     return path
 
@@ -111,7 +118,10 @@ def solve(problem, start, budget=INF, res_budget=None, max_nodes=200_000, time_l
                 g[v] = g[u] + c
                 q.append(v)
     goals = {u for u in g if problem.is_goal(u)}
-    path = solve_graph(start, goals, edges, res_budget, budget, time_limit) if goals else None
+    try:
+        path = solve_graph(start, goals, edges, res_budget, budget, time_limit) if goals else None
+    except IlpTimeout:
+        return fail("timeout", len(g), t0)
     if not path:
         return fail("no_path", len(g), t0)
     return make_result(problem, start, [a for _, a, _ in path], len(g), t0)

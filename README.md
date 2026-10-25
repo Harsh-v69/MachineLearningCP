@@ -38,8 +38,8 @@ in `docs/results.md`.
 
 ## How the results were produced
 
-Single machine, sequential runs, seed = CLI default (1). Defaults for everything not listed: budget `B = T* + 2`
-(`--slack 2`), `--max_nodes 500000`, ILP `time_limit` 10 s per solve, `--delta 0.16`, `--eta 0.04`, `--N 16`,
+Single machine, seed = CLI default (1). Defaults for everything not listed: budget `B = T* + 2`
+(`--slack 2`), `--max_nodes 500000`, ILP `time_limit` 10 s per solve (the limit applies to the solver; graph construction and model building add to the wall-clock, so recorded `timeout` rows take 10 to 21 s), `--delta 0.16`, `--eta 0.04`, `--N 16`,
 `--res_frac 0.9`. Every benchmark used `--n 5` instances per `T*` target (River 6 targets = 30 instances, Sokoban
 25, Boxoban 20, Cube 25). Instances are accepted within +-1 of the target and reported under their true `T*`, so
 rows in the tables are keyed by actual `T*` and have 1 to 5 instances each.
@@ -55,8 +55,10 @@ Times are from the run logs. The solvers and constrained runs were done sequenti
 agents runs were **re-run after a seeding fix** (commit b7f6106: before it, every instance in a benchmark received the
 same noise draws; now each instance gets its own seed `seed + 7919 * index`, shared by all methods of that instance so
 the comparison stays paired). The first agents results were discarded. The four re-runs ran as parallel processes
-(longest 2267 s), so their `seconds` columns are slightly inflated by contention. Then `python -m tapegraph.bench
-report`.
+(longest 2267 s), so their `seconds` columns are slightly inflated by contention. Also, `react` and `tape` `seconds`
+include Oracle distance computations (A*, 300k node cap, on off-path states; e.g. 14 to 17 s per episode on one
+Boxoban `T*` 7 instance, against about 0.002 s for `ours_astar`), so they are not comparable to the `ours_*` times.
+Then `python -m tapegraph.bench report`.
 
 Deviations from the nominal loop above:
 
@@ -123,7 +125,7 @@ unreduced resource. (Skipped rows only record A*'s verdict, so the table itself 
   (A* 10 to 41, ILP 19 to 45).
 - Cube: A* solved 6 of 7 (cost 9.0 at `T*` 9 in 0.19 s; 4 of 5 at `T*` 11, cost 11.0, 170,665 nodes, 5.6 s). The ILP
   solved 0 of 7, so agreement is 0.0 there.
-- The ILP never beat A* on time or on success in any constrained row.
+- The ILP never solved more instances than A* in the constrained table, and was faster only in a row where it solved 0 of 5 (Cube `T*` 11: 2.17 s vs 5.59 s, failing fast with `too_large`).
 
 **4. Success within budget under noise** (`delta` 0.16 planning error, `eta` 0.04 execution noise; episodes: 100 River
 and Sokoban, 30 Cube, 20 Boxoban; each instance has its own noise seed, shared by the methods). Smallest and largest
@@ -136,14 +138,18 @@ and Sokoban, 30 Cube, 20 Boxoban; each instance has its own noise seed, shared b
 | boxoban | 7 / 21 | 0.533 / 0.05 | 0.983 / 0.80 | 0.983 / 0.817 | none |
 | cube2 | 3 / 11 | 0.84 / 0.32 | 1.0 / 0.947 | 1.0 / 0.94 | none |
 
-Averaged over instances, success is react / tape / ours_astar / ours_ilp: River 0.455 / 0.951 / 0.954 / 0.959,
+Averaged over instances (the `tape` rows use the real ILP for River and Sokoban but BFS on the folded graph for
+Boxoban and Cube), success is react / tape / ours_astar / ours_ilp: River 0.455 / 0.951 / 0.954 / 0.959,
 Sokoban 0.248 / 0.862 / 0.872 / 0.874, Boxoban 0.225 / 0.850 / 0.855 / none, Cube 0.539 / 0.967 / 0.965 / none.
 
-- ReAct-sim falls steadily with `T*` in every benchmark and is far below the others from the first bucket (0.66 to
-  0.84 at the smallest `T*`, 0.05 to 0.32 at the largest). `tape`, `ours_astar` and `ours_ilp` are within a few points
+- ReAct-sim falls with `T*` overall (not monotonically on Boxoban: 0.20 at `T*` 8, 0.30 at 9, 0.35 at 11, 0.225 at 15,
+  with few instances per bucket) and is far below the others from the first bucket (0.53 to 0.84 at the smallest `T*`,
+  0.05 to 0.32 at the largest). `tape`, `ours_astar` and `ours_ilp` are within a few points
   of each other everywhere (largest `tape` vs `ours_astar` gap: 0.055 at Sokoban `T*` 23). Per instance, `tape` has
   higher success than `ours_astar` on 10 of 100 instances, lower on 23, equal on 67, so `ours_astar` >= `tape` on 90
-  of 100; the pooled margin is 0.001 to 0.010 per benchmark, which I do not read as a real edge. `tape` runs more
+  of 100. This slightly favours `ours_astar`, but the pooled margins are small (0.1 to 1.0 percentage points per
+  benchmark; Cube is the one where `tape` is ahead, by 0.1) and not shown to matter. Note the `tape` rows use the real
+  ILP for River and Sokoban but BFS on the folded graph for Boxoban and Cube. `tape` runs more
   solves per episode at large `T*` (Sokoban `T*` 23: 5.04 vs 3.24 for `ours_astar`). `ours_ilp` tracks `ours_astar`:
   higher on 14 and lower on 5 of 30 River instances (pooled 0.959 vs 0.954), higher on 3 and lower on 2 of 25 Sokoban
   instances (0.874 vs 0.872), so no meaningful difference, and it takes far longer per episode (River `T*` 14: 0.065
@@ -161,15 +167,15 @@ Sokoban 0.248 / 0.862 / 0.872 / 0.874, Boxoban 0.225 / 0.850 / 0.855 / none, Cub
   to 0.1), and longer paths also mean more noise events.
 - Before the seeding fix the Cube row read 1.0 for `tape` and `ours` at every `T*`. That was an artifact of the
   bug: all instances saw the same 30 noise draws, and none of them hurt. With per-instance seeds the Cube numbers
-  match a separate 200-episode check made earlier on the old seeding (`ours_astar`, `T*` 5: 0.99, `T*` 7: 0.96, `T*` 9:
-  0.92 to 0.94).
+  are roughly consistent with a separate 200-episode check I ran earlier on the old seeding (`ours_astar`, `T*` 5: about
+  0.99, `T*` 7: about 0.96, `T*` 9: 0.92 to 0.94); that check is not in the repository and cannot be reproduced from it.
 
 **Does the ILP win anywhere?** No. In the unconstrained table it is the slowest of the five solvers in every
 `(benchmark, T*)` bucket except Cube `T*` 11 (34 to 136 times slower than A* on River and Sokoban). Its
 node count is below BFS in some Sokoban and Boxoban buckets, but ILP "nodes" is the size of the bounded subgraph it
 builds. That exception (Cube `T*` 11, ILP 3.3 s vs A* 4.4 s) is a bucket where it
-solved 0 of 5 and failed fast with `too_large`. It also never beats A* in the constrained table and solves fewer
-instances on Boxoban and Cube. The supplementary constrained runs below say the same.
+solved 0 of 5 and failed fast with `too_large`. In the constrained table it never solves more instances than A* (and is faster only in the same kind of row, Cube
+`T*` 11, where it solved 0 of 5) and it solves fewer instances on Cube. The supplementary constrained runs below say the same.
 
 ### Supplementary: constrained at res_frac 0.95
 

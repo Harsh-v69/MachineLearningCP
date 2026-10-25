@@ -80,3 +80,15 @@ def test_constrained_failed_astar_keeps_both_rows_with_zero_agreement(tmp_path, 
     assert {r["solver"] for r in rows} >= {"astar"}
     assert all(r["agrees_with_astar"] == "0" for r in rows)
     assert all(r["cost"] == "" for r in rows if r["solver"] == "astar")
+
+
+def test_agents_use_distinct_seed_per_instance_shared_across_methods(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(bench, "evaluate", lambda p, s, pol, B, eta, eps, seed: calls.append((id(s), type(pol).__name__, seed))
+                        or {"success": 1.0, "mean_steps": 1.0, "solves": 0.0, "seconds": 0.0})
+    monkeypatch.setattr(sys, "argv", ["bench", "agents", "--bench", "river", "--n", "1", "--episodes", "1", "--out", str(tmp_path)])
+    bench.main()
+    seeds = [seed for _, _, seed in calls]
+    runs = [seeds[0]] + [b for a, b in zip(seeds, seeds[1:]) if a != b]  # consecutive calls = methods of one instance
+    assert len(runs) == len(set(runs)) == len(BENCHMARKS["river"].T_targets) > 1  # one seed per instance, all distinct
+    assert len(seeds) == len(runs) * (len(seeds) // len(runs))  # same number of methods share each instance's seed

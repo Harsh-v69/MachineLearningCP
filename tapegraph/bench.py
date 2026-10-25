@@ -57,8 +57,9 @@ def run_solvers(a):
 
 def run_agents(a):
     rows = []
-    for inst in make_instances(a.bench, a.n, a.seed):
+    for idx, inst in enumerate(make_instances(a.bench, a.n, a.seed)):
         p, o, B = inst.problem, inst.oracle, inst.T + a.slack
+        seed = a.seed + 7919 * idx  # per-instance noise; shared by all methods of one instance (paired comparison)
         makers = {
             "react": lambda: ReActSim(p, o, a.delta),
             "tape": lambda: TapeSim(p, o, a.delta, N=a.N),
@@ -67,7 +68,7 @@ def run_agents(a):
         if ilp.ORTOOLS_AVAILABLE:
             makers["ours_ilp"] = lambda: Replan(p, ilp.solve, max_nodes=a.max_nodes)
         for name, mk in makers.items():
-            r = evaluate(p, inst.start, mk(), B, a.eta, a.episodes, a.seed)
+            r = evaluate(p, inst.start, mk(), B, a.eta, a.episodes, seed)
             rows.append({"bench": a.bench, "T": inst.T, "method": name, **{k: round(v, 5) for k, v in r.items()}})
     _write(Path(a.out) / f"agents_{a.bench}.csv", rows)
 

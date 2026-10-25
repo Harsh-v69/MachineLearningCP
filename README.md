@@ -16,6 +16,12 @@ This project removes the LLM and asks what is left: a planning loop over a state
 ReAct and TAPE are *simulated* with the paper's noise model (`delta` planning error, `eta` execution noise), so
 they are models of LLM behaviour, not real LLM runs.
 
+Status of the resource-constrained comparison (ILP vs A*): the original `frac` design (budget = a fraction of the
+optimum's resource) almost never made the budget bind. A redesigned `bind` design, with resources chosen so that a
+trade-off exists, does exercise it on River and Cube (thinly on Sokoban and Boxoban). In both, the ILP matched A*
+wherever both solved and was never faster except on rows where it failed. See "Constrained experiment, redesigned so
+the budget binds" below.
+
 ## Run
 
 ```bash
@@ -31,9 +37,15 @@ Exact commands behind the published tables (seed = CLI default 1; `B` is `river`
 | agents, river and sokoban | `python -m tapegraph.bench agents --bench B --n 5 --episodes 100` |
 | agents, boxoban | `python -m tapegraph.bench agents --bench boxoban --n 5 --episodes 20 --no_ilp` |
 | agents, cube2 | `python -m tapegraph.bench agents --bench cube2 --n 5 --episodes 30 --no_ilp` |
-| constrained, all four | `python -m tapegraph.bench constrained --bench B --n 5` |
-| supplementary constrained | `python -m tapegraph.bench constrained --bench {sokoban,boxoban} --n 5 --res_frac {0.95,0.97,1.0} --out results_rf{95,97,100}` |
-| tables | `python -m tapegraph.bench report` (and `report --out results_rfNN`) |
+| constrained, `frac` design, all four | `python -m tapegraph.bench constrained --design frac --bench B --n 5` |
+| supplementary constrained (`frac`) | `python -m tapegraph.bench constrained --design frac --bench {sokoban,boxoban} --n 5 --res_frac {0.95,0.97,1.0} --out results_rf{95,97,100}` |
+| constrained, `bind` design | `python -m tapegraph.bench constrained --design bind --c_slack 4 --out results_bind --bench river --n 20`, and the same with `sokoban --n 20`, `boxoban --n 10`, `cube2 --n 4` (run one at a time) |
+| tables | `python -m tapegraph.bench report` (and `report --out results_rfNN`, `report --out results_bind`) |
+
+Both constrained designs write `constrained_<bench>.csv`, so they must use different `--out` directories (the bind
+runs went to `results_bind/`, git-ignored; its copies are in `docs/`). `--design` now **defaults to `bind`**: the
+`frac` commands above need the explicit `--design frac` to reproduce the published `frac` tables (they were produced
+before the flag existed, when `frac` was the only behaviour).
 
 These now reproduce the published tables up to the `seconds` columns (and any ILP timeout that depends on machine
 speed). The published Boxoban and Cube agents runs were made before `--no_ilp` existed, through an equivalent
@@ -41,7 +53,8 @@ uncommitted wrapper (`ilp.ORTOOLS_AVAILABLE = False` then `bench.main()`); `--no
 `TapeSim` use BFS on the folded graph, which is what that wrapper did. The agents CSVs written by the current code
 also carry `delta`, `eta`, `slack`, `episodes`, `N`, `use_ilp`, `seed` and `inst_seed` columns, and skipped constrained
 rows carry `ilp_status`; the committed CSVs in `docs/data/` predate those columns. Raw CSVs behind every table are in
-`docs/data/main/` and `docs/data/rf95|rf97|rf100/`.
+`docs/data/main/`, `docs/data/rf95|rf97|rf100/` and `docs/data/bind/` (tables: `docs/results.md`, `docs/results_rf95.md`,
+`docs/results_bind.md`).
 
 ## Layout
 
@@ -58,12 +71,12 @@ rows in the tables are keyed by actual `T*` and have 1 to 5 instances each.
 
 | benchmark | solvers | agents | constrained |
 |---|---|---|---|
-| river | `solvers --bench river --n 5` (4 s) | `agents --bench river --n 5 --episodes 100` (238 s) | `constrained --bench river --n 5` (4 s) |
-| sokoban | `solvers --bench sokoban --n 5` (12 s) | `agents --bench sokoban --n 5 --episodes 100` (367 s) | `constrained --bench sokoban --n 5` (13 s) |
-| boxoban | `solvers --bench boxoban --n 5` (140 s) | `agents --bench boxoban --n 5 --episodes 20 --no_ilp` (2267 s) | `constrained --bench boxoban --n 5` (136 s) |
-| cube2 | `solvers --bench cube2 --n 5` (228 s) | `agents --bench cube2 --n 5 --episodes 30 --no_ilp` (812 s) | `constrained --bench cube2 --n 5` (171 s) |
+| river | `solvers --bench river --n 5` (4 s) | `agents --bench river --n 5 --episodes 100` (238 s) | `constrained --design frac --bench river --n 5` (4 s) |
+| sokoban | `solvers --bench sokoban --n 5` (12 s) | `agents --bench sokoban --n 5 --episodes 100` (367 s) | `constrained --design frac --bench sokoban --n 5` (13 s) |
+| boxoban | `solvers --bench boxoban --n 5` (140 s) | `agents --bench boxoban --n 5 --episodes 20 --no_ilp` (2267 s) | `constrained --design frac --bench boxoban --n 5` (136 s) |
+| cube2 | `solvers --bench cube2 --n 5` (228 s) | `agents --bench cube2 --n 5 --episodes 30 --no_ilp` (812 s) | `constrained --design frac --bench cube2 --n 5` (171 s) |
 
-Times are from the run logs. The solvers and constrained runs were done sequentially (about 710 s in total). The
+The constrained column is the `frac` design (see below for `bind`). Times are from the run logs. The solvers and constrained runs were done sequentially (about 710 s in total). The
 agents runs were **re-run after a seeding fix** (commit b7f6106: before it, every instance in a benchmark received the
 same noise draws; now each instance gets its own seed `seed + 7919 * index`, shared by all methods of that instance so
 the comparison stays paired). The first agents results were discarded. The four re-runs ran as parallel processes
@@ -121,10 +134,10 @@ paths: mean `cost_ratio` 1.0476 at Boxoban `T*` 7, 1.0286 and 1.0444 at Cube `T*
   each). Cube 15/25 ok, 5 `timeout` (all 5 instances at `T*` 9, 19.7 s mean) and 5 `too_large` (all 5 at `T*` 11, the
   bounded graph hit the 500,000-node cap). The ILP solved every River and Sokoban instance.
 - A*, IDA* and weighted A* had no failures in any benchmark, unconstrained.
-- Constrained (below): A* had 1 `node_limit` (Cube `T*` 11); the ILP had 5 `too_large` and 2 `timeout` on the 7 Cube
+- Constrained, `frac` design (below): A* had 1 `node_limit` (Cube `T*` 11); the ILP had 5 `too_large` and 2 `timeout` on the 7 Cube
   instances it was run on, and 0 successes.
 
-**3. Constrained: ILP vs resource-constrained A*.** The resource budget is `floor(0.9 x resource of the unconstrained
+**3. Constrained, `frac` design: ILP vs resource-constrained A*.** (The redesigned `bind` experiment is a separate section below.) The resource budget is `floor(0.9 x resource of the unconstrained
 optimum)`. That is infeasible for most instances, which are recorded as `solver=skipped` rows (status `infeasible`):
 River 6 of 30 (4 of 5 at `T*` 4, 2 of 5 at `T*` 6), **Sokoban 25 of 25, Boxoban 20 of 20**, Cube 18 of 25 (all 15 at
 `T*` 3, 5, 7 and 3 of 5 at `T*` 9). So the ILP-vs-A* comparison exists only for River (24 instances) and Cube `T*` 9
@@ -191,20 +204,22 @@ Sokoban 0.248 / 0.862 / 0.872 / 0.874, Boxoban 0.225 / 0.850 / 0.855 / none, Cub
   are roughly consistent with a separate 200-episode check I ran earlier on the old seeding (`ours_astar`, `T*` 5: about
   0.99, `T*` 7: about 0.96, `T*` 9: 0.92 to 0.94); that check is not in the repository and cannot be reproduced from it.
 
-**Does the ILP win anywhere?** Not in any regime tested here, but the regime where it might help was barely exercised.
+**Does the ILP win anywhere?** Not in any regime tested here (with the thin-data caveats below). The regime where it might help, a resource budget that forces a longer path, was barely exercised by the `frac` design and is exercised on River and Cube, only thinly on Sokoban and Boxoban, by the redesigned `bind` design.
 - Unconstrained: the ILP is the slowest of the five solvers in every `(benchmark, T*)` bucket except Cube `T*` 11 (34 to
   136 times slower than A* on River and Sokoban). Its node count is below BFS in some Sokoban and Boxoban buckets, but
   ILP "nodes" is the size of the bounded subgraph it builds. The Cube `T*` 11 exception (ILP 3.3 s vs A* 4.4 s) is a
   bucket where it solved 0 of 5 and failed fast with `too_large`.
-- Constrained, main table (`res_frac` 0.9): the ILP never solved more instances than A*, and was faster only in a row
+- Constrained, `frac` design, main table (`res_frac` 0.9): the ILP never solved more instances than A*, and was faster only in a row
   where it solved 0 of 5 (Cube `T*` 11). **But the resource budget never lengthened the optimal path in any solved
   instance:** all 30 instances A* solved (River 24, Cube 6) have `cost == T*`, and the 24 the ILP solved (all River) too.
   In the supplementary runs exactly 3 solved instance-runs were forced to a longer path (Sokoban `T*` 17 at 0.95, and
   `T*` 17 and `T*` 21 at 0.97, cost `T*` + 2 each; the two `T*` 17 runs are the same instance, so 2 distinct instances),
-  and the ILP matched A* on all of them. So the case a resource-constrained ILP is meant for (a budget that forces a
-  trade-off against length) was effectively not exercised, and these results say nothing about whether the ILP would win
-  there.
-- Why Sokoban and Boxoban are infeasible below the optimum's resource: the resource is steps plus 2 per push (a push
+  and the ILP matched A* on all of them. So for the `frac` design, the case a resource-constrained ILP is meant for (a
+  budget that forces a trade-off against length) was effectively not exercised; that statement is about this design
+  and its original resources only. The `bind` design below does exercise it (131 A* rows and 110 ILP rows with the
+  optimum strictly longer than `T*`), and there the ILP again matched A* where it solved and was slower, except on rows
+  where it failed fast.
+- Why Sokoban and Boxoban are infeasible below the optimum's resource (`frac` design, original resources): the resource is steps plus 2 per push (a push
   costs 3, a walking move 1). With length slack 2, a path can only use fewer resource units than the length-optimal
   path by using fewer pushes (each saved push saves 2 units; extra walking only adds), and `floor(X * resource of the
   optimum)` for X below 1 already needs at least one unit saved. A path with fewer pushes than the length-optimal one
@@ -238,9 +253,123 @@ So for Boxoban there is no instance at 0.95 or 0.97 where the resource budget bi
 Sokoban only 1 and 2 of 25. In those, the ILP agreed with A* and was slower. With a non-binding budget (1.0) the
 pattern is the same as in the unconstrained table.
 
+### Constrained experiment, redesigned so the budget binds
+
+**Why.** The `frac` design above never forced a longer path in the main table (and in only 3 supplementary instance-runs): its resources (steps plus 2 per
+push, passengers carried, quarter-turn 1 / half-turn 2) grow with path length, so a length-optimal path was already
+(close to) resource-minimal and `res_frac * optimum` was either infeasible or non-binding. The redesign makes the
+resource constraint cut off every length-optimal path while still leaving a feasible, longer one.
+
+**Probe: do the resources trade off against length at all?** For each instance: does a path of length <= `T*` + slack
+exist with strictly less resource than every length-`T*` path? Counts are instances with a trade-off / instances in the
+set. Slack 2, 4 and 8 gave identical counts, so where a trade-off exists it already exists at slack 2.
+
+| benchmark (instance set) | resource | trade-off instances |
+|---|---|---|
+| River (30) | passengers carried (original) | 0 / 30 |
+| River | missionaries x 3 | 0 / 30 |
+| River | passengers squared | 7 / 30 |
+| Cube2 (8; `T*` in {5, 7, 8}) | half-turn 2 / quarter-turn 1 (original) | 0 / 8 |
+| Cube2 | quarter-turns only | 1 / 8 |
+| Cube2 | half-turns only | 7 / 8 |
+| Sokoban (25) | push 3 / move 1 (original) | 2 / 25 |
+| Sokoban | pushes only | 2 / 25 |
+| Boxoban (3 small instances; `T*` in {8, 12, 16}) | push 3 / move 1 (original) | 0 / 3 |
+| Boxoban | pushes only | 0 / 3 |
+
+These numbers come from a throwaway run of the same logic as `scripts/probe_resources.py` (seed 1, instance sets from
+`make_instances`). The run's output was not saved, so the table is not reproducible from stored data; the script is
+committed and should regenerate it, but I have not re-run it for this write-up. The Boxoban probe sample is tiny
+(3 instances) and says very little about Boxoban.
+
+**Design** (`constrained --design bind --c_slack 4`; code: `bench.min_resource`, `bench.bind_budgets`,
+`bench._constrained_bind`). For each instance, with `T*` the optimal length:
+- `r_opt` = the minimum resource among paths of length <= `T*`; `r_min` = the minimum resource among paths of length
+  <= `B = T* + c_slack` (default `c_slack` 4). Both come from bisection over A* calls with a resource budget, so the
+  bisection runs only A*.
+- If `r_min >= r_opt` the instance is skipped with status `no_tradeoff` (a `solver=skipped` row).
+- Otherwise there are two levels. `bind`: `R = r_opt - 1`, so every length-`T*` path violates the budget and the
+  optimum is strictly longer than `T*`. `tight`: `R = r_min`, the hardest feasible budget. `tight` is run only when
+  `r_min < r_opt - 1`; otherwise `bind` already equals `r_min` (this is the case for 7 of the 18 Cube trade-off
+  instances).
+- A* and the CP-SAT ILP both run at `(B, R)` with the same `--max_nodes`. `forced_longer` = 1 when the returned cost is
+  above `T*`.
+
+**Resources used** (`res_bind`, applied through a `ResView` wrapper; the original `res` is unchanged and still used by
+the `frac` design): Sokoban and Boxoban count **pushes only** (walking is free); River counts **passengers squared**
+(crowded boats cost more); Cube counts **half-turns only** (quarter-turns are free). These were chosen *because* they
+create trade-offs (see the probe). So this experiment tests solver behaviour under a binding resource budget; it says
+nothing about which resource a real application would care about.
+
+**Run**: seed 1, `--max_nodes 500000`, ILP 10 s limit, one process at a time (so the `seconds` columns are not
+contended): River `--n 20` (8 s), Sokoban `--n 20` (19 s), Boxoban `--n 10` (118 s), Cube2 `--n 4` (397 s). Tables:
+`docs/results_bind.md`; raw rows: `docs/data/bind/constrained_<bench>.csv`.
+
+**Results** (all counts recomputed from `docs/data/bind/*.csv`). A "row" is an `(instance, level)` pair: a trade-off
+instance contributes a `bind` row and, when it exists, a `tight` row.
+
+| bench | instances | with trade-off | `no_tradeoff` skips | A* rows ok | ILP rows ok | ILP failures | ok-vs-ok pairs with equal cost | mean seconds where both ok: A* / ILP (ratio) |
+|---|---|---|---|---|---|---|---|---|
+| river | 120 | 43 | 77 | 86 / 86 | 86 / 86 | none | 86 / 86 | 0.0007 / 0.0493 (66x) |
+| sokoban | 90 | 7 | 83 | 14 / 14 | 14 / 14 | none | 14 / 14 | 0.0044 / 0.2152 (49x) |
+| boxoban | 40 | 1 | 39 | 2 / 2 | 2 / 2 | none | 2 / 2 | 0.0730 / 7.3358 (100x) |
+| cube2 | 20 | 18 | 2 | 29 / 29 | 8 / 29 | 15 `too_large`, 6 `timeout` | 8 / 8 | 0.0043 / 0.9769 (228x) |
+
+- Overall there were 110 ok-vs-ok pairs and the two solvers returned the same cost in all 110. Every solved row (131 A*,
+  110 ILP) has `forced_longer` = 1: the optimum was strictly longer than `T*` every time, by +2 on all 86 River rows and
+  all 14 Sokoban rows, by +1 on the 2 Boxoban rows, and by +1 (18 rows), +2 (8), +3 (2), +4 (1) on the 29 Cube A* rows.
+  All 201 skips are `no_tradeoff`; none was skipped for `node_limit` or any other status.
+- The ratio is the ratio of the two mean seconds on rows where both solved (per row it ranges from 25x to 152x on River,
+  28x to 76x on Sokoban, 80x to 134x on the two Boxoban rows, 44x to 1270x on Cube). Boxoban is a single instance at two
+  levels. Cube's both-ok rows are only the easy buckets (`T*` 3 and 5: 6 instances, 8 rows).
+- Instances with a trade-off, by `T*`: River 14, 12, 0, 4, 13, 0 at `T*` 4, 6, 8, 10, 12, 14 (out of 20 per `T*`).
+  Sokoban 1, 1, 1, 1, 2, 1 at `T*` 13, 14, 18, 19, 21, 22 (out of 90 instances across `T*` 5 to 23; the other nine `T*` values
+  have none). Boxoban 1 instance, `T*` 12 (out of 40). Cube 3, 3, 4, 4, 4 at `T*` 3, 5, 7, 9, 11 (4 instances per `T*`;
+  the 2 skips are one each at `T*` 3 and 5).
+- Cube, ILP by `T*` (bind rows / tight rows ok): `T*` 3: 3 of 3 / none; `T*` 5: 3 of 3 / 2 of 2; `T*` 7: 0 of 4 / 0 of 2
+  (all 6 `timeout`); `T*` 9: 0 of 4 / 0 of 3 (`too_large`); `T*` 11: 0 of 4 / 0 of 4 (`too_large`). So the ILP solved 6 of
+  the 18 Cube trade-off instances (all at `T*` <= 5) and failed on the other 12 at every level run. Failed rows took 3.25 s
+  on average for `too_large` and 20.17 s for `timeout` (the 10 s solver limit plus graph and model building).
+- **The one place the ILP is faster than A*:** the 8 Cube `T*` 11 rows (4 instances, both levels). The ILP took 2.8 to 3.2 s
+  against 7.9 to 9.6 s for A*, but it returned `too_large` on all 8 and A* solved all 8. A fast failure is not a win. There
+  is no row where both solved and the ILP was faster; on every River, Sokoban and Boxoban row the ILP was slower.
+- Node counts are not comparable between the two solvers (caveat 3). For reference, on the both-ok rows the means are
+  A* 42.4 vs ILP 32.0 (River), 268.8 vs 397.1 (Sokoban), 1,261 vs 8,330 (Boxoban), 185.5 vs 2,832 (Cube).
+
+**Findings.**
+- The constrained regime is now exercised. On River (43 of 120 instances have a trade-off, 86 rows) and Cube (18 of 20, 29
+  rows) the resource budget forced a strictly longer path on every solved row. On Sokoban (7 of 90 instances) and Boxoban
+  (1 of 40) trade-offs are rare under this resource, so those rows are thin: 14 and 2 rows, from 7 and 1 instances.
+- The ILP still wins nowhere. Where both solved (110 pairs) it matched A* on cost every time and was 49x to 228x slower in mean
+  wall-clock. On Cube it solved only 8 of 29 rows (6 of 18 instances) and failed on every row at `T*` >= 7. The only rows with
+  the ILP faster are the Cube `T*` 11 failures.
+- This is evidence about these four benchmarks, these resources, `c_slack` 4 and a 10 s ILP limit. It does not show that the
+  ILP cannot win elsewhere (for example with a tighter `c_slack`, which I did not try).
+
+**Caveats for this experiment.**
+1. A* success at `tight` is partly tautological. The `tight` budget is `R = r_min`, and `min_resource` already ran A* at
+   exactly `(B, r_min)` during bisection and got `ok`, so the A* call at `tight` repeats an answer already obtained (the same
+   holds for `bind` on the 7 Cube instances where `r_min = r_opt - 1`). A* `ok` here must not be read as a headline solve
+   rate; the informative quantity is the ILP's behaviour given that A* is feasible. Instances where A* hit `node_limit`
+   during the bisection are skipped and would show in the failure breakdown, which biases the sample toward instances A*
+   can handle. None occurred in this run (all 201 skips are `no_tradeoff`).
+2. Small, skewed samples. Per-`T*` counts are listed above: River's trade-off instances sit at `T*` 4, 6, 10, 12 only,
+   Sokoban has 7 instances over six `T*` values, Boxoban has one instance, and Cube has 18 trade-off instances (11 of them with a `tight` level).
+   The unequal counts come from where trade-offs happen to exist, not from design.
+3. Fairness asymmetries. The ILP's `max_nodes` counts states in the whole `g + h <= B` ball (no resource pruning; it grows
+   with `c_slack`), while A* counts expansions after resource pruning and dominance. The ILP has a 10 s solver limit, which A*
+   lacks. CP-SAT uses 8 workers against single-threaded A*. The bisection that picks `R` runs only A*. Some of the ILP's Cube
+   `too_large` failures may come from `c_slack` 4 enlarging the ball; I did not test a smaller `c_slack`.
+4. `agrees_with_astar` is 0 both when the ILP failed and when the costs differ. Here every row where both solvers returned
+   a path is an ok-vs-ok pair (110 of them) and all 110 agree, so the 21 Cube zeros are ILP failures, not disagreements.
+5. Sokoban and Boxoban `res_bind` is pushes only (walking is free), and Cube counts half-turns only. These are unusual
+   resources chosen for having trade-offs (see the probe), not a realistic cost model.
+6. The skipped rows record only A*'s bisection verdict (`no_tradeoff`); the ILP was not run on them.
+
 ## Caveats
 
 - ReAct and TAPE are simulated with the paper's noise model, not real LLMs.
+- The constrained ILP-vs-A* results come from two designs with different resources: `frac` (original resources, the budget rarely binds) and `bind` (resources chosen to create trade-offs; thin on Sokoban and Boxoban). See the caveats under "Constrained experiment, redesigned so the budget binds".
 - Sokoban/Boxoban instances are rejection-sampled from long reverse random walks and reported by their true `T*`.
 - TAPE-sim minimises path length in the folded graph, not TAPE's node-score objective.
 - The ILP is an edge-flow formulation, not time-expanded.

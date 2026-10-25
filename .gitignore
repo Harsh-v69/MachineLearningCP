@@ -4,3 +4,4 @@ results/
 *.pyc
 .superpowers/
 results_rf*/
+results_bind/

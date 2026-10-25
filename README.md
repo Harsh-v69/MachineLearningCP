@@ -21,15 +21,27 @@ they are models of LLM behaviour, not real LLM runs.
 ```bash
 pip install -r requirements.txt
 python -m pytest -q
-for b in river sokoban boxoban cube2; do
-  python -m tapegraph.bench solvers     --bench $b --n 5
-  python -m tapegraph.bench agents      --bench $b --n 5 --episodes 100
-  python -m tapegraph.bench constrained --bench $b --n 5
-done
-python -m tapegraph.bench report        # writes results/results.md
 ```
 
-This is the nominal loop; the run behind the reported numbers deviated from it for Boxoban and Cube (see below).
+Exact commands behind the published tables (seed = CLI default 1; `B` is `river`, `sokoban`, `boxoban`, `cube2`):
+
+| step | command |
+|---|---|
+| solvers, all four | `python -m tapegraph.bench solvers --bench B --n 5` |
+| agents, river and sokoban | `python -m tapegraph.bench agents --bench B --n 5 --episodes 100` |
+| agents, boxoban | `python -m tapegraph.bench agents --bench boxoban --n 5 --episodes 20 --no_ilp` |
+| agents, cube2 | `python -m tapegraph.bench agents --bench cube2 --n 5 --episodes 30 --no_ilp` |
+| constrained, all four | `python -m tapegraph.bench constrained --bench B --n 5` |
+| supplementary constrained | `python -m tapegraph.bench constrained --bench {sokoban,boxoban} --n 5 --res_frac {0.95,0.97,1.0} --out results_rf{95,97,100}` |
+| tables | `python -m tapegraph.bench report` (and `report --out results_rfNN`) |
+
+These now reproduce the published tables up to the `seconds` columns (and any ILP timeout that depends on machine
+speed). The published Boxoban and Cube agents runs were made before `--no_ilp` existed, through an equivalent
+uncommitted wrapper (`ilp.ORTOOLS_AVAILABLE = False` then `bench.main()`); `--no_ilp` skips `ours_ilp` and makes
+`TapeSim` use BFS on the folded graph, which is what that wrapper did. The agents CSVs written by the current code
+also carry `delta`, `eta`, `slack`, `episodes`, `N`, `use_ilp`, `seed` and `inst_seed` columns, and skipped constrained
+rows carry `ilp_status`; the committed CSVs in `docs/data/` predate those columns. Raw CSVs behind every table are in
+`docs/data/main/` and `docs/data/rf95|rf97|rf100/`.
 
 ## Layout
 
@@ -48,8 +60,8 @@ rows in the tables are keyed by actual `T*` and have 1 to 5 instances each.
 |---|---|---|---|
 | river | `solvers --bench river --n 5` (4 s) | `agents --bench river --n 5 --episodes 100` (238 s) | `constrained --bench river --n 5` (4 s) |
 | sokoban | `solvers --bench sokoban --n 5` (12 s) | `agents --bench sokoban --n 5 --episodes 100` (367 s) | `constrained --bench sokoban --n 5` (13 s) |
-| boxoban | `solvers --bench boxoban --n 5` (140 s) | `agents --bench boxoban --n 5 --episodes 20`, ILP disabled (2267 s) | `constrained --bench boxoban --n 5` (136 s) |
-| cube2 | `solvers --bench cube2 --n 5` (228 s) | `agents --bench cube2 --n 5 --episodes 30`, ILP disabled (812 s) | `constrained --bench cube2 --n 5` (171 s) |
+| boxoban | `solvers --bench boxoban --n 5` (140 s) | `agents --bench boxoban --n 5 --episodes 20 --no_ilp` (2267 s) | `constrained --bench boxoban --n 5` (136 s) |
+| cube2 | `solvers --bench cube2 --n 5` (228 s) | `agents --bench cube2 --n 5 --episodes 30 --no_ilp` (812 s) | `constrained --bench cube2 --n 5` (171 s) |
 
 Times are from the run logs. The solvers and constrained runs were done sequentially (about 710 s in total). The
 agents runs were **re-run after a seeding fix** (commit b7f6106: before it, every instance in a benchmark received the
@@ -65,8 +77,8 @@ Deviations from the nominal loop above:
 - **Fewer episodes for the two expensive benchmarks.** Boxoban agents used `--episodes 20` and Cube agents
   `--episodes 30` instead of 100. With 20 to 30 episodes a success rate has a standard error of roughly 0.05 to
   0.09 per instance, and the Boxoban and Cube buckets have 1 to 5 instances each.
-- **ILP disabled in the Boxoban and Cube agents runs.** Those two runs were started through a small wrapper that set
-  `ilp.ORTOOLS_AVAILABLE = False` before calling `bench.main()`. Consequences: (a) there are **no `ours_ilp` rows**
+- **ILP disabled in the Boxoban and Cube agents runs.** Those two runs were started through a small uncommitted wrapper
+  that set `ilp.ORTOOLS_AVAILABLE = False` before calling `bench.main()` (now the `--no_ilp` flag; see Run). Consequences: (a) there are **no `ours_ilp` rows**
   for Boxoban or Cube; (b) the `tape` rows for Boxoban and Cube used `ilp.graph_path_bfs` (a BFS shortest path on the
   folded graph: same minimum length, but not the ILP), whereas the `tape` rows for River and Sokoban used the real
   CP-SAT ILP. The solvers and constrained runs for all four benchmarks used the ILP normally. Why: the solver runs
@@ -154,6 +166,15 @@ Sokoban 0.248 / 0.862 / 0.872 / 0.874, Boxoban 0.225 / 0.850 / 0.855 / none, Cub
   higher on 14 and lower on 5 of 30 River instances (pooled 0.959 vs 0.954), higher on 3 and lower on 2 of 25 Sokoban
   instances (0.874 vs 0.872), so no meaningful difference, and it takes far longer per episode (River `T*` 14: 0.065
   vs 0.0012 s; Sokoban `T*` 23: 0.2037 vs 0.0068 s).
+- `tape` and `ours_astar` are close by construction, not by coincidence: `TapeSim` draws its rollouts from an exact
+  oracle with 16% injected errors, folds 16 of them, and takes a shortest path in that folded graph, so its plan is
+  (close to) an optimal path of the true graph, and `ours_astar` then follows an optimal path of the true graph. The
+  data agree: `tape` and `ours_astar` have identical success on 67 of the 100 instance rows (River 19/30, Sokoban
+  10/25, Boxoban 16/20, Cube 22/25) and their mean steps per benchmark differ by at most 0.015 (River 9.495 vs 9.483,
+  Sokoban 14.624 vs 14.623, Boxoban 14.69 vs 14.675, Cube 7.408 vs 7.408). The 43 to 63 point pooled gap to ReAct-sim
+  (River 0.496, Sokoban 0.614, Boxoban 0.625, Cube 0.428) comes from the modelling assumption that planning errors are
+  injected unfiltered into every recommendation and never corrected. So the real difference between `ours` and
+  TAPE-sim in these experiments is cost (no oracle, no rollouts, no ILP), not success rate.
 - Success of the re-planning methods declines with `T*` in all four benchmarks, since a longer path is exposed to
   more noise with the same 2 steps of slack. The decline is mild where moves are reversible and steeper for
   push-based puzzles. River `ours_astar` goes 0.996, 0.988, 0.964, 0.936, 0.90, 0.94 over `T*` 4 to 14 (never below
@@ -170,23 +191,42 @@ Sokoban 0.248 / 0.862 / 0.872 / 0.874, Boxoban 0.225 / 0.850 / 0.855 / none, Cub
   are roughly consistent with a separate 200-episode check I ran earlier on the old seeding (`ours_astar`, `T*` 5: about
   0.99, `T*` 7: about 0.96, `T*` 9: 0.92 to 0.94); that check is not in the repository and cannot be reproduced from it.
 
-**Does the ILP win anywhere?** No. In the unconstrained table it is the slowest of the five solvers in every
-`(benchmark, T*)` bucket except Cube `T*` 11 (34 to 136 times slower than A* on River and Sokoban). Its
-node count is below BFS in some Sokoban and Boxoban buckets, but ILP "nodes" is the size of the bounded subgraph it
-builds. That exception (Cube `T*` 11, ILP 3.3 s vs A* 4.4 s) is a bucket where it
-solved 0 of 5 and failed fast with `too_large`. In the constrained table it never solves more instances than A* (and is faster only in the same kind of row, Cube
-`T*` 11, where it solved 0 of 5) and it solves fewer instances on Cube. The supplementary constrained runs below say the same.
+**Does the ILP win anywhere?** Not in any regime tested here, but the regime where it might help was barely exercised.
+- Unconstrained: the ILP is the slowest of the five solvers in every `(benchmark, T*)` bucket except Cube `T*` 11 (34 to
+  136 times slower than A* on River and Sokoban). Its node count is below BFS in some Sokoban and Boxoban buckets, but
+  ILP "nodes" is the size of the bounded subgraph it builds. The Cube `T*` 11 exception (ILP 3.3 s vs A* 4.4 s) is a
+  bucket where it solved 0 of 5 and failed fast with `too_large`.
+- Constrained, main table (`res_frac` 0.9): the ILP never solved more instances than A*, and was faster only in a row
+  where it solved 0 of 5 (Cube `T*` 11). **But the resource budget never lengthened the optimal path in any solved
+  instance:** all 30 instances A* solved (River 24, Cube 6) have `cost == T*`, and the 24 the ILP solved (all River) too.
+  In the supplementary runs exactly 3 solved instance-runs were forced to a longer path (Sokoban `T*` 17 at 0.95, and
+  `T*` 17 and `T*` 21 at 0.97, cost `T*` + 2 each; the two `T*` 17 runs are the same instance, so 2 distinct instances),
+  and the ILP matched A* on all of them. So the case a resource-constrained ILP is meant for (a budget that forces a
+  trade-off against length) was effectively not exercised, and these results say nothing about whether the ILP would win
+  there.
+- Why Sokoban and Boxoban are infeasible below the optimum's resource: the resource is steps plus 2 per push (a push
+  costs 3, a walking move 1). With length slack 2, a path can only use fewer resource units than the length-optimal
+  path by using fewer pushes (each saved push saves 2 units; extra walking only adds), and `floor(X * resource of the
+  optimum)` for X below 1 already needs at least one unit saved. A path with fewer pushes than the length-optimal one
+  and at most 2 extra moves almost never exists, which matches the data (69 of 69 skipped rows in the main run are
+  `infeasible` for A*; River and Cube resources are not tied to pushes and are infeasible only on the shorter buckets).
+  I checked this structurally (the argument above) and by A* and the ILP agreeing on 8 spot-checked instances, not by
+  enumerating push counts.
+- The ILP's result on skipped rows was not stored in the published CSVs (A* alone decided `infeasible`). The current code
+  records it as `ilp_status` on every skipped-infeasible row and `report` counts the rows where `ilp_status` is `ok` (a
+  disagreement, expected 0); the published CSVs have none recorded (`0 of 69` in `docs/results.md`).
+- Fairness caveat in both directions: the ILP's subgraph is the `{g + h <= T* + slack}` ball, which is larger than the
+  `f <= T*` region A* expands (the spec's "same subgraph A* would expand" is only approximately true); its Python graph
+  build counts toward its time; and CP-SAT runs with 8 workers against single-threaded A*.
 
 ### Supplementary: constrained at res_frac 0.95
 
 The main constrained table uses `--res_frac 0.9` and leaves Sokoban and Boxoban with no solved instance. Extra runs
 for Sokoban and Boxoban (`constrained --bench {sokoban,boxoban} --n 5 --res_frac X --out results_rfNN`, tables in
 `docs/results_rf95.md`; same instances as the main run; run concurrently with other jobs, so timings are a little
-inflated) show that **it is still almost all infeasible** just below the optimum's resource. The budget is
-`floor(X * resource of the length-optimal path)`, and since resource is an integer (1 per step, 3 per push) a
-fraction slightly below 1 already removes at least one unit; most likely the length-optimal path is already close to
-the cheapest in resource, although I did not verify that beyond A* and the ILP agreeing that those budgets are
-infeasible.
+inflated) show that **it is still almost all infeasible** just below the optimum's resource: only 3 of the 90 Sokoban/Boxoban
+instance-runs at 0.95 and 0.97 were feasible (1 + 2, all Sokoban; see the structural explanation under the ILP
+verdict).
 
 | res_frac | sokoban skipped (infeasible) / solved | boxoban skipped / solved | ILP vs A* where solved |
 |---|---|---|---|
@@ -207,3 +247,10 @@ pattern is the same as in the unconstrained table.
 - Cost means in the tables are over solved instances only.
 - Buckets have 1 to 5 instances (and 20 to 100 episodes each), so success-rate differences of a few points are within
   noise.
+- `Replan` silently plays the first legal action when its solver fails (timeout, `too_large`, `node_limit`), and the
+  agents CSV has no solver-failure count. This is harmless in the current data (`ours_ilp` ran only on River and
+  Sokoban, where the ILP never failed in the solvers table) but would sink `ours_ilp` on Cube or Boxoban.
+- `TapeSim` re-plans only when the state deviates from its plan (per our spec), whereas TAPE-main's
+  `OursGraphILPPolicy` re-folds and re-solves at every step, so `solves` and `seconds` are not directly comparable
+  with the paper.
+- `TapeSim` calls `solve_graph` without a length budget, whereas TAPE-main passes `budget=budget_remaining`.

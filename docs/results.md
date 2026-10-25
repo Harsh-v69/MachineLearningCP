@@ -358,3 +358,5 @@
 | river | ilp | 24 | 24 | 0 | 0 | 0 | 0 |
 | river | skipped | 6 | 0 | 0 | 0 | 0 | 6 |
 | sokoban | skipped | 25 | 0 | 0 | 0 | 0 | 25 |
+
+ILP status on skipped-infeasible constrained rows (ilp_status recorded for 0 of 69; ilp_status = ok would mean the ILP found a path where A* proved none): none recorded

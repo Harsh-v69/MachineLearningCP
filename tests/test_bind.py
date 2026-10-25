@@ -98,3 +98,75 @@ def test_bind_rows_on_toy_instance(tmp_path, monkeypatch):
         "bind": ("5", "3", "3.0", "1"), "tight": ("3", "3", "3.0", "1")}
     if bench.ilp.ORTOOLS_AVAILABLE:
         assert {r["agrees_with_astar"] for r in rows if r["solver"] == "ilp"} == {"1"}
+
+
+def test_res_bind_defaults_to_res_on_toy():
+    assert GRAPH.res_bind("A", "ab", "B") == GRAPH.res("A", "ab", "B") == 1.0
+    assert GRAPH.res_bind("B", "be", "E") == 5.0
+
+
+def test_res_bind_sokoban_pushes_only():
+    from tapegraph.problems.sokoban import Sokoban
+    p, s0 = Sokoban.from_grid("######\n#@ $.#\n######")
+    walk = next(s2 for a, s2, _ in p.neighbors(s0) if a == "R")
+    push = next(s2 for a, s2, _ in p.neighbors(walk) if a == "R")
+    assert (p.res_bind(s0, "R", walk), p.res(s0, "R", walk)) == (0.0, 1.0)
+    assert (p.res_bind(walk, "R", push), p.res(walk, "R", push)) == (1.0, 3.0)
+
+
+def test_res_bind_river_passengers_squared():
+    from tapegraph.problems.river import River
+    p = River()
+    assert p.res_bind((8, 8, 0), "2M1C", (6, 7, 1)) == 9.0 and p.res((8, 8, 0), "2M1C", (6, 7, 1)) == 3.0
+
+
+def test_res_bind_cube2_half_turns_only():
+    from tapegraph.problems.cube2 import Cube2
+    p = Cube2.shared()
+    assert p.res_bind(None, "R2", None) == 1.0 and p.res_bind(None, "R", None) == 0.0 and p.res_bind(None, "R'", None) == 0.0
+
+
+def test_resview_delegates_and_swaps_res():
+    p = bench.ResView(GraphProblem({"A": [("a", "B", 4)], "B": []}, goal="B"))
+    p.problem.res_bind = lambda s, a, s2: 7.0
+    assert p.res("A", "a", "B") == 7.0 and p.is_goal("B") and list(p.neighbors("A")) == [("a", "B", 1.0)]
+    assert bench.astar.solve(p, "A", res_budget=7).res == 7.0
+
+
+def test_bind_budgets_skips_when_r_opt_is_zero():
+    g = GraphProblem({"A": [("ab", "B", 0)], "B": [("be", "E", 0)], "E": []}, goal="E", h={"A": 2, "B": 1, "E": 0})
+    assert bench.bind_budgets(g, "A", 2, 4, 1000) == {"skip": "no_tradeoff"}
+    assert bench.min_resource(g, "A", 2, 0, 1000) == ("ok", 0)
+
+
+def test_bind_budgets_zero_resource_levels():
+    # short path res 1; long path res 0 -> r_opt 1, r_min 0, single level bind = 0
+    g = GraphProblem({"A": [("ab", "B", 1), ("ac", "C", 0)], "B": [("be", "E", 0)], "C": [("cd", "D", 0)],
+                      "D": [("de", "E", 0)], "E": []}, goal="E", h={"A": 2, "B": 1, "C": 1, "D": 1, "E": 0})
+    assert bench.bind_budgets(g, "A", 2, 1, 1000) == {"B": 3, "r_opt": 1, "r_min": 0, "levels": {"bind": 0}}
+
+
+def _bind_cube2_or_river(tmp_path, monkeypatch, bench_name, n, T_max):
+    from tapegraph.benchmarks import make_instances
+    real = make_instances
+    monkeypatch.setattr(bench, "make_instances", lambda b, nn, seed: [i for i in real(b, nn, seed) if i.T <= T_max])
+    monkeypatch.setattr(sys, "argv", ["bench", "constrained", "--bench", bench_name, "--n", str(n), "--design", "bind",
+                                      "--out", str(tmp_path)])
+    bench.main()
+    return list(csv.DictReader(open(tmp_path / f"constrained_{bench_name}.csv")))
+
+
+def test_bind_end_to_end_cube2(tmp_path, monkeypatch):
+    rows = _bind_cube2_or_river(tmp_path, monkeypatch, "cube2", 2, 5)
+    assert rows
+    solved = [r for r in rows if r["solver"] != "skipped"]
+    assert solved, "cube2 T<=5 has trade-offs under res_bind"
+    ok_a = [r for r in solved if r["solver"] == "astar" and r["ok"] == "1"]
+    assert all(r["forced_longer"] == "1" and float(r["cost"]) > int(r["T"]) for r in ok_a)
+    if bench.ilp.ORTOOLS_AVAILABLE:
+        by = {}
+        for r in solved:
+            by.setdefault((r["T"], r["R"], r["level"], r["r_opt"]), {}).setdefault(r["solver"], r)
+        for pair in by.values():
+            if pair["astar"]["ok"] == pair["ilp"]["ok"] == "1":
+                assert pair["ilp"]["agrees_with_astar"] == "1"

@@ -124,6 +124,10 @@ class Cube2(Problem):
     def res(self, s, a, s2):
         return 2.0 if a.endswith("2") else 1.0
 
+    def res_bind(self, s, a, s2):
+        """Binding experiment: count half-turns only (quarter-turns free), so more quarter-turns can save resource."""
+        return 1.0 if a.endswith("2") else 0.0
+
     def exact_dist(self, s):
         return float(self.dist[s[0] * self.NT + s[1]])
 

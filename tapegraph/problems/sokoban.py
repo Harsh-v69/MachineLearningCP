@@ -90,6 +90,10 @@ class Sokoban(Problem):
     def res(self, s, a, s2):
         return 3.0 if s2[1] != s[1] else 1.0  # pushing costs more fuel than walking
 
+    def res_bind(self, s, a, s2):
+        """Binding experiment: count pushes only (walking is free), so a longer walk-heavy route can save resource."""
+        return 1.0 if s2[1] != s[1] else 0.0
+
     def _reverse_neighbors(self, s):
         (pr, pc), boxes = s
         for dr, dc in DIRS.values():

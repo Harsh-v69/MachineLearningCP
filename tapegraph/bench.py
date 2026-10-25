@@ -109,6 +109,19 @@ def _constrained_frac(a):
     _write(Path(a.out) / f"constrained_{a.bench}.csv", rows)
 
 
+class ResView:
+    """Read-through proxy of a problem whose `res` is the problem's `res_bind` (the binding experiment's resource)."""
+
+    def __init__(self, problem):
+        self.problem = problem
+
+    def __getattr__(self, name):  # only called for attributes not defined here
+        return getattr(self.problem, name)
+
+    def res(self, s, a, s2):
+        return self.problem.res_bind(s, a, s2)
+
+
 def _int_res(x):
     r = int(round(x))
     assert abs(x - r) < 1e-9, f"non-integer resource {x}"
@@ -147,7 +160,7 @@ def bind_budgets(problem, start, T, c_slack, max_nodes):
         st, r_min = min_resource(problem, start, T + c_slack, r_opt, max_nodes)
     if st != "ok":
         return {"skip": st}
-    if r_min >= r_opt:
+    if r_min >= r_opt:  # also covers r_opt == 0, where no cheaper resource level exists
         return {"skip": "no_tradeoff"}
     levels = {"bind": r_opt - 1, "tight": r_min} if r_min < r_opt - 1 else {"bind": r_opt - 1}
     return {"B": T + c_slack, "r_opt": r_opt, "r_min": r_min, "levels": levels}
@@ -157,7 +170,7 @@ def _constrained_bind(a):
     """Resource budget that always binds: A* (and ILP) at B = T*+c_slack with R in {r_opt-1, r_min}; see bind_budgets."""
     rows, skipped = [], 0
     for inst in make_instances(a.bench, a.n, a.seed):
-        p = inst.problem
+        p = ResView(inst.problem)
         d = bind_budgets(p, inst.start, inst.T, a.c_slack, a.max_nodes)
         if "skip" in d:
             skipped += 1

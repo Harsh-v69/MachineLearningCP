@@ -51,6 +51,10 @@ class River(Problem):
     def res(self, s, a, s2):
         return float(abs(s[0] - s2[0]) + abs(s[1] - s2[1]))  # passengers carried
 
+    def res_bind(self, s, a, s2):
+        """Binding experiment: passengers squared (crowded boats cost more), so extra light trips can save resource."""
+        return float((abs(s[0] - s2[0]) + abs(s[1] - s2[1])) ** 2)
+
     def exact_dist(self, s):
         return float(self.dist.get(s, INF))
 

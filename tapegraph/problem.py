@@ -42,6 +42,11 @@ class Problem:
         """Side resource of an edge, used by the constrained experiment."""
         return 1.0
 
+    def res_bind(self, s: State, a: str, s2: State) -> float:
+        """Resource of the binding constrained experiment (--design bind). Defaults to `res`; benchmarks override it
+        because their `res` grows with length, so the length-optimal path is already resource-minimal."""
+        return self.res(s, a, s2)
+
     def random_start(self, rng: random.Random, depth: int) -> Optional[State]:
         """A start from which the goal is reachable. `depth` is a difficulty knob; true T* comes from the Oracle."""
         raise NotImplementedError

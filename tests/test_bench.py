@@ -31,7 +31,7 @@ def test_constrained_records_ilp_timeout(tmp_path, monkeypatch):
     from tapegraph.problem import Result
     monkeypatch.setitem(bench.SOLVERS, "ilp", lambda *a, **k: Result("timeout", nodes=0, seconds=0.0))
     monkeypatch.setattr(bench.ilp, "ORTOOLS_AVAILABLE", True)
-    monkeypatch.setattr(sys, "argv", ["bench", "constrained", "--bench", "river", "--n", "1", "--out", str(tmp_path)])
+    monkeypatch.setattr(sys, "argv", ["bench", "constrained", "--bench", "river", "--n", "1", "--design", "frac", "--out", str(tmp_path)])
     bench.main()
     rows = [r for r in csv.DictReader(open(tmp_path / "constrained_river.csv")) if r["solver"] == "ilp"]
     assert rows and all(r["status"] == "timeout" and r["ok"] == "0" and r["agrees_with_astar"] == "0" for r in rows)
@@ -48,7 +48,7 @@ def test_constrained_records_ilp_timeout(tmp_path, monkeypatch):
 
 
 def _run_constrained(tmp_path, monkeypatch, *extra):
-    monkeypatch.setattr(sys, "argv", ["bench", "constrained", "--bench", "river", "--n", "1", "--out", str(tmp_path), *extra])
+    monkeypatch.setattr(sys, "argv", ["bench", "constrained", "--bench", "river", "--n", "1", "--design", "frac", "--out", str(tmp_path), *extra])
     bench.main()
     return list(csv.DictReader(open(tmp_path / "constrained_river.csv")))
 

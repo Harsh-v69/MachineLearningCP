@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import partial
 from pathlib import Path
 from statistics import mean
@@ -76,13 +76,13 @@ def run_agents(a):
     _write(Path(a.out) / f"agents_{a.bench}.csv", rows)
 
 
-def run_constrained(a):
+def _constrained_frac(a):
     """min length s.t. length <= T*+slack and resource <= floor(res_frac * resource of the unconstrained optimum).
     Every instance yields a row: solver="skipped" when R cannot be derived (base A* failed) or is proven infeasible."""
     rows, skipped = [], 0
     for inst in make_instances(a.bench, a.n, a.seed):
         p, B = inst.problem, inst.T + a.slack
-        head = {"bench": a.bench, "T": inst.T}
+        head = {"bench": a.bench, "T": inst.T, "level": "frac"}
         base = astar.solve(p, inst.start, budget=B, max_nodes=a.max_nodes)
         if base.status != "ok":  # cannot derive R
             skipped += 1
@@ -109,6 +109,83 @@ def run_constrained(a):
     _write(Path(a.out) / f"constrained_{a.bench}.csv", rows)
 
 
+def _int_res(x):
+    r = int(round(x))
+    assert abs(x - r) < 1e-9, f"non-integer resource {x}"
+    return r
+
+
+def min_resource(problem, start, budget, hi, max_nodes):
+    """Smallest integer R in [0, hi] with a feasible path (length <= budget, resource <= R), by bisection.
+    hi must be feasible. Returns ("ok", R), or (status, None) as soon as any probe is neither ok nor no_path."""
+    def probe(R):
+        return astar.solve(problem, start, budget=budget, res_budget=R, max_nodes=max_nodes).status
+    st = probe(hi)
+    if st != "ok":
+        return st, None
+    lo = 0
+    while lo < hi:
+        mid = (lo + hi) // 2
+        st = probe(mid)
+        if st == "ok":
+            hi = mid
+        elif st == "no_path":
+            lo = mid + 1
+        else:
+            return st, None
+    return "ok", lo
+
+
+def bind_budgets(problem, start, T, c_slack, max_nodes):
+    """Budgets making the resource constraint bind yet stay feasible: R < r_opt (the length-T* optimum's minimal
+    resource) forces a path longer than T*, and R >= r_min keeps one within T*+c_slack. {"skip": reason} otherwise."""
+    base = astar.solve(problem, start, budget=T, max_nodes=max_nodes)
+    if base.status != "ok":
+        return {"skip": base.status}
+    st, r_opt = min_resource(problem, start, T, _int_res(base.res), max_nodes)
+    if r_opt is not None:
+        st, r_min = min_resource(problem, start, T + c_slack, r_opt, max_nodes)
+    if st != "ok":
+        return {"skip": st}
+    if r_min >= r_opt:
+        return {"skip": "no_tradeoff"}
+    levels = {"bind": r_opt - 1, "tight": r_min} if r_min < r_opt - 1 else {"bind": r_opt - 1}
+    return {"B": T + c_slack, "r_opt": r_opt, "r_min": r_min, "levels": levels}
+
+
+def _constrained_bind(a):
+    """Resource budget that always binds: A* (and ILP) at B = T*+c_slack with R in {r_opt-1, r_min}; see bind_budgets."""
+    rows, skipped = [], 0
+    for inst in make_instances(a.bench, a.n, a.seed):
+        p = inst.problem
+        d = bind_budgets(p, inst.start, inst.T, a.c_slack, a.max_nodes)
+        if "skip" in d:
+            skipped += 1
+            rows.append({"bench": a.bench, "T": inst.T, "level": "-", "solver": "skipped", "status": d["skip"], "ok": 0})
+            continue
+        for level, R in d["levels"].items():
+            results = {n: SOLVERS[n](p, inst.start, budget=d["B"], res_budget=R, max_nodes=a.max_nodes)
+                       for n in ("astar", "ilp") if _usable(n)}
+            ra = results["astar"]
+            for n, r in results.items():
+                ok = r.status == "ok"
+                rows.append({
+                    "bench": a.bench, "T": inst.T, "level": level, "solver": n, "status": r.status, "ok": int(ok),
+                    "R": R, "B": d["B"], "r_opt": d["r_opt"], "r_min": d["r_min"],
+                    "cost": r.cost if ok else "",
+                    "forced_longer": int(r.cost > inst.T) if ok else "",  # "" (not 0) so the report mean is over ok rows
+                    "agrees_with_astar": int(ra.status == "ok" and ok and r.cost == ra.cost),
+                    "nodes": r.nodes, "seconds": round(r.seconds, 5),
+                })
+    print(f"[constrained] skipped {skipped} instances with no binding feasible budget (recorded as solver=skipped rows): "
+          f"{dict(Counter(r['status'] for r in rows if r['solver'] == 'skipped'))}")
+    _write(Path(a.out) / f"constrained_{a.bench}.csv", rows)
+
+
+def run_constrained(a):
+    {"bind": _constrained_bind, "frac": _constrained_frac}[a.design](a)
+
+
 def _num(v):
     for cast in (int, float):
         try:
@@ -132,7 +209,7 @@ def summarize(rows, group, metrics):
     return out
 
 
-STATUSES = ["ok", "no_path", "node_limit", "too_large", "timeout", "infeasible"]
+STATUSES = ["ok", "no_path", "node_limit", "too_large", "timeout", "infeasible", "no_tradeoff"]
 
 
 def status_table(rows, group=("bench", "solver")):
@@ -162,8 +239,8 @@ def run_report(a):
          ["bench", "T", "solver"], ["ok", "cost_ratio", "nodes", "seconds"]),
         ("Agents (success within budget under noise)", "agents_*.csv", ["bench", "T", "method"],
          ["success", "mean_steps", "solves", "seconds"]),
-        ("Constrained (length + resource budget; agrees_with_astar = rate of both solved with identical cost; solver=skipped rows are instances with no derivable or feasible R; cost means are over solved instances only)",
-         "constrained_*.csv", ["bench", "T", "solver"], ["ok", "agrees_with_astar", "cost", "nodes", "seconds"]),
+        ("Constrained (design=bind: B = T*+c_slack, level bind: R = r_opt-1, tight: R = r_min, so the optimum must be longer than T*; design=frac: R = floor(res_frac * optimum resource), level frac; forced_longer = share of solved rows with cost > T*; agrees_with_astar = rate of both solved with identical cost; solver=skipped rows are instances with no derivable or feasible R; cost means are over solved instances only)",
+         "constrained_*.csv", ["bench", "level", "T", "solver"], ["ok", "forced_longer", "agrees_with_astar", "cost", "nodes", "seconds"]),
     ]
     md = ["# Results\n"]
     loaded = {}
@@ -171,6 +248,9 @@ def run_report(a):
         rows = []
         for f in sorted(out.glob(pattern)):
             rows += [{k: _num(v) for k, v in r.items()} for r in csv.DictReader(open(f))]
+        for r in rows:
+            if pattern.startswith("constrained"):
+                r.setdefault("level", "frac")  # CSVs written before the bind design have no level column
         loaded[pattern] = rows
         md.append(f"## {title}\n\n" + _md(summarize(rows, group, metrics)))
     for title, pattern in (("Failure breakdown: solvers (count of rows per status)", "solvers_*.csv"),
@@ -200,6 +280,9 @@ def main():
     ap.add_argument("--eta", type=float, default=0.04, help="execution noise rate")
     ap.add_argument("--N", type=int, default=16, help="rollouts folded by TAPE-sim")
     ap.add_argument("--res_frac", type=float, default=0.9, help="constrained: resource budget as a fraction of the optimum's")
+    ap.add_argument("--design", choices=["bind", "frac"], default="bind",
+                    help="constrained: bind = resource budget always binds (needs --c_slack); frac = res_frac of the optimum's")
+    ap.add_argument("--c_slack", type=int, default=4, help="constrained bind: length budget is T*+c_slack")
     ap.add_argument("--no_ilp", action="store_true",
                     help="agents: skip ours_ilp and make TapeSim use BFS on the folded graph instead of the ILP")
     ap.add_argument("--out", default="results")

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..problem import INF, Problem
+from ..problem import Problem
 
 # Corners URF UFL ULB UBR DFR DLF DBL DRB = 0..7. Corner 6 (DBL) is fixed by U, R, F, which removes cube rotations.
 # Quarter-turn data: (corner permutation, corner orientation twist).
@@ -84,9 +84,12 @@ class Cube2(Problem):
         self._by_depth = {}
 
     def _load_or_build(self):
-        if _CACHE.exists():
-            return np.load(_CACHE)
         NT = self.NT
+        if _CACHE.exists():
+            cached = np.load(_CACHE)
+            if cached.shape == (len(self.PM) * NT,) and cached.dtype == np.int8 and cached[0] == 0 and cached.max() == 11:
+                return cached
+            # stale or corrupt cache: fall through and rebuild
         dist = np.full(len(self.PM) * NT, -1, dtype=np.int8)
         dist[0] = 0
         frontier, d = np.array([0], dtype=np.int64), 0

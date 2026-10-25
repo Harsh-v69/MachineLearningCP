@@ -56,20 +56,23 @@ def run_solvers(a):
 
 
 def run_agents(a):
+    use_ilp = ilp.ORTOOLS_AVAILABLE and not a.no_ilp
     rows = []
     for idx, inst in enumerate(make_instances(a.bench, a.n, a.seed)):
         p, o, B = inst.problem, inst.oracle, inst.T + a.slack
         seed = a.seed + 7919 * idx  # per-instance noise; shared by all methods of one instance (paired comparison)
         makers = {
             "react": lambda: ReActSim(p, o, a.delta),
-            "tape": lambda: TapeSim(p, o, a.delta, N=a.N),
+            "tape": lambda: TapeSim(p, o, a.delta, N=a.N, use_ilp=use_ilp),
             "ours_astar": lambda: Replan(p, astar.solve, max_nodes=a.max_nodes),
         }
-        if ilp.ORTOOLS_AVAILABLE:
+        if use_ilp:
             makers["ours_ilp"] = lambda: Replan(p, ilp.solve, max_nodes=a.max_nodes)
         for name, mk in makers.items():
             r = evaluate(p, inst.start, mk(), B, a.eta, a.episodes, seed)
-            rows.append({"bench": a.bench, "T": inst.T, "method": name, **{k: round(v, 5) for k, v in r.items()}})
+            rows.append({"bench": a.bench, "T": inst.T, "method": name, **{k: round(v, 5) for k, v in r.items()},
+                         "delta": a.delta, "eta": a.eta, "slack": a.slack, "episodes": a.episodes, "N": a.N,
+                         "use_ilp": int(use_ilp), "seed": a.seed, "inst_seed": seed})
     _write(Path(a.out) / f"agents_{a.bench}.csv", rows)
 
 
@@ -91,7 +94,9 @@ def run_constrained(a):
         ra = results["astar"]
         if ra.status == "no_path":  # proven infeasible at this resource budget
             skipped += 1
-            rows.append({**head, "solver": "skipped", "status": "infeasible", "ok": 0, "R": R})
+            # ilp_status makes a disagreement visible (ILP found a path where A* proved none)
+            rows.append({**head, "solver": "skipped", "status": "infeasible", "ok": 0, "R": R,
+                         "ilp_status": results["ilp"].status if "ilp" in results else "not_run"})
             continue
         for n, r in results.items():
             rows.append({
@@ -171,6 +176,12 @@ def run_report(a):
     for title, pattern in (("Failure breakdown: solvers (count of rows per status)", "solvers_*.csv"),
                            ("Failure breakdown: constrained (count of rows per status; skipped = no derivable/feasible R)", "constrained_*.csv")):
         md.append(f"## {title}\n\n" + _md(status_table(loaded[pattern])))
+    skipped = [r for r in loaded["constrained_*.csv"] if r.get("solver") == "skipped" and r.get("status") == "infeasible"]
+    rec = [r for r in skipped if r.get("ilp_status") not in ("", None)]
+    counts = {st: sum(1 for r in rec if r["ilp_status"] == st) for st in sorted({r["ilp_status"] for r in rec})}
+    md.append("ILP status on skipped-infeasible constrained rows (ilp_status recorded for "
+              f"{len(rec)} of {len(skipped)}; ilp_status = ok would mean the ILP found a path where A* proved none): "
+              f"{counts if counts else 'none recorded'}\n")
     (out / "results.md").write_text("\n".join(md))
     print(f"[saved] {out / 'results.md'}")
 
@@ -189,6 +200,8 @@ def main():
     ap.add_argument("--eta", type=float, default=0.04, help="execution noise rate")
     ap.add_argument("--N", type=int, default=16, help="rollouts folded by TAPE-sim")
     ap.add_argument("--res_frac", type=float, default=0.9, help="constrained: resource budget as a fraction of the optimum's")
+    ap.add_argument("--no_ilp", action="store_true",
+                    help="agents: skip ours_ilp and make TapeSim use BFS on the folded graph instead of the ILP")
     ap.add_argument("--out", default="results")
     a = ap.parse_args()
     {"solvers": run_solvers, "agents": run_agents, "constrained": run_constrained, "report": run_report}[a.cmd](a)

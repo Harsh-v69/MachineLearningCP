@@ -47,3 +47,14 @@ def test_moves_are_inverses():
 def test_half_turns_cost_two_resource_units():
     s = CUBE.random_start(random.Random(4), 5)
     assert CUBE.res(s, "R2", CUBE.step(s, "R2")) == 2 and CUBE.res(s, "R", CUBE.step(s, "R")) == 1
+
+
+def test_stale_cache_is_rebuilt(tmp_path, monkeypatch):
+    import numpy as np
+    from tapegraph.problems import cube2
+    bad = tmp_path / "dist.npy"
+    np.save(bad, np.zeros(10, dtype=np.int8))
+    monkeypatch.setattr(cube2, "_CACHE", bad)
+    dist = cube2.Cube2.shared()._load_or_build()
+    assert dist.shape == (5040 * 729,) and dist.dtype == np.int8 and dist[0] == 0 and dist.max() == 11
+    assert np.load(bad).shape == dist.shape

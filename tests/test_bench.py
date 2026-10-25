@@ -92,3 +92,44 @@ def test_agents_use_distinct_seed_per_instance_shared_across_methods(tmp_path, m
     runs = [seeds[0]] + [b for a, b in zip(seeds, seeds[1:]) if a != b]  # consecutive calls = methods of one instance
     assert len(runs) == len(set(runs)) == len(BENCHMARKS["river"].T_targets) > 1  # one seed per instance, all distinct
     assert len(seeds) == len(runs) * (len(seeds) // len(runs))  # same number of methods share each instance's seed
+
+
+def _run_agents(tmp_path, monkeypatch, *extra):
+    monkeypatch.setattr(sys, "argv", ["bench", "agents", "--bench", "river", "--n", "1", "--episodes", "2",
+                                      "--out", str(tmp_path), *extra])
+    bench.main()
+    return list(csv.DictReader(open(tmp_path / "agents_river.csv")))
+
+
+def test_agents_no_ilp_flag_and_parameter_columns(tmp_path, monkeypatch):
+    rows = _run_agents(tmp_path / "no", monkeypatch, "--no_ilp")
+    assert {r["method"] for r in rows} == {"react", "tape", "ours_astar"}
+    assert {r["use_ilp"] for r in rows} == {"0"}
+    r0 = rows[0]
+    assert (r0["delta"], r0["eta"], r0["slack"], r0["episodes"], r0["N"], r0["seed"]) == ("0.16", "0.04", "2", "2", "16", "1")
+    rows = _run_agents(tmp_path / "yes", monkeypatch)
+    if bench.ilp.ORTOOLS_AVAILABLE:
+        assert "ours_ilp" in {r["method"] for r in rows} and {r["use_ilp"] for r in rows} == {"1"}
+    monkeypatch.setattr(sys, "argv", ["bench", "report", "--out", str(tmp_path / "yes")])
+    bench.main()  # extra columns must not break the report
+    assert "river" in (tmp_path / "yes" / "results.md").read_text()
+
+
+def test_no_ilp_makes_tape_sim_use_graph_bfs(tmp_path, monkeypatch):
+    made = []
+    real = bench.TapeSim
+    monkeypatch.setattr(bench, "TapeSim", lambda *a, **k: made.append(k.get("use_ilp")) or real(*a, **k))
+    _run_agents(tmp_path, monkeypatch, "--no_ilp")
+    assert made and set(made) == {False}
+
+
+def test_constrained_skipped_row_records_ilp_status_and_report_counts_it(tmp_path, monkeypatch):
+    from tapegraph.problem import Result
+    monkeypatch.setitem(bench.SOLVERS, "astar", lambda *a, **k: Result("no_path"))
+    monkeypatch.setitem(bench.SOLVERS, "ilp", lambda *a, **k: Result("ok", nodes=0, seconds=0.0))  # a disagreement
+    monkeypatch.setattr(bench.ilp, "ORTOOLS_AVAILABLE", True)
+    rows = _run_constrained(tmp_path, monkeypatch)
+    assert rows and all(r["solver"] == "skipped" and r["ilp_status"] == "ok" for r in rows)
+    monkeypatch.setattr(sys, "argv", ["bench", "report", "--out", str(tmp_path)])
+    bench.main()
+    assert "{'ok': 6}" in (tmp_path / "results.md").read_text()

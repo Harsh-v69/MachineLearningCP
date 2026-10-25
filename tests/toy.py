@@ -34,3 +34,21 @@ GRAPH = GraphProblem(
     goal="E",
     h={"A": 2, "B": 1, "C": 1, "D": 1, "E": 0},
 )
+
+
+# Diamond with a shared middle node M. Unit edge costs, h = 0 (so A* pops in g order).
+#   A-p1->P1-m->M  g=2, res 1+5=6        A-p2->P2-m->M  g=2, res 1+1=2  (same g, lower res: dominates the first)
+#   A-c1->C1-c2->C2-m->M  g=3, res 0     (larger g, smaller res: neither dominates the (2,2) label, so M keeps both)
+#   M-g->G (res 3).  Best constrained paths: res_budget>=5 -> via P2 (cost 3, res 5); 3..4 -> via C (cost 4, res 3); <3 -> none.
+DIAMOND = GraphProblem(
+    {
+        "A": [("p1", "P1", 1), ("p2", "P2", 1), ("c1", "C1", 0)],
+        "P1": [("m", "M", 5)],
+        "P2": [("m", "M", 1)],
+        "C1": [("c2", "C2", 0)],
+        "C2": [("m", "M", 0)],
+        "M": [("g", "G", 3)],
+        "G": [],
+    },
+    goal="G",
+)

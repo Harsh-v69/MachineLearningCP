@@ -46,19 +46,23 @@ rows in the tables are keyed by actual `T*` and have 1 to 5 instances each.
 
 | benchmark | solvers | agents | constrained |
 |---|---|---|---|
-| river | `solvers --bench river --n 5` (4 s) | `agents --bench river --n 5 --episodes 100` (231 s) | `constrained --bench river --n 5` (4 s) |
-| sokoban | `solvers --bench sokoban --n 5` (12 s) | `agents --bench sokoban --n 5 --episodes 100` (345 s) | `constrained --bench sokoban --n 5` (13 s) |
-| boxoban | `solvers --bench boxoban --n 5` (140 s) | `agents --bench boxoban --n 5 --episodes 20`, ILP disabled (2311 s) | `constrained --bench boxoban --n 5` (136 s) |
-| cube2 | `solvers --bench cube2 --n 5` (228 s) | `agents --bench cube2 --n 5 --episodes 30`, ILP disabled (721 s) | `constrained --bench cube2 --n 5` (171 s) |
+| river | `solvers --bench river --n 5` (4 s) | `agents --bench river --n 5 --episodes 100` (238 s) | `constrained --bench river --n 5` (4 s) |
+| sokoban | `solvers --bench sokoban --n 5` (12 s) | `agents --bench sokoban --n 5 --episodes 100` (367 s) | `constrained --bench sokoban --n 5` (13 s) |
+| boxoban | `solvers --bench boxoban --n 5` (140 s) | `agents --bench boxoban --n 5 --episodes 20`, ILP disabled (2267 s) | `constrained --bench boxoban --n 5` (136 s) |
+| cube2 | `solvers --bench cube2 --n 5` (228 s) | `agents --bench cube2 --n 5 --episodes 30`, ILP disabled (812 s) | `constrained --bench cube2 --n 5` (171 s) |
 
-Wall-clock total about 4300 s (72 min); times are from the run logs. Then `python -m tapegraph.bench report`.
+Times are from the run logs. The solvers and constrained runs were done sequentially (about 710 s in total). The
+agents runs were **re-run after a seeding fix** (commit b7f6106: before it, every instance in a benchmark received the
+same noise draws; now each instance gets its own seed `seed + 7919 * index`, shared by all methods of that instance so
+the comparison stays paired). The first agents results were discarded. The four re-runs ran as parallel processes
+(longest 2267 s), so their `seconds` columns are slightly inflated by contention. Then `python -m tapegraph.bench
+report`.
 
 Deviations from the nominal loop above:
 
 - **Fewer episodes for the two expensive benchmarks.** Boxoban agents used `--episodes 20` and Cube agents
   `--episodes 30` instead of 100. With 20 to 30 episodes a success rate has a standard error of roughly 0.05 to
-  0.09, and all instances in a run share the same noise draws (the episode RNG is seeded from `seed` and the episode
-  index only), so instances in a bucket are not independent replicates.
+  0.09 per instance, and the Boxoban and Cube buckets have 1 to 5 instances each.
 - **ILP disabled in the Boxoban and Cube agents runs.** Those two runs were started through a small wrapper that set
   `ilp.ORTOOLS_AVAILABLE = False` before calling `bench.main()`. Consequences: (a) there are **no `ours_ilp` rows**
   for Boxoban or Cube; (b) the `tape` rows for Boxoban and Cube used `ilp.graph_path_bfs` (a BFS shortest path on the
@@ -122,44 +126,71 @@ unreduced resource. (Skipped rows only record A*'s verdict, so the table itself 
 - The ILP never beat A* on time or on success in any constrained row.
 
 **4. Success within budget under noise** (`delta` 0.16 planning error, `eta` 0.04 execution noise; episodes: 100 River
-and Sokoban, 30 Cube, 20 Boxoban). Smallest and largest `T*` bucket:
+and Sokoban, 30 Cube, 20 Boxoban; each instance has its own noise seed, shared by the methods). Smallest and largest
+`T*` bucket:
 
 | bench | T* | react | tape | ours_astar | ours_ilp |
 |---|---|---|---|---|---|
-| river | 4 / 14 | 0.798 / 0.24 | 1.0 / 0.93 | 1.0 / 0.94 | 1.0 / 0.90 |
-| sokoban | 5 / 23 | 0.67 / 0.055 | 0.97 / 0.775 | 0.97 / 0.825 | 0.97 / 0.83 |
-| boxoban | 7 / 21 | 0.433 / 0.033 | 0.95 / 0.683 | 0.95 / 0.70 | none |
-| cube2 | 3 / 11 | 0.767 / 0.333 | 1.0 / 1.0 | 1.0 / 1.0 | none |
+| river | 4 / 14 | 0.752 / 0.246 | 0.996 / 0.922 | 0.996 / 0.94 | 0.998 / 0.938 |
+| sokoban | 5 / 23 | 0.66 / 0.05 | 0.98 / 0.755 | 0.98 / 0.81 | 0.98 / 0.80 |
+| boxoban | 7 / 21 | 0.533 / 0.05 | 0.983 / 0.80 | 0.983 / 0.817 | none |
+| cube2 | 3 / 11 | 0.84 / 0.32 | 1.0 / 0.947 | 1.0 / 0.94 | none |
 
-- ReAct-sim falls steadily with `T*` in every benchmark and is below the others from the first bucket. `tape`,
-  `ours_astar` and `ours_ilp` are within a few points of each other everywhere (largest `tape` vs `ours_astar` gap:
-  0.05 at Sokoban `T*` 23). `ours_astar` >= `tape` on 98 of the 100 instances (`tape` is higher on 2), but the margins
-  are small and noise draws are shared, so I do not read this as a real edge. `tape` runs more solves per episode at
-  large `T*` (Sokoban `T*` 23: 4.73 vs 3.23 for `ours_astar`). `ours_ilp` tracks `ours_astar` with no systematic
-  difference (River `T*` 14: 0.90 vs 0.94; Sokoban `T*` 23: 0.83 vs 0.825) and takes far longer per episode (River
-  `T*` 14: 0.0596 vs 0.0012 s; Sokoban `T*` 23: 0.1962 vs 0.0062 s).
-- Reversible vs irreversible: River `ours_astar` stays between 0.918 and 1.0 across `T*` 4 to 14 and is flat from
-  `T*` 8 on (0.95, 0.93, 0.918, 0.94). Sokoban falls from 0.97 to 0.79 at `T*` 21 (0.825 at 23) and Boxoban from 0.95
-  to 0.70 at `T*` 19 and 21. This is consistent with a River move being undoable inside the 2 steps of slack while a
-  Sokoban/Boxoban push can be irrecoverable, but the tables do not isolate that cause: at similar `T*` River and
-  Sokoban are close (River `T*` 8 and 10: 0.95, 0.93; Sokoban `T*` 9: 0.91), the drop is larger with more boxes
-  (Boxoban `T*` 16 to 21: 0.78 to 0.70; Sokoban `T*` 15 to 23: 0.90 to 0.83), and longer paths are also exposed to
-  more noise.
-- Cube shows 1.0 for `tape` and `ours` at every `T*`, but this is a small-sample artifact: only 30 episodes, and
-  every instance sees the same 30 noise draws. A separate check (not in the tables: `ours_astar`, `--eta 0.04`,
-  seed 1, 200 episodes, the same Cube instances for `T*` 3 to 9) gave about 1.00 (`T*` 3), 0.99 (`T*` 5), 0.96 (`T*`
-  7) and 0.92 to 0.94 (`T*` 9). So Cube also declines with `T*`, at about the same rate as River and Sokoban; the
-  first 30 episodes of that check were all successes, which is what the table contains. It was not run at `T*` 11
-  (about 4.6 s per episode with A*).
+Averaged over instances, success is react / tape / ours_astar / ours_ilp: River 0.455 / 0.951 / 0.954 / 0.959,
+Sokoban 0.248 / 0.862 / 0.872 / 0.874, Boxoban 0.225 / 0.850 / 0.855 / none, Cube 0.539 / 0.967 / 0.965 / none.
+
+- ReAct-sim falls steadily with `T*` in every benchmark and is far below the others from the first bucket (0.66 to
+  0.84 at the smallest `T*`, 0.05 to 0.32 at the largest). `tape`, `ours_astar` and `ours_ilp` are within a few points
+  of each other everywhere (largest `tape` vs `ours_astar` gap: 0.055 at Sokoban `T*` 23). Per instance, `tape` has
+  higher success than `ours_astar` on 10 of 100 instances, lower on 23, equal on 67, so `ours_astar` >= `tape` on 90
+  of 100; the pooled margin is 0.001 to 0.010 per benchmark, which I do not read as a real edge. `tape` runs more
+  solves per episode at large `T*` (Sokoban `T*` 23: 5.04 vs 3.24 for `ours_astar`). `ours_ilp` tracks `ours_astar`:
+  higher on 14 and lower on 5 of 30 River instances (pooled 0.959 vs 0.954), higher on 3 and lower on 2 of 25 Sokoban
+  instances (0.874 vs 0.872), so no meaningful difference, and it takes far longer per episode (River `T*` 14: 0.065
+  vs 0.0012 s; Sokoban `T*` 23: 0.2037 vs 0.0068 s).
+- Success of the re-planning methods declines with `T*` in all four benchmarks, since a longer path is exposed to
+  more noise with the same 2 steps of slack. The decline is mild where moves are reversible and steeper for
+  push-based puzzles. River `ours_astar` goes 0.996, 0.988, 0.964, 0.936, 0.90, 0.94 over `T*` 4 to 14 (never below
+  0.90). Cube goes 1.0, 0.973, 0.973, 0.94, 0.94 over `T*` 3 to 11 (never below 0.94). Sokoban goes 0.98, 0.99, 0.96,
+  0.934, 0.865, 0.843, 0.817, 0.84, 0.753, 0.81 over `T*` 5 to 23. Boxoban goes from 0.983 (`T*` 7) to 0.70 (`T*` 16)
+  and 0.80 and 0.817 at `T*` 19 and 21 (3 or fewer instances and 20 episodes per instance there). At `T*` 14 to 15
+  River is 0.94 vs Sokoban 0.865 and 0.843; at `T*` 11 to 12 Cube is 0.94 vs Boxoban 0.90 (one instance) and 0.833.
+  This is consistent with reversible domains (River, Cube) absorbing errors through slack while Sokoban/Boxoban pushes
+  can be irrecoverable, but the tables do not isolate that cause: up to `T*` 9 River, Cube and Sokoban are close
+  (River `T*` 8: 0.964; Cube `T*` 9: 0.94; Sokoban `T*` 9: 0.934), the gap only opens from `T*` 12 to 14 up (about 0.07
+  to 0.1), and longer paths also mean more noise events.
+- Before the seeding fix the Cube row read 1.0 for `tape` and `ours` at every `T*`. That was an artifact of the
+  bug: all instances saw the same 30 noise draws, and none of them hurt. With per-instance seeds the Cube numbers
+  match a separate 200-episode check made earlier on the old seeding (`ours_astar`, `T*` 5: 0.99, `T*` 7: 0.96, `T*` 9:
+  0.92 to 0.94).
 
 **Does the ILP win anywhere?** No. In the unconstrained table it is the slowest of the five solvers in every
 `(benchmark, T*)` bucket except Cube `T*` 11 (34 to 136 times slower than A* on River and Sokoban). Its
 node count is below BFS in some Sokoban and Boxoban buckets, but ILP "nodes" is the size of the bounded subgraph it
 builds. That exception (Cube `T*` 11, ILP 3.3 s vs A* 4.4 s) is a bucket where it
 solved 0 of 5 and failed fast with `too_large`. It also never beats A* in the constrained table and solves fewer
-instances on Boxoban and Cube. Supplementary check, not in the tables: re-running Sokoban constrained with
-`--res_frac 1.0` (so the constraint is feasible) had both solve 25/25 and agree 25/25, with A* at 0.0014 s and the
-ILP at 0.081 s on average.
+instances on Boxoban and Cube. The supplementary constrained runs below say the same.
+
+### Supplementary: constrained at res_frac 0.95
+
+The main constrained table uses `--res_frac 0.9` and leaves Sokoban and Boxoban with no solved instance. Extra runs
+for Sokoban and Boxoban (`constrained --bench {sokoban,boxoban} --n 5 --res_frac X --out results_rfNN`, tables in
+`docs/results_rf95.md`; same instances as the main run; run concurrently with other jobs, so timings are a little
+inflated) show that **it is still almost all infeasible** just below the optimum's resource. The budget is
+`floor(X * resource of the length-optimal path)`, and since resource is an integer (1 per step, 3 per push) a
+fraction slightly below 1 already removes at least one unit; most likely the length-optimal path is already close to
+the cheapest in resource, although I did not verify that beyond A* and the ILP agreeing that those budgets are
+infeasible.
+
+| res_frac | sokoban skipped (infeasible) / solved | boxoban skipped / solved | ILP vs A* where solved |
+|---|---|---|---|
+| 0.95 | 24 / 1 | 20 / 0 | Sokoban `T*` 17: both cost 19, agree; A* 0.0047 s, ILP 0.1458 s |
+| 0.97 | 23 / 2 | 20 / 0 | Sokoban `T*` 17 and 21: both agree on cost; A* 0.0064 to 0.0068 s, ILP 0.17 to 0.21 s |
+| 1.0 (non-binding by construction) | 0 / 25 | 0 / 20 | Sokoban: both 25/25, agree 25/25; A* 0.0017 s vs ILP 0.1033 s mean. Boxoban: A* 20/20, ILP 14/20 (6 `timeout`, all at `T*` >= 16), all 14 ILP solutions agree with A*; on those 14, A* 0.028 s vs ILP 2.02 s |
+
+So for Boxoban there is no instance at 0.95 or 0.97 where the resource budget binds and is still feasible, and for
+Sokoban only 1 and 2 of 25. In those, the ILP agreed with A* and was slower. With a non-binding budget (1.0) the
+pattern is the same as in the unconstrained table.
 
 ## Caveats
 
@@ -168,5 +199,5 @@ ILP at 0.081 s on average.
 - TAPE-sim minimises path length in the folded graph, not TAPE's node-score objective.
 - The ILP is an edge-flow formulation, not time-expanded.
 - Cost means in the tables are over solved instances only.
-- Instances in a bucket share the same episode noise draws and buckets have 1 to 5 instances, so the success-rate
-  tables are not independent samples; differences of a few points are within noise.
+- Buckets have 1 to 5 instances (and 20 to 100 episodes each), so success-rate differences of a few points are within
+  noise.

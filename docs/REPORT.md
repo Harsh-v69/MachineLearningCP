@@ -3,10 +3,9 @@
 Status at code commit `37edc3d` (53 commits at that point, documentation refreshed in the commit after it; tests: 193
 passed and 5 skipped; about 5,900 lines of Python across package, tests and scripts). Every number below is taken from
 `docs/paper.md` (generated from the CSVs under `docs/data/`), the generated tables `docs/results*.md` or the raw CSVs;
-the README holds the same results with more per-bucket detail and the reproduction commands. Where `docs/paper.md`
-and this report quote different time-ratio statistics they say so: the paper headlines the **median of per-row ILP/A*
-seconds ratios**, this report and the README quote the **ratio of mean seconds** (mean ILP seconds over mean A* seconds on
-the same rows, pulled toward the slowest rows). Example: cube2 at `c_slack` 4 is 228x as a ratio of means and 431x as a
+the README holds the same results with more per-bucket detail and the reproduction commands. Two time-ratio statistics appear: the paper headlines the **median of per-row ILP/A*
+seconds ratios** and lists the **ratio of mean seconds** (mean ILP seconds over mean A* seconds on the same rows, pulled toward
+the slowest rows) beside it; this report gives both where they fit and labels each figure as "median" or "ratio of mean seconds". Example: cube2 at `c_slack` 4 is 228x as a ratio of means and 431x as a
 median per-row ratio.
 
 ## 1. Summary
@@ -22,9 +21,10 @@ over a state graph:
 Headline results, on seven generated benchmarks (River Crossing; Sokoban with 1, 2 and 3 boxes; a Boxoban-style 4-box
 imitation; Rubik's 2x2x2 and 3x3x3, half-turn metric):
 
-1. **The solvers are exact and cheap.** BFS, A*, IDA* and the ILP never returned a path longer than the optimum `T*` on any
-   instance they solved (635 solved rows). A* with a pattern-database or distance heuristic solved all 170 unconstrained
-   instances; weighted A* (w = 2) is fastest and returned a longer path on 6 of its 169 solved rows (worst 1.1429 = 8/7).
+1. **The graph solvers are exact where they finish, and A* finishes everywhere.** BFS, A*, IDA* and the ILP never returned a
+   path longer than the optimum `T*` on any instance they solved (635 solved rows). A* solved all 170 unconstrained
+   instances. By median seconds per instance, weighted A* (w = 2) is the fastest solver on river, sokoban, sokoban2, sokoban3 and
+   boxoban, and IDA* is the fastest on cube2 and cube3; weighted A* returned a longer path on 6 of its 169 solved rows (worst 1.1429 = 8/7).
 2. **The ILP did not beat A* in any measured regime.** Unconstrained it solved 142 of 170 instances (A* 170 of 170) and was
    faster than A* on 0 of the 142 where both solved (median 29x to 224x slower per benchmark; ratio of mean seconds 52x to
    366x). With a resource budget that always binds (the `bind` design; `c_slack` 2, 4 and 8, not every value on every
@@ -41,7 +41,7 @@ imitation; Rubik's 2x2x2 and 3x3x3, half-turn metric):
 4. **Everything that is simulated is labelled as such.** ReAct and TAPE are models of LLM behaviour using the paper's
    noise model (planning error `delta` = 0.16, execution noise `eta` = 0.04), not LLM runs. No language model was run.
 
-<!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced by the controller once the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
+<!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced when the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
 
 ## 2. How the project maps to the original goals
 
@@ -70,7 +70,7 @@ tapegraph/
   baselines/        react_sim.py  tape_sim.py  replan.py
 scripts/            make_figures.py  make_paper.py  probe_resources.py (which resources trade off against length)
 docs/               paper.md (generated), results*.md (generated), data/ (CSVs), figures/ (51 SVGs), this report, spec, plans
-tests/              193 passed + 5 skipped
+tests/              194 passed + 5 skipped
 ```
 
 ### 3.1 The `Problem` interface
@@ -119,7 +119,7 @@ non-infeasible outcome is `timeout`.
 
 The 2x2x2's two coordinates evolve independently under every move, so the full 3,674,160-state distance table is one
 vectorised BFS (about 12 s once, then cached), and the depth counts reproduce the published 2x2x2 distribution exactly
-(1, 9, 54, 321, 1847, 9992, 50136, 227536, 870072, 1887748, 623800, 2644; God's number 11). The 3x3x3 move tables reproduce the
+(1, 9, 54, 321, 1847, 9992, 50136, 227536, 870072, 1887748, 623800, 2644; God's number 11). The cube3 target `T* = 10` was dropped because weighted A* hit the 500,000-node cap on 1 of 2 instances there (comment in `benchmarks.py`). The 3x3x3 move tables reproduce the
 known half-turn-metric counts 1, 18, 243, 3240, 43239 by full-state BFS, and a slow test (`--runslow`) checks the pattern database against
 the depth-5 count 574,908.
 
@@ -258,15 +258,15 @@ would count episodes twice). Pooled success, and the paired difference of mean p
 Where tape differs from ours_astar per instance it is lower more often than higher on river (14 vs 4), sokoban (11 vs 5), sokoban2
 (11 vs 3), sokoban3 (12 vs 1) and boxoban (3 vs 1), and higher on cube2 (2 vs 1). The gap is largest at the longest `T*` (sokoban `T*` 23:
 tape 0.732, ours_astar 0.782). A plausible mechanism, which was **not tested**, is that 16 noisy rollouts are less likely to contain an
-optimal path as `T*` grows. `ours_ilp` is within 0.005 of `ours_astar` on the three benchmarks where both ran (as expected: both plan
-optimally on the true graph); it costs far more time per episode. Success of the re-planning methods declines with `T*` in every
+optimal path as `T*` grows. `ours_ilp` is within 0.006 of `ours_astar` in pooled success on the three benchmarks where both ran (unsurprising: both plan
+optimally on the true graph), but the per-instance split on river (19 higher, 6 lower) is unexplained (tie-breaking among optimal paths is plausible, untested); it costs far more time per episode. Success of the re-planning methods declines with `T*` in every
 benchmark, mildly on the reversible domains (river 0.946 at `T*` 14, cube2 0.940 at `T*` 11) and more on push-based puzzles
 (sokoban 0.782 at `T*` 23, sokoban2 0.820 at 23, sokoban3 0.733 at 27); that is consistent with errors being recoverable in
 reversible domains and irrecoverable on pushes, but the buckets differ in `T*`, instance counts and episodes, so the cause is not isolated.
 In the earlier 100-episode `main` run, tape had higher success than ours_astar on 10 of 100 instances, lower on 23 and equal on 67 (river,
 sokoban, boxoban, cube2).
 
-<!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced by the controller once the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
+<!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced when the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
 
 ### 5.5 Figures, paper and reproduction tooling
 
@@ -296,20 +296,22 @@ reviewed. The reviews changed real outcomes:
 | The generated paper's abstract and conclusion hid ILP failure denominators (A* 453 of 453 bind rows against the ILP's 362 of 453; unconstrained 170 of 170 against 142 of 170) | Denominators stated next to every ILP-vs-A* claim |
 | The generated paper double counted instances: the `c_slack` runs of a benchmark re-use the same instances (860 `no_tradeoff` instance-runs vs 346 distinct instances), and `agents_ep300` re-uses `main`'s instances and noise seeds, so river and sokoban were counted twice | Counts are over distinct instances (identified by generation order, accepted only if `T*` and `r_opt` agree across runs) and one agents dataset per benchmark (`agents_ep300` supersedes `main`) |
 | Smaller issues in the paper generator: the A* reference title was wrong, the ILP ball was described as `T* + slack` for the `bind` runs (it is `T* + c_slack`), "timeout" was described too narrowly (any non-optimal CP-SAT outcome), the median and the ratio of means were not both shown, the hand-written interpretation block could be lost silently | All corrected; a `ratio of mean seconds` column was added; a missing marker fails loudly; a test compares the committed paper with a fresh build |
-| The figure review found that the `bind` figures ignore skipped A* `node_limit` rows, and that README prose still said a tighter `c_slack` had not been tried | README "never dropped" wording qualified; the `c_slack` sweep exists and the prose was rewritten in this refresh |
+| The figure review found that the `bind` figures ignore skipped A* `node_limit` rows (so "never dropped" was too strong) | README and section 4.2 wording qualified |
+| After the `c_slack` sweep was run, README/REPORT prose still said a tighter `c_slack` had not been tried and that the constrained regime was barely exercised | Found while preparing this refresh; the prose was rewritten (section 5.3) |
 | The first README/REPORT said `tape` and `ours_astar` were "close by construction, not by coincidence" and that the difference was "not shown to matter" | With 300 episodes and more benchmarks the paired difference is small but excludes 0 on four of six benchmarks; wording replaced (section 5.4) |
-| cube3 A* uses roughly 7 KB per expansion (a 500,000-node cap peaked at about 3.5 GB on the development machine) | All cube3 runs use `--max_nodes 100000` and run one at a time; the oracle's fixed 300,000 cap, which ignores `--max_nodes`, was noted and not changed |
+| cube3 A* uses roughly 7 KB per expansion (a 500,000-node cap peaked at about 3.5 GB on the development machine) | All cube3 runs use `--max_nodes 100000`; the solver and `bind` runs ran one at a time (the cube3 agents run ran in parallel with other jobs); the oracle's fixed 300,000 cap, which ignores `--max_nodes`, was noted and not changed |
 
 ## 7. Limitations and threats to validity
 
 1. **The baselines are simulated.** ReAct-sim and TAPE-sim use the paper's noise model; they say nothing about how a real
-   LLM behaves. The 0.43 to 0.69 gap to ReAct-sim comes from the modelling assumption that planning errors are injected
-   unfiltered and never corrected.
-2. **TAPE-sim and `ours` are close, partly by construction (section 3.4), but not identical.** TAPE-sim's rollouts come from an
-   exact oracle with 16% errors; 16 of them and a shortest path in the folded graph yield (close to) an optimal path of the true
-   graph, which is what `ours` follows. They have identical success on 82 of 150 instances (6 benchmarks), and `ours_astar` is
-   higher by a small, distinguishable margin on four of six benchmarks (section 5.4). The mechanism is a hypothesis. The real
-   difference is mainly cost (no oracle, no rollouts, no ILP).
+   LLM behaves. The 0.43 to 0.69 gap to ReAct-sim is by construction of the simulator (planning errors are injected
+   unfiltered and never corrected); no ablation was run.
+2. **TAPE-sim and `ours` are close in success, but not identical.** Why they are close is a hypothesis that was not tested
+   here: TAPE-sim's rollouts come from an exact oracle with 16% errors, so a shortest path in the folded graph may be (close to)
+   an optimal path of the true graph, which is what `ours` follows. They have identical success on 82 of 150 instances (6
+   benchmarks); the difference is small (at most 0.031) but its interval excludes 0 on river, sokoban, sokoban2 and sokoban3 and
+   contains 0 on boxoban and cube2 (section 5.4). The difference that does not depend on the noise model is cost: `ours` needs no
+   oracle, no rollouts and no ILP.
 3. **Constrained evidence is thin on some benchmarks.** Distinct trade-off instances: sokoban 7, sokoban2 6, sokoban3 4, boxoban
    1; the `bind` resources are unusual by design; A* `ok` at the `tight` level partly repeats the bisection's last probe, so the
    informative number is the ILP's behaviour, not A*'s solve rate; instances where A* fails during the bisection are skipped,
@@ -339,7 +341,7 @@ reviewed. The reviews changed real outcomes:
 ```bash
 cd tape-graph
 pip install -e ".[test]"            # numpy, ortools, pytest; installs the `tapegraph` console script
-python -m pytest -q                 # 193 passed, 5 skipped (--runslow adds the cube3 corner-PDB cold build)
+python -m pytest -q                 # 194 passed, 5 skipped (--runslow adds the cube3 corner-PDB cold build)
 tapegraph all --profile smoke --out smoke_out    # about 20 s
 tapegraph all --profile full  --out full_out     # the original four-benchmark published commands, sequentially (hours)
 python scripts/make_figures.py                   # docs/figures from docs/data
@@ -364,6 +366,6 @@ Still not done:
 - **Real Boxoban results.** The loader exists, but no real level file was downloaded or run; this needs a file supplied by the user.
 - **More constrained evidence on multi-box puzzles.** Only 4 to 6 trade-off instances on sokoban2 and sokoban3, 1 on Boxoban; and a
   resource model that applications would recognise.
-- **cube3 agents.** <!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced by the controller once the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
+- **cube3 agents.** <!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced when the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
 - **Untested mechanism** for the small `ours_astar` over `tape` margin (section 5.4), and an untested separation of the `c_slack` budget effect from the ILP subgraph growth.
 - An oracle cap that follows `--max_nodes` (it is fixed at 300,000), and a smaller-memory A* for cube3.

@@ -3,6 +3,7 @@ import sys
 
 from tapegraph import bench
 from tapegraph.benchmarks import BENCHMARKS, make_instances
+from tapegraph.solvers import bfs
 
 
 def test_make_instances_fills_buckets_with_true_distances():
@@ -133,3 +134,128 @@ def test_constrained_skipped_row_records_ilp_status_and_report_counts_it(tmp_pat
     monkeypatch.setattr(sys, "argv", ["bench", "report", "--out", str(tmp_path)])
     bench.main()
     assert "{'ok': 6}" in (tmp_path / "results.md").read_text()
+
+
+# ---- Task 2: multi-box Sokoban and --boxoban_file ----------------------------------------------------------------
+
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+from toy import assert_solvers_agree
+
+from tapegraph import benchmarks
+from tapegraph.problems.boxoban import load_boxoban_file
+
+SAMPLE = Path(__file__).parent / "data" / "boxoban_sample.txt"
+
+
+@pytest.mark.parametrize("name,boxes,shape", [("sokoban2", 2, (7, 9)), ("sokoban3", 3, (8, 10))])
+def test_multibox_sokoban_benches_are_nontrivial_and_astar_idastar_match_bfs(monkeypatch, name, boxes, shape):
+    monkeypatch.setitem(BENCHMARKS, name, replace(BENCHMARKS[name], T_targets=[6, 10]))  # BFS-feasible buckets only
+    insts = make_instances(name, per_bucket=3, seed=5)
+    assert len(insts) == 6
+    hard = 0
+    for i in insts:
+        assert (i.problem.H, i.problem.W) == shape and len(i.start[1]) == boxes and i.T > 0  # no already-solved starts
+        b = bfs.solve(i.problem, i.start)  # BFS ignores h and prune
+        assert b.status == "ok" and b.cost == i.T
+        assert_solvers_agree(i.problem, i.start, b)
+        hard += i.T >= 5
+    assert hard == 6
+
+
+def test_multibox_targets_reach_beyond_the_single_box_ones():
+    assert max(BENCHMARKS["sokoban2"].T_targets) >= max(BENCHMARKS["sokoban"].T_targets)
+    assert max(BENCHMARKS["sokoban3"].T_targets) > max(BENCHMARKS["sokoban2"].T_targets)
+
+
+def test_boxoban_file_is_not_registered_by_default():
+    assert "boxoban_file" not in BENCHMARKS
+
+
+UNSOLVABLE = ["##########", "#        #", "#.       #", "#        #", "#   @    #", "#        #", "#        #",
+              "#        #", "#       $#", "##########"]  # the box sits in a dead corner; goal elsewhere
+
+
+def _file_with_unsolvable(tmp_path):
+    path = tmp_path / "levels.txt"
+    path.write_text(SAMPLE.read_text() + "\n; 3\n" + "\n".join(UNSOLVABLE) + "\n")
+    return path
+
+
+def _boxoban_file_run(tmp_path, monkeypatch, cmd, path, *extra):
+    monkeypatch.setitem(BENCHMARKS, "boxoban_file", None)  # restored on teardown, so the registry stays clean
+    monkeypatch.setattr(sys, "argv", ["bench", cmd, "--bench", "boxoban_file", "--boxoban_file", str(path), "--n", "10",
+                                      "--out", str(tmp_path), *extra])
+    bench.main()
+    return list(csv.DictReader(open(tmp_path / f"{cmd}_boxoban_file.csv")))
+
+
+def test_solvers_on_boxoban_file_use_oracle_distances_and_record_unsolvable_as_skipped(tmp_path, monkeypatch):
+    rows = _boxoban_file_run(tmp_path, monkeypatch, "solvers", _file_with_unsolvable(tmp_path), "--solvers", "bfs", "astar")
+    assert {r["bench"] for r in rows} == {"boxoban_file"}
+    good = [r for r in rows if r["solver"] != "skipped"]
+    assert len(good) == 3 * 2 and all(r["status"] == "ok" for r in good)
+    levels = load_boxoban_file(SAMPLE)
+    want = sorted(int(bfs.solve(p, s).cost) for p, s in levels)
+    assert sorted(int(r["T"]) for r in good if r["solver"] == "bfs") == want
+    skipped = [r for r in rows if r["solver"] == "skipped"]
+    assert len(skipped) == 1 and skipped[0]["status"] == "no_path" and skipped[0]["ok"] == "0"
+    assert skipped[0]["index"] == "3" and skipped[0]["n"] == "10"
+    monkeypatch.setattr(sys, "argv", ["bench", "report", "--out", str(tmp_path)])
+    bench.main()  # skipped rows must not break the report
+    assert "no_path" in (tmp_path / "results.md").read_text()
+
+
+def test_n_caps_the_number_of_levels_used(tmp_path, monkeypatch):
+    rows = _boxoban_file_run(tmp_path, monkeypatch, "solvers", SAMPLE, "--solvers", "astar", "--n", "2")
+    assert len(rows) == 2
+
+
+def test_agents_and_constrained_on_boxoban_file_keep_skipped_levels(tmp_path, monkeypatch):
+    path = _file_with_unsolvable(tmp_path)
+    rows = _boxoban_file_run(tmp_path / "a", monkeypatch, "agents", path, "--episodes", "2", "--no_ilp")
+    assert {r["method"] for r in rows if r["method"] != "skipped"} == {"react", "tape", "ours_astar"}
+    assert [(r["status"], r["index"]) for r in rows if r["method"] == "skipped"] == [("no_path", "3")]
+    for design in ("bind", "frac"):
+        rows = _boxoban_file_run(tmp_path / design, monkeypatch, "constrained", path, "--design", design)
+        sk = [r for r in rows if r["solver"] == "skipped" and r["index"] == "3"]
+        assert len(sk) == 1 and sk[0]["status"] == "no_path" and sk[0]["ok"] == "0"
+        assert {r["T"] for r in rows} >= {"-1"}
+
+
+def test_oracle_node_limit_gives_skipped_rows_with_that_status(tmp_path, monkeypatch):
+    from tapegraph.problem import Result
+    monkeypatch.setattr(benchmarks.astar, "solve", lambda *a, **k: Result("node_limit"))
+    rows = _boxoban_file_run(tmp_path, monkeypatch, "solvers", SAMPLE)
+    assert len(rows) == 3 and {(r["solver"], r["status"], r["ok"]) for r in rows} == {("skipped", "node_limit", "0")}
+
+
+def test_boxoban_file_cli_errors(tmp_path, monkeypatch, capsys):
+    monkeypatch.setitem(BENCHMARKS, "boxoban_file", None)
+    bad = tmp_path / "bad.txt"
+    bad.write_text("; 4\n####\n#@ #\n####\n")  # no boxes/goals is fine, but the missing-goal check below needs a real error
+    bad.write_text("; 4\n####\n#@$#\n####\n")
+    for argv in (["solvers", "--bench", "boxoban_file"],  # no file
+                 ["solvers", "--bench", "river", "--boxoban_file", str(SAMPLE)],  # file with another bench
+                 ["solvers", "--bench", "boxoban_file", "--boxoban_file", str(tmp_path / "nope.txt")],
+                 ["solvers", "--bench", "boxoban_file", "--boxoban_file", str(bad)]):
+        monkeypatch.setattr(sys, "argv", ["bench", *argv, "--out", str(tmp_path)])
+        with pytest.raises(SystemExit):
+            bench.main()
+    assert "level 4" in capsys.readouterr().err
+
+
+def test_generated_benches_keep_their_csv_columns(tmp_path, monkeypatch):
+    for cmd in ("solvers", "agents", "constrained"):
+        monkeypatch.setattr(sys, "argv", ["bench", cmd, "--bench", "river", "--n", "1", "--episodes", "1", "--out", str(tmp_path)])
+        bench.main()
+    for f in tmp_path.glob("*_river.csv"):
+        assert "index" not in open(f).readline()
+
+
+def test_sokoban2_fills_every_bucket_without_warning(capsys):
+    insts = make_instances("sokoban2", per_bucket=5, seed=1)  # sokoban3 takes ~25 s, so it is tuned by hand (README/report)
+    assert len(insts) == 5 * len(BENCHMARKS["sokoban2"].T_targets) and capsys.readouterr().err == ""
+    assert all(i.T > 0 for i in insts)

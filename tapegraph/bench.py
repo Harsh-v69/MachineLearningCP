@@ -21,7 +21,7 @@ from . import __version__
 from .baselines.react_sim import ReActSim
 from .baselines.replan import Replan
 from .baselines.tape_sim import TapeSim
-from .benchmarks import BENCHMARKS, make_instances
+from .benchmarks import BENCHMARKS, make_instances, use_boxoban_file
 from .execute import evaluate
 from .solvers import astar, bfs, idastar, ilp
 
@@ -61,9 +61,23 @@ def _solve(a, name, *args, **kw):
     return SOLVERS[name](*args, **kw)
 
 
+def _idx(inst):
+    """`index` column (position in a user-supplied file) only for those levels, so generated benches' CSVs are unchanged."""
+    i = getattr(inst, "index", -1)  # tests build bare namespaces
+    return {"index": i} if i >= 0 else {}
+
+
+def _skip_row(inst, **head):
+    """Row for a user-supplied level the oracle could not solve (T = -1): kept, with the oracle's status, never dropped."""
+    return {"bench": head.pop("bench"), "T": -1, **_idx(inst), **head, "status": inst.skip, "ok": 0}
+
+
 def run_solvers(a):
     rows = []
     for inst in make_instances(a.bench, a.n, a.seed):
+        if inst.T < 0:  # unsolved user-supplied level
+            rows.append({**_skip_row(inst, bench=a.bench, solver="skipped"), **_params(a, "slack")})
+            continue
         B = inst.T + a.slack
         for name in a.solvers:
             if not _usable(name):
@@ -72,7 +86,7 @@ def run_solvers(a):
             rows.append({
                 "bench": a.bench, "T": inst.T, "solver": name, "status": r.status, "ok": int(r.status == "ok"),
                 "cost_ratio": r.cost / inst.T if r.status == "ok" else "",
-                "nodes": r.nodes, "seconds": round(r.seconds, 5), **_params(a, "slack"),
+                "nodes": r.nodes, "seconds": round(r.seconds, 5), **_idx(inst), **_params(a, "slack"),
             })
     _write(Path(a.out) / f"solvers_{a.bench}.csv", rows)
 
@@ -81,6 +95,9 @@ def run_agents(a):
     use_ilp = ilp.ORTOOLS_AVAILABLE and not a.no_ilp
     rows = []
     for idx, inst in enumerate(make_instances(a.bench, a.n, a.seed)):
+        if inst.T < 0:  # unsolved user-supplied level
+            rows.append(_skip_row(inst, bench=a.bench, method="skipped"))
+            continue
         p, o, B = inst.problem, inst.oracle, inst.T + a.slack
         seed = a.seed + 7919 * idx  # per-instance noise; shared by all methods of one instance (paired comparison)
         makers = {
@@ -94,7 +111,7 @@ def run_agents(a):
             r = evaluate(p, inst.start, mk(), B, a.eta, a.episodes, seed)
             rows.append({"bench": a.bench, "T": inst.T, "method": name, **{k: round(v, 5) for k, v in r.items()},
                          "delta": a.delta, "eta": a.eta, "slack": a.slack, "episodes": a.episodes, "N": a.N,
-                         "use_ilp": int(use_ilp), "seed": a.seed, "inst_seed": seed})
+                         "use_ilp": int(use_ilp), "seed": a.seed, "inst_seed": seed, **_idx(inst)})
     _write(Path(a.out) / f"agents_{a.bench}.csv", rows)
 
 
@@ -103,8 +120,12 @@ def _constrained_frac(a):
     Every instance yields a row: solver="skipped" when R cannot be derived (base A* failed) or is proven infeasible."""
     rows, skipped = [], 0
     for inst in make_instances(a.bench, a.n, a.seed):
+        if inst.T < 0:  # unsolved user-supplied level
+            skipped += 1
+            rows.append({**_skip_row(inst, bench=a.bench, level="frac", solver="skipped"), **_params(a, "slack", "res_frac")})
+            continue
         p, B = inst.problem, inst.T + a.slack
-        head = {"bench": a.bench, "T": inst.T, "level": "frac"}
+        head = {"bench": a.bench, "T": inst.T, "level": "frac", **_idx(inst)}
         tail = _params(a, "slack", "res_frac")
         base = astar.solve(p, inst.start, budget=B, max_nodes=a.max_nodes)
         if base.status != "ok":  # cannot derive R
@@ -193,13 +214,17 @@ def _constrained_bind(a):
     """Resource budget that always binds: A* (and ILP) at B = T*+c_slack with R in {r_opt-1, r_min}; see bind_budgets."""
     rows, skipped = [], 0
     for inst in make_instances(a.bench, a.n, a.seed):
+        if inst.T < 0:  # unsolved user-supplied level
+            skipped += 1
+            rows.append({**_skip_row(inst, bench=a.bench, level="-", solver="skipped"), **_params(a, "c_slack")})
+            continue
         p = ResView(inst.problem)
         d = bind_budgets(p, inst.start, inst.T, a.c_slack, a.max_nodes)
         tail = _params(a, "c_slack")
         if "skip" in d:
             skipped += 1
-            rows.append({"bench": a.bench, "T": inst.T, "level": "-", "solver": "skipped", "status": d["skip"], "ok": 0,
-                         **tail})
+            rows.append({"bench": a.bench, "T": inst.T, **_idx(inst), "level": "-", "solver": "skipped",
+                         "status": d["skip"], "ok": 0, **tail})
             continue
         for level, R in d["levels"].items():
             results = {n: _solve(a, n, p, inst.start, budget=d["B"], res_budget=R, max_nodes=a.max_nodes)
@@ -208,7 +233,7 @@ def _constrained_bind(a):
             for n, r in results.items():
                 ok = r.status == "ok"
                 rows.append({
-                    "bench": a.bench, "T": inst.T, "level": level, "solver": n, "status": r.status, "ok": int(ok),
+                    "bench": a.bench, "T": inst.T, **_idx(inst), "level": level, "solver": n, "status": r.status, "ok": int(ok),
                     "R": R, "B": d["B"], "r_opt": d["r_opt"], "r_min": d["r_min"],
                     "cost": r.cost if ok else "",
                     "forced_longer": int(r.cost > inst.T) if ok else "",  # "" (not 0) so the report mean is over ok rows
@@ -383,8 +408,11 @@ def run_all(a):
 def build_parser():
     ap = argparse.ArgumentParser(prog="tapegraph")
     ap.add_argument("cmd", choices=["solvers", "agents", "constrained", "report", "all"])
-    ap.add_argument("--bench", choices=list(BENCHMARKS), default="river")
-    ap.add_argument("--n", type=int, default=5, help="instances per T* bucket")
+    ap.add_argument("--bench", choices=[*BENCHMARKS, "boxoban_file"], default="river")
+    ap.add_argument("--boxoban_file", metavar="PATH",
+                    help="solvers/agents/constrained, with --bench boxoban_file: DeepMind-format Boxoban text file; "
+                         "--n then caps the number of levels used (first n)")
+    ap.add_argument("--n", type=int, default=5, help="instances per T* bucket (with --boxoban_file: max levels)")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--slack", type=int, default=2)
     ap.add_argument("--max_nodes", type=int, default=500_000)
@@ -408,7 +436,15 @@ def build_parser():
 
 
 def main(argv=None):
-    a = build_parser().parse_args(argv)
+    ap = build_parser()
+    a = ap.parse_args(argv)
+    if (a.bench == "boxoban_file") != bool(a.boxoban_file) or (a.boxoban_file and a.cmd == "all"):
+        ap.error("--boxoban_file PATH and --bench boxoban_file go together (not valid with the 'all' subcommand)")
+    if a.boxoban_file:
+        try:
+            use_boxoban_file(a.boxoban_file)
+        except (OSError, ValueError) as e:
+            ap.error(f"--boxoban_file {a.boxoban_file}: {e}")
     {"solvers": run_solvers, "agents": run_agents, "constrained": run_constrained, "report": run_report,
      "all": run_all}[a.cmd](a)
 

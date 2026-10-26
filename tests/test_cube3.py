@@ -168,6 +168,7 @@ def real():
 @pytest.mark.slow
 def test_corner_pdb_is_admissible_against_bfs_distance(real):
     dist5 = _layers(real, 5)
+    assert np.bincount(list(dist5.values())).tolist() == [1, 18, 243, 3240, 43239, 574908]  # known HTM counts
     rng = random.Random(5)
     for _ in range(200):
         s = real.random_start(rng, rng.randint(1, 5))

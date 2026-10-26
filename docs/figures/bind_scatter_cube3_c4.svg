@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" preserveAspectRatio="xMidYMid meet" style="max-width:100%;height:auto" role="img" font-family="Helvetica, Arial, sans-serif">
+<title>cube3, c_slack 4: ILP vs A* seconds (n=17 instances, 30 (instance, level) rows)</title>
+<desc>Scatter plot &quot;cube3, c_slack 4: ILP vs A* seconds (n=17 instances, 30 (instance, level) rows)&quot;: 3 series, x axis A* seconds (log) from 0.0001 to 100, y axis ILP seconds (log) from 0.0001 to 100; 2 failure rows.</desc>
+<rect class="bg" x="0" y="0" width="720" height="440" fill="#ffffff"/>
+<text class="title" x="360" y="20" font-size="13" text-anchor="middle" fill="#222222">cube3, c_slack 4: ILP vs A* seconds (n=17 instances, 30 (instance, level)</text>
+<text class="title" x="360" y="36" font-size="13" text-anchor="middle" fill="#222222">rows)</text>
+<line class="grid" x1="66" x2="510.4" y1="386" y2="386" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="390" font-size="10" text-anchor="end" fill="#666666">0.0001</text>
+<line class="grid" x1="66" x2="510.4" y1="336.67" y2="336.67" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="340.67" font-size="10" text-anchor="end" fill="#666666">0.001</text>
+<line class="grid" x1="66" x2="510.4" y1="287.33" y2="287.33" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="291.33" font-size="10" text-anchor="end" fill="#666666">0.01</text>
+<line class="grid" x1="66" x2="510.4" y1="238" y2="238" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="242" font-size="10" text-anchor="end" fill="#666666">0.1</text>
+<line class="grid" x1="66" x2="510.4" y1="188.67" y2="188.67" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="192.67" font-size="10" text-anchor="end" fill="#666666">1</text>
+<line class="grid" x1="66" x2="510.4" y1="139.33" y2="139.33" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="143.33" font-size="10" text-anchor="end" fill="#666666">10</text>
+<line class="grid" x1="66" x2="510.4" y1="90" y2="90" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="94" font-size="10" text-anchor="end" fill="#666666">100</text>
+<line class="xtick" x1="66" x2="66" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="66" y="403" font-size="10" text-anchor="middle" fill="#666666">0.0001</text>
+<line class="xtick" x1="140.07" x2="140.07" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="140.07" y="403" font-size="10" text-anchor="middle" fill="#666666">0.001</text>
+<line class="xtick" x1="214.13" x2="214.13" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="214.13" y="403" font-size="10" text-anchor="middle" fill="#666666">0.01</text>
+<line class="xtick" x1="288.2" x2="288.2" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="288.2" y="403" font-size="10" text-anchor="middle" fill="#666666">0.1</text>
+<line class="xtick" x1="362.27" x2="362.27" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="362.27" y="403" font-size="10" text-anchor="middle" fill="#666666">1</text>
+<line class="xtick" x1="436.33" x2="436.33" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="436.33" y="403" font-size="10" text-anchor="middle" fill="#666666">10</text>
+<line class="xtick" x1="510.4" x2="510.4" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="510.4" y="403" font-size="10" text-anchor="middle" fill="#666666">100</text>
+<rect class="frame" x="66" y="90" width="444.4" height="296" fill="none" stroke="#666666"/>
+<text class="xlabel" x="288.2" y="426" font-size="12" text-anchor="middle" fill="#222222">A* seconds</text>
+<text class="ylabel" x="16" y="238" font-size="12" text-anchor="middle" fill="#222222" transform="rotate(-90 16 238)">ILP seconds</text>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="141.94" cy="179.71" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="117.77" cy="178.17" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="132.07" cy="173.74" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="99.12" cy="187.89" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="165.86" cy="126.03" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="178.28" cy="125.23" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="149.96" cy="147.03" r="4"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="164.09" y="182.44" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="150.16" y="177.26" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="175.71" y="178.24" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="187.51" y="136.65" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="214.71" y="135.34" width="8" height="8"/>
+<path class="ref" d="M99.12,363.94L457.5,125.23" fill="none" stroke="#666666" stroke-width="1.2" stroke-dasharray="5 4"/>
+<line class="strip" x1="66" x2="510.4" y1="67" y2="67" stroke="#dddddd"/>
+<path class="fail" d="M143.26,53.5L152.26,62.5M143.26,62.5L152.26,53.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M176.05,53.5L185.05,62.5M176.05,62.5L185.05,53.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<text class="strip-label" x="520.4" y="62" font-size="11" text-anchor="start" fill="#0072B2">x ILP timeout (2)</text>
+<line class="strip" x1="66" x2="510.4" y1="85" y2="85" stroke="#dddddd"/>
+<path class="fail" d="M201.93,71.5L210.93,80.5M201.93,80.5L210.93,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M206.1,71.5L215.1,80.5M206.1,80.5L215.1,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M212.76,71.5L221.76,80.5M212.76,80.5L221.76,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M223.29,71.5L232.29,80.5M223.29,80.5L232.29,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M225.49,71.5L234.49,80.5M225.49,80.5L234.49,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M236.77,71.5L245.77,80.5M236.77,80.5L245.77,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M263.86,71.5L272.86,80.5M263.86,80.5L272.86,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M281.68,71.5L290.68,80.5M281.68,80.5L290.68,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M293.39,71.5L302.39,80.5M293.39,80.5L302.39,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M326.92,71.5L335.92,80.5M326.92,80.5L335.92,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M340.85,71.5L349.85,80.5M340.85,80.5L349.85,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M345.96,71.5L354.96,80.5M345.96,80.5L354.96,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M362.93,71.5L371.93,80.5M362.93,80.5L371.93,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M369.82,71.5L378.82,80.5M369.82,80.5L378.82,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M373.01,71.5L382.01,80.5M373.01,80.5L382.01,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M402.01,71.5L411.01,80.5M402.01,80.5L411.01,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<text class="strip-label" x="520.4" y="80" font-size="11" text-anchor="start" fill="#0072B2">x ILP too_large (16)</text>
+<circle class="swatch" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="537.4" cy="98" r="4"/>
+<text class="legend" x="558.4" y="102" font-size="11" text-anchor="start" fill="#222222">bind level (ILP solved)</text>
+<rect class="swatch" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="533.4" y="112" width="8" height="8"/>
+<text class="legend" x="558.4" y="120" font-size="11" text-anchor="start" fill="#222222">tight level (ILP solved)</text>
+<line x1="524.4" x2="550.4" y1="134" y2="134" stroke="#666666" stroke-width="1.2" stroke-dasharray="5 4"/>
+<text class="legend" x="558.4" y="138" font-size="11" text-anchor="start" fill="#222222">y = x</text>
+</svg>

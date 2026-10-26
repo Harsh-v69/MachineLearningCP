@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" preserveAspectRatio="xMidYMid meet" style="max-width:100%;height:auto" role="img" font-family="Helvetica, Arial, sans-serif">
+<title>boxoban solvers: nodes vs T* (n=20 instances; crosses = failed rows, count at T*)</title>
+<desc>Line chart &quot;boxoban solvers: nodes vs T* (n=20 instances; crosses = failed rows, count at T*)&quot;: 5 series, x axis T* (optimal plan length) from 5 to 25, y axis nodes expanded (median of solved rows) (log) from 10 to 1e5; 1 failure rows.</desc>
+<rect class="bg" x="0" y="0" width="720" height="440" fill="#ffffff"/>
+<text class="title" x="360" y="20" font-size="13" text-anchor="middle" fill="#222222">boxoban solvers: nodes vs T* (n=20 instances; crosses = failed rows, count at</text>
+<text class="title" x="360" y="36" font-size="13" text-anchor="middle" fill="#222222">T*)</text>
+<line class="grid" x1="66" x2="580.8" y1="386" y2="386" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="390" font-size="10" text-anchor="end" fill="#666666">10</text>
+<line class="grid" x1="66" x2="580.8" y1="307.5" y2="307.5" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="311.5" font-size="10" text-anchor="end" fill="#666666">100</text>
+<line class="grid" x1="66" x2="580.8" y1="229" y2="229" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="233" font-size="10" text-anchor="end" fill="#666666">1000</text>
+<line class="grid" x1="66" x2="580.8" y1="150.5" y2="150.5" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="154.5" font-size="10" text-anchor="end" fill="#666666">10000</text>
+<line class="grid" x1="66" x2="580.8" y1="72" y2="72" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="76" font-size="10" text-anchor="end" fill="#666666">1e5</text>
+<line class="xtick" x1="66" x2="66" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="66" y="403" font-size="10" text-anchor="middle" fill="#666666">5</text>
+<line class="xtick" x1="194.7" x2="194.7" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="194.7" y="403" font-size="10" text-anchor="middle" fill="#666666">10</text>
+<line class="xtick" x1="323.4" x2="323.4" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="323.4" y="403" font-size="10" text-anchor="middle" fill="#666666">15</text>
+<line class="xtick" x1="452.1" x2="452.1" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="452.1" y="403" font-size="10" text-anchor="middle" fill="#666666">20</text>
+<line class="xtick" x1="580.8" x2="580.8" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="580.8" y="403" font-size="10" text-anchor="middle" fill="#666666">25</text>
+<rect class="frame" x="66" y="72" width="514.8" height="314" fill="none" stroke="#666666"/>
+<text class="xlabel" x="323.4" y="426" font-size="12" text-anchor="middle" fill="#222222">T* (optimal plan length)</text>
+<text class="ylabel" x="16" y="229" font-size="12" text-anchor="middle" fill="#222222" transform="rotate(-90 16 229)">nodes expanded (median of solved rows)</text>
+<path class="ln" d="M117.48,316.86L143.22,306.82L168.96,222.76L220.44,235.03L246.18,184.84L271.92,231.69L323.4,180.54L349.14,116L426.36,74.42L477.84,85.66" fill="none" stroke="#0072B2" stroke-width="1.8"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="117.48" cy="316.86" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="143.22" cy="306.82" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="168.96" cy="222.76" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="220.44" cy="235.03" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="246.18" cy="184.84" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="271.92" cy="231.69" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="323.4" cy="180.54" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="349.14" cy="116" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="426.36" cy="74.42" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="477.84" cy="85.66" r="4"/>
+<path class="ln" d="M117.48,325.49L143.22,331.13L168.96,296.77L220.44,278.08L246.18,231.95L271.92,281.72L323.4,228.61L349.14,189.84L426.36,164.41L477.84,186.53" fill="none" stroke="#D55E00" stroke-width="1.8" stroke-dasharray="7 3"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="113.48" y="321.49" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="139.22" y="327.13" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="164.96" y="292.77" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="216.44" y="274.08" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="242.18" y="227.95" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="267.92" y="277.72" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="319.4" y="224.61" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="345.14" y="185.84" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="422.36" y="160.41" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="473.84" y="182.53" width="8" height="8"/>
+<path class="ln" d="M117.48,342.33L143.22,348.55L168.96,339.6L220.44,306.16L246.18,268.06L271.92,282.7L323.4,265.98L349.14,222.59L426.36,206.41L477.84,206.32" fill="none" stroke="#009E73" stroke-width="1.8" stroke-dasharray="2 3"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="117.48,337.53 121.88,345.93 113.08,345.93"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="143.22,343.75 147.62,352.15 138.82,352.15"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="168.96,334.8 173.36,343.2 164.56,343.2"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="220.44,301.36 224.84,309.76 216.04,309.76"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="246.18,263.26 250.58,271.66 241.78,271.66"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="271.92,277.9 276.32,286.3 267.52,286.3"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="323.4,261.18 327.8,269.58 319,269.58"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="349.14,217.79 353.54,226.19 344.74,226.19"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="426.36,201.61 430.76,210.01 421.96,210.01"/>
+<polygon class="pt" fill="#009E73" stroke="#ffffff" stroke-width="1" points="477.84,201.52 482.24,209.92 473.44,209.92"/>
+<path class="ln" d="M117.48,303.33L143.22,310.72L168.96,278.23L220.44,237.25L246.18,198.02L271.92,259.48L323.4,194.35L349.14,145.87L426.36,126.07L477.84,138.14" fill="none" stroke="#CC79A7" stroke-width="1.8" stroke-dasharray="8 3 2 3"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="117.48,298.13 122.68,303.33 117.48,308.53 112.28,303.33"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="143.22,305.52 148.42,310.72 143.22,315.92 138.02,310.72"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="168.96,273.03 174.16,278.23 168.96,283.43 163.76,278.23"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="220.44,232.05 225.64,237.25 220.44,242.45 215.24,237.25"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="246.18,192.82 251.38,198.02 246.18,203.22 240.98,198.02"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="271.92,254.28 277.12,259.48 271.92,264.68 266.72,259.48"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="323.4,189.15 328.6,194.35 323.4,199.55 318.2,194.35"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="349.14,140.67 354.34,145.87 349.14,151.07 343.94,145.87"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="426.36,120.87 431.56,126.07 426.36,131.27 421.16,126.07"/>
+<polygon class="pt" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="477.84,132.94 483.04,138.14 477.84,143.34 472.64,138.14"/>
+<path class="ln" d="M117.48,283.7L143.22,302.74L168.96,259.4L220.44,251.69L246.18,204.25L271.92,255.85L323.4,202.01L349.14,163.49L426.36,187.52L477.84,162.57" fill="none" stroke="#E69F00" stroke-width="1.8" stroke-dasharray="12 4"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="117.48,288.5 121.88,280.1 113.08,280.1"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="143.22,307.54 147.62,299.14 138.82,299.14"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="168.96,264.2 173.36,255.8 164.56,255.8"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="220.44,256.49 224.84,248.09 216.04,248.09"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="246.18,209.05 250.58,200.65 241.78,200.65"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="271.92,260.65 276.32,252.25 267.52,252.25"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="323.4,206.81 327.8,198.41 319,198.41"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="349.14,168.29 353.54,159.89 344.74,159.89"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="426.36,192.32 430.76,183.92 421.96,183.92"/>
+<polygon class="pt" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="477.84,167.37 482.24,158.97 473.44,158.97"/>
+<line class="strip" x1="66" x2="580.8" y1="67" y2="67" stroke="#dddddd"/>
+<path class="fail" d="M344.64,53.5L353.64,62.5M344.64,62.5L353.64,53.5" fill="none" stroke="#E69F00" stroke-width="2"/>
+<text class="fail-label" x="356.14" y="62" font-size="9" text-anchor="start" fill="#666666">2</text>
+<path class="fail" d="M421.86,53.5L430.86,62.5M421.86,62.5L430.86,53.5" fill="none" stroke="#E69F00" stroke-width="2"/>
+<text class="fail-label" x="433.36" y="62" font-size="9" text-anchor="start" fill="#666666">1</text>
+<path class="fail" d="M473.34,53.5L482.34,62.5M473.34,62.5L482.34,53.5" fill="none" stroke="#E69F00" stroke-width="2"/>
+<text class="fail-label" x="484.84" y="62" font-size="9" text-anchor="start" fill="#666666">2</text>
+<text class="strip-label" x="590.8" y="62" font-size="11" text-anchor="start" fill="#E69F00">x ilp timeout</text>
+<line x1="594.8" x2="620.8" y1="80" y2="80" stroke="#0072B2" stroke-width="1.8"/><circle class="swatch" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="607.8" cy="80" r="4"/>
+<text class="legend" x="628.8" y="84" font-size="11" text-anchor="start" fill="#222222">bfs</text>
+<line x1="594.8" x2="620.8" y1="98" y2="98" stroke="#D55E00" stroke-width="1.8" stroke-dasharray="7 3"/><rect class="swatch" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="603.8" y="94" width="8" height="8"/>
+<text class="legend" x="628.8" y="102" font-size="11" text-anchor="start" fill="#222222">astar</text>
+<line x1="594.8" x2="620.8" y1="116" y2="116" stroke="#009E73" stroke-width="1.8" stroke-dasharray="2 3"/><polygon class="swatch" fill="#009E73" stroke="#ffffff" stroke-width="1" points="607.8,111.2 612.2,119.6 603.4,119.6"/>
+<text class="legend" x="628.8" y="120" font-size="11" text-anchor="start" fill="#222222">wastar</text>
+<line x1="594.8" x2="620.8" y1="134" y2="134" stroke="#CC79A7" stroke-width="1.8" stroke-dasharray="8 3 2 3"/><polygon class="swatch" fill="#CC79A7" stroke="#ffffff" stroke-width="1" points="607.8,128.8 613,134 607.8,139.2 602.6,134"/>
+<text class="legend" x="628.8" y="138" font-size="11" text-anchor="start" fill="#222222">idastar</text>
+<line x1="594.8" x2="620.8" y1="152" y2="152" stroke="#E69F00" stroke-width="1.8" stroke-dasharray="12 4"/><polygon class="swatch" fill="#E69F00" stroke="#ffffff" stroke-width="1" points="607.8,156.8 612.2,148.4 603.4,148.4"/>
+<text class="legend" x="628.8" y="156" font-size="11" text-anchor="start" fill="#222222">ilp</text>
+</svg>

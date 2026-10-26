@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" preserveAspectRatio="xMidYMid meet" style="max-width:100%;height:auto" role="img" font-family="Helvetica, Arial, sans-serif">
+<title>cube2, c_slack 4: ILP vs A* seconds (n=18 instances, 29 (instance, level) rows)</title>
+<desc>Scatter plot &quot;cube2, c_slack 4: ILP vs A* seconds (n=18 instances, 29 (instance, level) rows)&quot;: 3 series, x axis A* seconds (log) from 0.0001 to 10, y axis ILP seconds (log) from 0.0001 to 10; 2 failure rows.</desc>
+<rect class="bg" x="0" y="0" width="720" height="440" fill="#ffffff"/>
+<text class="title" x="360" y="20" font-size="13" text-anchor="middle" fill="#222222">cube2, c_slack 4: ILP vs A* seconds (n=18 instances, 29 (instance, level)</text>
+<text class="title" x="360" y="36" font-size="13" text-anchor="middle" fill="#222222">rows)</text>
+<line class="grid" x1="66" x2="510.4" y1="386" y2="386" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="390" font-size="10" text-anchor="end" fill="#666666">0.0001</text>
+<line class="grid" x1="66" x2="510.4" y1="326.8" y2="326.8" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="330.8" font-size="10" text-anchor="end" fill="#666666">0.001</text>
+<line class="grid" x1="66" x2="510.4" y1="267.6" y2="267.6" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="271.6" font-size="10" text-anchor="end" fill="#666666">0.01</text>
+<line class="grid" x1="66" x2="510.4" y1="208.4" y2="208.4" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="212.4" font-size="10" text-anchor="end" fill="#666666">0.1</text>
+<line class="grid" x1="66" x2="510.4" y1="149.2" y2="149.2" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="153.2" font-size="10" text-anchor="end" fill="#666666">1</text>
+<line class="grid" x1="66" x2="510.4" y1="90" y2="90" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="94" font-size="10" text-anchor="end" fill="#666666">10</text>
+<line class="xtick" x1="66" x2="66" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="66" y="403" font-size="10" text-anchor="middle" fill="#666666">0.0001</text>
+<line class="xtick" x1="154.88" x2="154.88" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="154.88" y="403" font-size="10" text-anchor="middle" fill="#666666">0.001</text>
+<line class="xtick" x1="243.76" x2="243.76" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="243.76" y="403" font-size="10" text-anchor="middle" fill="#666666">0.01</text>
+<line class="xtick" x1="332.64" x2="332.64" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="332.64" y="403" font-size="10" text-anchor="middle" fill="#666666">0.1</text>
+<line class="xtick" x1="421.52" x2="421.52" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="421.52" y="403" font-size="10" text-anchor="middle" fill="#666666">1</text>
+<line class="xtick" x1="510.4" x2="510.4" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="510.4" y="403" font-size="10" text-anchor="middle" fill="#666666">10</text>
+<rect class="frame" x="66" y="90" width="444.4" height="296" fill="none" stroke="#666666"/>
+<text class="xlabel" x="288.2" y="426" font-size="12" text-anchor="middle" fill="#222222">A* seconds</text>
+<text class="ylabel" x="16" y="238" font-size="12" text-anchor="middle" fill="#222222" transform="rotate(-90 16 238)">ILP seconds</text>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="92.76" cy="216.21" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="96.43" cy="221.49" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="86.48" cy="219.8" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="197.8" cy="114.47" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="146.27" cy="150.51" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="159.94" cy="147.72" r="4"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="278.96" y="140.19" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="154.56" y="161.41" width="8" height="8"/>
+<path class="ref" d="M86.48,372.36L508.68,91.15" fill="none" stroke="#666666" stroke-width="1.2" stroke-dasharray="5 4"/>
+<line class="strip" x1="66" x2="510.4" y1="67" y2="67" stroke="#dddddd"/>
+<path class="fail" d="M223.69,53.5L232.69,62.5M223.69,62.5L232.69,53.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M228.67,53.5L237.67,62.5M228.67,62.5L237.67,53.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M276.63,53.5L285.63,62.5M276.63,62.5L285.63,53.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M316.26,53.5L325.26,62.5M316.26,62.5L325.26,53.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M337.29,53.5L346.29,62.5M337.29,62.5L346.29,53.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M362.7,53.5L371.7,62.5M362.7,62.5L371.7,53.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<text class="strip-label" x="520.4" y="62" font-size="11" text-anchor="start" fill="#0072B2">x ILP timeout (6)</text>
+<line class="strip" x1="66" x2="510.4" y1="85" y2="85" stroke="#dddddd"/>
+<path class="fail" d="M338.72,71.5L347.72,80.5M338.72,80.5L347.72,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M391.32,71.5L400.32,80.5M391.32,80.5L400.32,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M393.28,71.5L402.28,80.5M393.28,80.5L402.28,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M401.74,71.5L410.74,80.5M401.74,80.5L410.74,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M407.31,71.5L416.31,80.5M407.31,80.5L416.31,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M416.44,71.5L425.44,80.5M416.44,80.5L425.44,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M424.31,71.5L433.31,80.5M424.31,80.5L433.31,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M496.6,71.5L505.6,80.5M496.6,80.5L505.6,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M497.15,71.5L506.15,80.5M497.15,80.5L506.15,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M497.98,71.5L506.98,80.5M497.98,80.5L506.98,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M498.7,71.5L507.7,80.5M498.7,80.5L507.7,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M499.9,71.5L508.9,80.5M499.9,80.5L508.9,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M501.11,71.5L510.11,80.5M501.11,80.5L510.11,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M501.34,71.5L510.34,80.5M501.34,80.5L510.34,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<path class="fail" d="M504.18,71.5L513.18,80.5M504.18,80.5L513.18,71.5" fill="none" stroke="#0072B2" stroke-width="2"/>
+<text class="strip-label" x="520.4" y="80" font-size="11" text-anchor="start" fill="#0072B2">x ILP too_large (15)</text>
+<circle class="swatch" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="537.4" cy="98" r="4"/>
+<text class="legend" x="558.4" y="102" font-size="11" text-anchor="start" fill="#222222">bind level (ILP solved)</text>
+<rect class="swatch" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="533.4" y="112" width="8" height="8"/>
+<text class="legend" x="558.4" y="120" font-size="11" text-anchor="start" fill="#222222">tight level (ILP solved)</text>
+<line x1="524.4" x2="550.4" y1="134" y2="134" stroke="#666666" stroke-width="1.2" stroke-dasharray="5 4"/>
+<text class="legend" x="558.4" y="138" font-size="11" text-anchor="start" fill="#222222">y = x</text>
+</svg>

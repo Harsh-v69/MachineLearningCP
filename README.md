@@ -110,6 +110,15 @@ that boxes are reachable: a level with an unreachable box simply comes back as a
 See `docs/superpowers/specs/2026-10-22-tape-graph-design.md`. The measured tables from the run described below are
 in `docs/results.md`.
 
+## Figures
+
+`docs/figures/*.svg` are drawn from the committed CSVs under `docs/data` by `python scripts/make_figures.py`
+(`--data docs/data --out docs/figures`; stdlib and numpy only, no plotting library, output is byte-identical on re-run).
+Per benchmark: agent success vs `T*` with 95% Wilson bands, solver nodes and seconds vs `T*` (log y; failed rows
+are hollow crosses in a strip above the plot, never dropped), the ILP solve rate vs `T*`, the ILP-vs-A* seconds
+scatter for each `c_slack` of the binding constrained design, and the solve rate by `c_slack`. Directories that land
+later (for example `docs/data/new_agents`) are picked up on the next run.
+
 ## How the results were produced
 
 Single machine, seed = CLI default (1). Defaults for everything not listed: budget `B = T* + 2`

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" preserveAspectRatio="xMidYMid meet" style="max-width:100%;height:auto" role="img" font-family="Helvetica, Arial, sans-serif">
+<title>cube2: solve rate by c_slack (rows per c_slack, c2: 29, c4: 29, c8: 29; 95% Wilson)</title>
+<desc>Bar chart &quot;cube2: solve rate by c_slack (rows per c_slack, c2: 29, c4: 29, c8: 29; 95% Wilson)&quot;: 3 categories (2, 4, 8), 2 series, y axis solve rate (status ok) from 0 to 1.</desc>
+<defs><pattern id="fill0" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(0)"><rect width="6" height="6" fill="#0072B2"/></pattern><pattern id="fill1" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#D55E00"/><line x1="0" y1="0" x2="0" y2="6" stroke="#fff" stroke-width="2.2"/></pattern></defs>
+<rect class="bg" x="0" y="0" width="720" height="440" fill="#ffffff"/>
+<text class="title" x="360" y="20" font-size="13" text-anchor="middle" fill="#222222">cube2: solve rate by c_slack (rows per c_slack, c2: 29, c4: 29, c8: 29; 95%</text>
+<text class="title" x="360" y="36" font-size="13" text-anchor="middle" fill="#222222">Wilson)</text>
+<line class="grid" x1="66" x2="644.8" y1="386" y2="386" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="390" font-size="10" text-anchor="end" fill="#666666">0</text>
+<line class="grid" x1="66" x2="644.8" y1="318.4" y2="318.4" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="322.4" font-size="10" text-anchor="end" fill="#666666">0.2</text>
+<line class="grid" x1="66" x2="644.8" y1="250.8" y2="250.8" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="254.8" font-size="10" text-anchor="end" fill="#666666">0.4</text>
+<line class="grid" x1="66" x2="644.8" y1="183.2" y2="183.2" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="187.2" font-size="10" text-anchor="end" fill="#666666">0.6</text>
+<line class="grid" x1="66" x2="644.8" y1="115.6" y2="115.6" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="119.6" font-size="10" text-anchor="end" fill="#666666">0.8</text>
+<line class="grid" x1="66" x2="644.8" y1="48" y2="48" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="52" font-size="10" text-anchor="end" fill="#666666">1</text>
+<text class="xtick-label" x="162.47" y="403" font-size="10" text-anchor="middle" fill="#666666">2</text>
+<rect class="bar" x="85.29" y="222.83" width="71" height="163.17" fill="url(#fill0)" stroke="#222222" stroke-width="0.6"/>
+<path class="eb" d="M120.79,279.92L120.79,164.38M117.79,279.92h6M117.79,164.38h6" fill="none" stroke="#222222" stroke-width="1.2"/>
+<rect class="bar" x="162.47" y="48" width="71" height="338" fill="url(#fill1)" stroke="#222222" stroke-width="0.6"/>
+<path class="eb" d="M197.97,87.54L197.97,48M194.97,87.54h6M194.97,48h6" fill="none" stroke="#222222" stroke-width="1.2"/>
+<text class="xtick-label" x="355.4" y="403" font-size="10" text-anchor="middle" fill="#666666">4</text>
+<rect class="bar" x="278.23" y="292.76" width="71" height="93.24" fill="url(#fill0)" stroke="#222222" stroke-width="0.6"/>
+<path class="eb" d="M313.73,336.32L313.73,231.47M310.73,336.32h6M310.73,231.47h6" fill="none" stroke="#222222" stroke-width="1.2"/>
+<rect class="bar" x="355.4" y="48" width="71" height="338" fill="url(#fill1)" stroke="#222222" stroke-width="0.6"/>
+<path class="eb" d="M390.9,87.54L390.9,48M387.9,87.54h6M387.9,48h6" fill="none" stroke="#222222" stroke-width="1.2"/>
+<text class="xtick-label" x="548.33" y="403" font-size="10" text-anchor="middle" fill="#666666">8</text>
+<rect class="bar" x="471.16" y="386" width="71" height="0" fill="url(#fill0)" stroke="#222222" stroke-width="0.6"/>
+<path class="eb" d="M506.66,386L506.66,346.46M503.66,386h6M503.66,346.46h6" fill="none" stroke="#222222" stroke-width="1.2"/>
+<rect class="bar" x="548.33" y="48" width="71" height="338" fill="url(#fill1)" stroke="#222222" stroke-width="0.6"/>
+<path class="eb" d="M583.83,87.54L583.83,48M580.83,87.54h6M580.83,48h6" fill="none" stroke="#222222" stroke-width="1.2"/>
+<rect class="frame" x="66" y="48" width="578.8" height="338" fill="none" stroke="#666666"/>
+<text class="xlabel" x="355.4" y="426" font-size="12" text-anchor="middle" fill="#222222">c_slack</text>
+<text class="ylabel" x="16" y="217" font-size="12" text-anchor="middle" fill="#222222" transform="rotate(-90 16 217)">solve rate (status ok)</text>
+<rect class="swatch" x="662.8" y="50" width="22" height="12" fill="url(#fill0)" stroke="#222222" stroke-width="0.6"/>
+<text class="legend" x="692.8" y="60" font-size="11" text-anchor="start" fill="#222222">ILP</text>
+<rect class="swatch" x="662.8" y="68" width="22" height="12" fill="url(#fill1)" stroke="#222222" stroke-width="0.6"/>
+<text class="legend" x="692.8" y="78" font-size="11" text-anchor="start" fill="#222222">A*</text>
+</svg>

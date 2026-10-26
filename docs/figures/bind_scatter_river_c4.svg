@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" preserveAspectRatio="xMidYMid meet" style="max-width:100%;height:auto" role="img" font-family="Helvetica, Arial, sans-serif">
+<title>river, c_slack 4: ILP vs A* seconds (n=43 instances, 86 (instance, level) rows)</title>
+<desc>Scatter plot &quot;river, c_slack 4: ILP vs A* seconds (n=43 instances, 86 (instance, level) rows)&quot;: 3 series, x axis A* seconds (log) from 0.0001 to 1, y axis ILP seconds (log) from 0.0001 to 1.</desc>
+<rect class="bg" x="0" y="0" width="720" height="440" fill="#ffffff"/>
+<text class="title" x="360" y="20" font-size="13" text-anchor="middle" fill="#222222">river, c_slack 4: ILP vs A* seconds (n=43 instances, 86 (instance, level)</text>
+<text class="title" x="360" y="36" font-size="13" text-anchor="middle" fill="#222222">rows)</text>
+<line class="grid" x1="66" x2="510.4" y1="386" y2="386" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="390" font-size="10" text-anchor="end" fill="#666666">0.0001</text>
+<line class="grid" x1="66" x2="510.4" y1="301.5" y2="301.5" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="305.5" font-size="10" text-anchor="end" fill="#666666">0.001</text>
+<line class="grid" x1="66" x2="510.4" y1="217" y2="217" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="221" font-size="10" text-anchor="end" fill="#666666">0.01</text>
+<line class="grid" x1="66" x2="510.4" y1="132.5" y2="132.5" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="136.5" font-size="10" text-anchor="end" fill="#666666">0.1</text>
+<line class="grid" x1="66" x2="510.4" y1="48" y2="48" stroke="#dddddd"/>
+<text class="ytick-label" x="60" y="52" font-size="10" text-anchor="end" fill="#666666">1</text>
+<line class="xtick" x1="66" x2="66" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="66" y="403" font-size="10" text-anchor="middle" fill="#666666">0.0001</text>
+<line class="xtick" x1="177.1" x2="177.1" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="177.1" y="403" font-size="10" text-anchor="middle" fill="#666666">0.001</text>
+<line class="xtick" x1="288.2" x2="288.2" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="288.2" y="403" font-size="10" text-anchor="middle" fill="#666666">0.01</text>
+<line class="xtick" x1="399.3" x2="399.3" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="399.3" y="403" font-size="10" text-anchor="middle" fill="#666666">0.1</text>
+<line class="xtick" x1="510.4" x2="510.4" y1="386" y2="390" stroke="#666666"/>
+<text class="xtick-label" x="510.4" y="403" font-size="10" text-anchor="middle" fill="#666666">1</text>
+<rect class="frame" x="66" y="48" width="444.4" height="338" fill="none" stroke="#666666"/>
+<text class="xlabel" x="288.2" y="426" font-size="12" text-anchor="middle" fill="#222222">A* seconds</text>
+<text class="ylabel" x="16" y="217" font-size="12" text-anchor="middle" fill="#222222" transform="rotate(-90 16 217)">ILP seconds</text>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="126.45" cy="172.15" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="125.05" cy="181.19" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="117.37" cy="181.43" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="131.67" cy="211.65" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="117.37" cy="209.08" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="139.63" cy="178.42" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="123.61" cy="178.21" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="117.37" cy="181.67" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="123.61" cy="182.36" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="117.37" cy="183.71" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="119.01" cy="180.96" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="120.59" cy="176.71" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="122.12" cy="179.27" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="122.12" cy="181.37" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="148.25" cy="180.74" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="134.08" cy="178.02" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="135.24" cy="178.67" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="134.08" cy="180.84" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="135.24" cy="188.03" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="137.49" cy="189.81" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="134.08" cy="182.13" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="134.08" cy="170.41" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="134.08" cy="166.83" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="157.05" cy="167.61" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="153.25" cy="173.57" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="135.24" cy="183.4" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="179.45" cy="157.39" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="204.65" cy="145.44" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="235.72" cy="127.7" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="179.45" cy="150.82" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="180.36" cy="141.75" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="178.06" cy="157.07" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="181.26" cy="155.83" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="191.58" cy="148.84" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="177.58" cy="165.39" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="177.58" cy="165.1" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="181.7" cy="154.03" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="178.99" cy="158.17" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="178.53" cy="157.92" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="177.58" cy="150.28" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="178.06" cy="155.94" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="185.49" cy="157.93" r="4"/>
+<circle class="pt" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="177.58" cy="155.72" r="4"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="126.41" y="173.15" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="130.08" y="174.64" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="139.66" y="200.42" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="121.05" y="194.6" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="118.12" y="198.02" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="123.81" y="200.76" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="126.41" y="173.71" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="127.67" y="195.57" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="119.61" y="195.39" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="148.45" y="198.19" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="136.67" y="197.08" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="123.81" y="172.05" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="128.89" y="172.31" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="122.45" y="173.26" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="138.68" y="171" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="134.57" y="174.17" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="134.57" y="172.92" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="149.25" y="171.07" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="135.63" y="172.85" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="135.63" y="171.53" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="135.63" y="172.6" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="142.47" y="175.54" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="138.68" y="174.4" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="136.67" y="170.59" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="137.69" y="171.71" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="137.69" y="169.89" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="183.87" y="131.8" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="191.03" y="147.33" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="196.97" y="113.25" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="190.36" y="149.77" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="191.69" y="112.87" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="175.91" y="112.86" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="188.29" y="158.22" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="177.7" y="112.71" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="176.36" y="112.57" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="176.81" y="156.46" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="176.81" y="112.3" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="175.91" y="146.26" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="178.57" y="108.97" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="176.36" y="112.45" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="199.83" y="147.42" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="182.3" y="111.47" width="8" height="8"/>
+<rect class="pt" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="177.26" y="155.44" width="8" height="8"/>
+<path class="ref" d="M117.37,346.93L424.98,112.97" fill="none" stroke="#666666" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle class="swatch" fill="#0072B2" stroke="#ffffff" stroke-width="1" cx="537.4" cy="56" r="4"/>
+<text class="legend" x="558.4" y="60" font-size="11" text-anchor="start" fill="#222222">bind level (ILP solved)</text>
+<rect class="swatch" fill="#D55E00" stroke="#ffffff" stroke-width="1" x="533.4" y="70" width="8" height="8"/>
+<text class="legend" x="558.4" y="78" font-size="11" text-anchor="start" fill="#222222">tight level (ILP solved)</text>
+<line x1="524.4" x2="550.4" y1="92" y2="92" stroke="#666666" stroke-width="1.2" stroke-dasharray="5 4"/>
+<text class="legend" x="558.4" y="96" font-size="11" text-anchor="start" fill="#222222">y = x</text>
+</svg>

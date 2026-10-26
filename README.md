@@ -25,9 +25,23 @@ the budget binds" below.
 ## Run
 
 ```bash
-pip install -r requirements.txt
+pip install -e .[test]        # Python 3.12; installs the `tapegraph` package and console script (numpy, ortools, pytest)
 python -m pytest -q
+tapegraph all --profile smoke --out smoke_out   # ~20 s: tiny pass over River and Cube2 (solvers, agents, constrained bind, report)
+tapegraph all --profile full  --out full_out    # the single-command reproduction of every published number (hours)
+tapegraph all --profile full  --out full_out --dry_run   # print the commands and the manifest skeleton, run nothing
 ```
+
+`python -m tapegraph <cmd> ...` is the same CLI as `tapegraph <cmd> ...` and as `python -m tapegraph.bench <cmd> ...`
+(`pip install -r requirements.txt` still works for running from a checkout). `all --profile full` runs the commands of
+the table below sequentially (seed 1, one process at a time so the `seconds` columns are not contended), each kind of run
+in its own subdirectory of `--out` (`solvers/`, `agents/`, `constrained_frac/`, `constrained_bind/`), each followed by a
+`report` into that subdirectory, and writes `run_manifest.json` (every command with its parsed parameters, wall-clock
+seconds per step, git commit, python/numpy/ortools versions; rewritten after each step). The supplementary
+`res_frac` 0.95/0.97/1.0 runs are not part of `all`. Every `solvers` and `constrained` CSV row carries the run
+parameters (`seed`, `max_nodes`, `n`, `time_limit`, plus `slack` for `solvers` and `frac`, `res_frac` for `frac`, `c_slack`
+for `bind`), as `agents` rows already did; `agents` rows also carry `solver_fail` (re-plans where the solver returned a
+non-ok status and the agent fell back to its first legal action).
 
 Exact commands behind the published tables (seed = CLI default 1; `B` is `river`, `sokoban`, `boxoban`, `cube2`):
 

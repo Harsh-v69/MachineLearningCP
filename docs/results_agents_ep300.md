@@ -156,7 +156,7 @@ ILP status on skipped-infeasible constrained rows (ilp_status recorded for 0 of 
 | sokoban | 23 | react | 2 | 25 | 600 | 0.0417 | 0.0284 | 0.0608 |
 | sokoban | 23 | tape | 2 | 439 | 600 | 0.7317 | 0.6948 | 0.7656 |
 
-Excluded from the intervals: 0 skipped rows (T = -1, no success value, or unknown episodes).
+Excluded from the intervals: 0 skipped rows (T = -1 or no success value).
 
 ## Agents: pooled per benchmark (successes = sum over instance rows of round(success * episodes); trials = episodes x instances; 95% Wilson interval; the interval treats the trials as independent, although the episodes of one instance share a level)
 
@@ -171,7 +171,7 @@ Excluded from the intervals: 0 skipped rows (T = -1, no success value, or unknow
 | sokoban | react | 25 | 1845 | 7500 | 0.2460 | 0.2364 | 0.2559 | 300 |
 | sokoban | tape | 25 | 6432 | 7500 | 0.8576 | 0.8495 | 0.8653 | 300 |
 
-Excluded from the intervals: 0 skipped rows (T = -1, no success value, or unknown episodes).
+Excluded from the intervals: 0 skipped rows (T = -1 or no success value).
 
 ## Paired differences in success (mean over instances of success_ours_astar - success_other; 95% percentile bootstrap, B = 2000, resampled over instances, paired by instance)
 
@@ -182,4 +182,4 @@ Excluded from the intervals: 0 skipped rows (T = -1, no success value, or unknow
 | sokoban | ours_astar - tape | 25 | 0.0103 | 0.0032 | 0.0181 |
 | sokoban | ours_astar - react | 25 | 0.6219 | 0.5749 | 0.6647 |
 
-Excluded from the intervals: 0 skipped rows (T = -1, no success value, or unknown episodes).
+Excluded from the intervals: 0 skipped rows (T = -1 or no success value).

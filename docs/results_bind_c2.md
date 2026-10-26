@@ -148,16 +148,16 @@ ILP status on skipped-infeasible constrained rows (ilp_status recorded for 0 of 
 
 _no data_
 
-Excluded from the intervals: 0 skipped rows (T = -1, no success value, or unknown episodes).
+Excluded from the intervals: 0 skipped rows (T = -1 or no success value).
 
 ## Agents: pooled per benchmark (successes = sum over instance rows of round(success * episodes); trials = episodes x instances; 95% Wilson interval; the interval treats the trials as independent, although the episodes of one instance share a level)
 
 _no data_
 
-Excluded from the intervals: 0 skipped rows (T = -1, no success value, or unknown episodes).
+Excluded from the intervals: 0 skipped rows (T = -1 or no success value).
 
 ## Paired differences in success (mean over instances of success_ours_astar - success_other; 95% percentile bootstrap, B = 2000, resampled over instances, paired by instance)
 
 _no data_
 
-Excluded from the intervals: 0 skipped rows (T = -1, no success value, or unknown episodes).
+Excluded from the intervals: 0 skipped rows (T = -1 or no success value).

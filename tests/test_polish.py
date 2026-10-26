@@ -201,6 +201,14 @@ def test_report_still_reads_old_solvers_and_agents_csvs(tmp_path):
     bench.run_report(type("A", (), {"out": str(tmp_path)})())
     md = (tmp_path / "results.md").read_text()
     assert "| river | 4 | astar |" in md and "| river | 4 | tape |" in md
+    assert "solver_fail" in md and "| river | 4 | tape | 1 | 1.0 | 4.0 | 1.0 |  | 0.1 |" in md  # old CSV: blank, not a crash
+
+
+def test_report_agents_table_shows_solver_fail(tmp_path):
+    (tmp_path / "agents_river.csv").write_text("bench,T,method,success,mean_steps,solves,solver_fail,seconds\n"
+                                               "river,4,ours_astar,1.0,4.0,2.0,0.5,0.1\n")
+    bench.run_report(type("A", (), {"out": str(tmp_path)})())
+    assert "| river | 4 | ours_astar | 1 | 1.0 | 4.0 | 2.0 | 0.5 | 0.1 |" in (tmp_path / "results.md").read_text()
 
 
 # ---- 4. closing known test gaps (each one fails if the logic it pins is broken) ----------------------------------
@@ -370,8 +378,10 @@ def test_probe_runs_one_benchmark_through_bench_min_resource(monkeypatch, capsys
 
 def test_ci_workflow_is_valid_and_runs_the_documented_steps():
     text = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
-    for needle in ("python-version", "3.12", "pip install -e .[test]", "pytest -q", "tapegraph all --profile smoke"):
+    for needle in ("jobs:", "runs-on:", "steps:", "python-version", "3.12", 'pip install -e ".[test]"', "pytest -q",
+                   "tapegraph all --profile smoke"):  # structural checks that need no YAML parser
         assert needle in text, needle
+    assert chr(9) not in text, "tabs are not allowed in YAML indentation"
     yaml = pytest.importorskip("yaml")
     wf = yaml.safe_load(text)
     steps = next(iter(wf["jobs"].values()))["steps"]

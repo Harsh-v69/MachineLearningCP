@@ -25,10 +25,10 @@ the budget binds" below.
 ## Run
 
 ```bash
-pip install -e .[test]        # Python 3.12; installs the `tapegraph` package and console script (numpy, ortools, pytest)
+pip install -e ".[test]"      # Python 3.12; installs the `tapegraph` package and console script (numpy, ortools, pytest)
 python -m pytest -q
 tapegraph all --profile smoke --out smoke_out   # ~20 s: tiny pass over River and Cube2 (solvers, agents, constrained bind, report)
-tapegraph all --profile full  --out full_out    # the single-command reproduction of every published number (hours)
+tapegraph all --profile full  --out full_out    # the single-command reproduction of every number in the main tables (hours)
 tapegraph all --profile full  --out full_out --dry_run   # print the commands and the manifest skeleton, run nothing
 ```
 
@@ -38,10 +38,10 @@ the table below sequentially (seed 1, one process at a time so the `seconds` col
 in its own subdirectory of `--out` (`solvers/`, `agents/`, `constrained_frac/`, `constrained_bind/`), each followed by a
 `report` into that subdirectory, and writes `run_manifest.json` (every command with its parsed parameters, wall-clock
 seconds per step, git commit, python/numpy/ortools versions; rewritten after each step). The supplementary
-`res_frac` 0.95/0.97/1.0 runs are not part of `all`. Every `solvers` and `constrained` CSV row carries the run
+`res_frac` 0.95/0.97/1.0 runs and the resource probe table (`scripts/probe_resources.py`) are not part of `all`. Every `solvers` and `constrained` CSV row carries the run
 parameters (`seed`, `max_nodes`, `n`, `time_limit`, plus `slack` for `solvers` and `frac`, `res_frac` for `frac`, `c_slack`
-for `bind`), as `agents` rows already did; `agents` rows also carry `solver_fail` (re-plans where the solver returned a
-non-ok status and the agent fell back to its first legal action).
+for `bind`), as `agents` rows already did; `agents` rows also carry `solver_fail` (mean per episode of solves with a
+non-ok status, including a legitimate `no_path`; the agent then falls back to its first legal action).
 
 Exact commands behind the published tables (seed = CLI default 1; `B` is `river`, `sokoban`, `boxoban`, `cube2`):
 
@@ -401,9 +401,12 @@ instance contributes a `bind` row and, when it exists, a `tight` row.
 - Cost means in the tables are over solved instances only.
 - Buckets have 1 to 5 instances (and 20 to 100 episodes each), so success-rate differences of a few points are within
   noise.
-- `Replan` silently plays the first legal action when its solver fails (timeout, `too_large`, `node_limit`), and the
-  agents CSV has no solver-failure count. This is harmless in the current data (`ours_ilp` ran only on River and
-  Sokoban, where the ILP never failed in the solvers table) but would sink `ours_ilp` on Cube or Boxoban.
+- `Replan` still plays the first legal action when its solver returns a non-ok status (timeout, `too_large`,
+  `node_limit`, or a legitimate `no_path`, e.g. when the remaining budget is exhausted off the plan), but the fallback is
+  now counted: `solver_fail` is the episodes' mean number of solves whose status was not ok, written to the agents CSV and
+  shown in the agents table of `report`. The published CSVs in `docs/data` predate the column; the earlier reading that
+  `ours_ilp` is unaffected (it ran only on River and Sokoban, where the ILP never failed in the solvers table) rests on
+  the solvers table, not on a recorded count.
 - `TapeSim` re-plans only when the state deviates from its plan (per our spec), whereas TAPE-main's
   `OursGraphILPPolicy` re-folds and re-solves at every step, so `solves` and `seconds` are not directly comparable
   with the paper.

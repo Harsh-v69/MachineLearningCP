@@ -276,7 +276,7 @@ def run_report(a):
         ("Solvers (unconstrained, budget = T*+slack; ok = fraction solved within the node cap; cost means are over solved instances only)", "solvers_*.csv",
          ["bench", "T", "solver"], ["ok", "cost_ratio", "nodes", "seconds"]),
         ("Agents (success within budget under noise)", "agents_*.csv", ["bench", "T", "method"],
-         ["success", "mean_steps", "solves", "seconds"]),
+         ["success", "mean_steps", "solves", "solver_fail", "seconds"]),
         ("Constrained (design=bind: B = T*+c_slack, level bind: R = r_opt-1, tight: R = r_min, so the optimum must be longer than T*; design=frac: R = floor(res_frac * optimum resource), level frac; forced_longer = share of solved rows with cost > T*; agrees_with_astar = rate of both solved with identical cost; solver=skipped rows are instances with no derivable or feasible R; cost means are over solved instances only)",
          "constrained_*.csv", ["bench", "level", "T", "solver"], ["ok", "forced_longer", "agrees_with_astar", "cost", "nodes", "seconds"]),
     ]

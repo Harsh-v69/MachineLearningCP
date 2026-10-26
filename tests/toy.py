@@ -1,4 +1,5 @@
 from tapegraph.problem import Problem
+from tapegraph.solvers import astar, bfs, idastar
 
 
 class GraphProblem(Problem):
@@ -52,3 +53,12 @@ DIAMOND = GraphProblem(
     },
     goal="G",
 )
+
+
+def assert_solvers_agree(p, s, b=None):
+    """BFS ignores h and prune, so it is the reference: A* and IDA* must return its cost. Returns the BFS result."""
+    b = b or bfs.solve(p, s)
+    a, i = astar.solve(p, s), idastar.solve(p, s)
+    assert b.status == a.status == i.status == "ok"
+    assert a.cost == b.cost == i.cost, "inadmissible h or unsound prune"
+    return b

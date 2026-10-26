@@ -1,5 +1,6 @@
 import random
 
+from toy import assert_solvers_agree
 from tapegraph.problems.sokoban import Sokoban
 from tapegraph.solvers import astar, bfs, idastar
 
@@ -48,10 +49,7 @@ def test_astar_and_idastar_match_bfs_on_random_levels():
         assert b.status == "ok" and b.cost <= depth  # reverse play guarantees solvability
         if b.cost == 0:
             continue  # already solved: says nothing about h or prune
-        a = astar.solve(p, s)
-        i = idastar.solve(p, s)
-        assert a.status == "ok" and i.status == "ok"
-        assert a.cost == b.cost == i.cost, "inadmissible h or unsound prune"
+        assert_solvers_agree(p, s, b)
         nontrivial += 1
         hard += b.cost >= 5
     assert nontrivial >= 15 and hard >= 5, (nontrivial, hard)

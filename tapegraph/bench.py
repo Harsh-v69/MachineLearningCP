@@ -309,13 +309,17 @@ def agents_ci_sections(rows):
     successes = round(success * episodes) per instance row, trials = episodes per row; skipped rows (T < 0 or no
     success) are excluded and counted. An instance is a run of rows with distinct methods: `inst_seed` if the CSV has
     it, else the position of the cycle react/tape/ours_astar/... (rows of one instance are consecutive in the CSV)."""
-    used, excluded, pos = [], 0, {}
+    used, excluded, pos, unknown, dups, seen_keys = [], 0, {}, set(), 0, set()
     for r in rows:
         if r.get("method") == "skipped" or r.get("success") in ("", None) or r.get("T", 0) < 0:
             excluded += 1
             continue
         ep = r.get("episodes")
         looked_up = ep in ("", None)
+        if looked_up and r["bench"] not in DOCUMENTED_EPISODES:  # old CSV of a benchmark with no documented episode count
+            excluded += 1
+            unknown.add(r["bench"])
+            continue
         ep = DOCUMENTED_EPISODES[r["bench"]] if looked_up else int(ep)
         b = pos.setdefault(r["bench"], {"n": 0, "seen": set()})
         inst = r["inst_seed"] if r.get("inst_seed") not in ("", None) else None
@@ -324,6 +328,11 @@ def agents_ci_sections(rows):
                 b["n"], b["seen"] = b["n"] + 1, set()
             b["seen"].add(r["method"])
             inst = b["n"]
+        if (r["bench"], r["method"], inst) in seen_keys:  # e.g. concatenated CSVs: keep the first row, never overwrite silently
+            dups += 1
+            continue
+        seen_keys.add((r["bench"], r["method"], inst))
+        # success is stored to 5 decimals, so success * episodes is within 1e-5 * episodes of an integer: round() is exact for episodes < ~1e4
         used.append({**r, "inst": inst, "ep": ep, "k": round(float(r["success"]) * ep), "looked_up": looked_up})
 
     def pool(rs, extra):
@@ -338,7 +347,12 @@ def agents_ci_sections(rows):
             g[tuple(r[k] for k in keys)].append(r)
         return sorted(g.items(), key=lambda kv: kv[0])
 
-    notes = f"Excluded from the intervals: {excluded} skipped rows (T = -1 or no success value).\n"
+    notes = f"Excluded from the intervals: {excluded} skipped rows (T = -1, no success value, or unknown episodes).\n"
+    if unknown:
+        notes += (f"Benchmarks without an `episodes` column and no documented episode count ({', '.join(sorted(unknown))}): "
+                  "episodes unknown, their rows are excluded from these sections (counted above).\n")
+    if dups:
+        notes += f"{dups} duplicate rows (same bench, method and instance) dropped, first occurrence kept.\n"
     lk = sorted({r["bench"] for r in used if r["looked_up"]})
     if lk:
         notes += (f"Benchmarks without an `episodes` column ({', '.join(lk)}): episodes per instance taken from the documented "

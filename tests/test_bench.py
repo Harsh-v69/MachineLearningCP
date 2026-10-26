@@ -347,6 +347,10 @@ def _arow(method, success, T=4, bench_="river", **kw):
     return {"bench": bench_, "T": T, "method": method, "success": success, **kw}
 
 
+def _cells(line):
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
 def _two_instances():
     return [_arow("react", .5), _arow("tape", .8), _arow("ours_astar", 1.0),
             _arow("react", .6), _arow("tape", .9), _arow("ours_astar", .9),
@@ -374,3 +378,42 @@ def test_ci_sections_prefer_episodes_column_and_report_misaligned_instances():
     assert "17" in cells and "20" in cells  # round(.8*10)+round(.9*10), 2 instances x 10 episodes
     assert "documented" not in pooled
     assert "do not align" in paired
+
+
+def _paired_row(paired, name):
+    return next((_cells(l) for l in paired.split("\n") if name in l), None)
+
+
+def test_ci_sections_inst_seed_grouping_with_one_instance_missing_tape():
+    rows = [dict(r, episodes=10, inst_seed=100 + 7919 * (i // 3)) for i, r in enumerate(_two_instances()[:6])]
+    del rows[4]  # instance 2 lacks its tape row
+    _, _, paired = bench.agents_ci_sections(rows)
+    assert _paired_row(paired, "ours_astar - react")[2:4] == ["2", "0.4000"]  # (.5 + .3) / 2
+    assert _paired_row(paired, "ours_astar - tape") is None
+    assert "instance sets of ours_astar (2) and tape (1) do not align" in paired
+
+
+def test_ci_sections_drop_duplicate_rows():
+    base = [dict(r, episodes=10, inst_seed=5) for r in _two_instances()[:3]]
+    bucket, pooled, paired = bench.agents_ci_sections(base + base)  # concatenated CSV
+    assert _cells(next(l for l in pooled.split("\n") if "| tape |" in l))[2:5] == ["1", "8", "10"]
+    assert "3 duplicate rows" in pooled and "3 duplicate rows" in paired
+    assert _paired_row(paired, "ours_astar - tape")[2:4] == ["1", "0.2000"]
+
+
+def test_report_survives_old_csv_of_benchmark_without_documented_episodes(tmp_path):
+    (tmp_path / "agents_sokoban2.csv").write_text(
+        "bench,T,method,success,mean_steps,solves,seconds\n"
+        "sokoban2,5,react,0.5,6,0,0.1\nsokoban2,5,tape,0.9,5,1,0.1\nsokoban2,5,ours_astar,1.0,5,1,0.1\n")
+    (tmp_path / "agents_river.csv").write_text(
+        "bench,T,method,success,mean_steps,solves,seconds\n"
+        "river,4,react,0.5,6,0,0.1\nriver,4,tape,0.9,5,1,0.1\nriver,4,ours_astar,1.0,5,1,0.1\n")
+    bench.run_report(argparse.Namespace(out=str(tmp_path)))
+    text = (tmp_path / "results.md").read_text()
+    ns = _sections(text)
+    old = ns[next(k for k in ns if k.startswith("Agents (success"))]
+    assert "| sokoban2 | 5 | tape |" in old  # old tables still render it
+    pooled = ns[next(k for k in ns if "pooled" in k)]
+    assert "| river | tape |" in pooled and "| sokoban2 |" not in pooled
+    assert "(sokoban2): episodes unknown" in pooled
+    assert "Excluded from the intervals: 3 skipped rows" in pooled

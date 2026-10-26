@@ -93,11 +93,17 @@ part of `all`). Each level starts with a `; <index>` line followed by its grid (
 several players, a different number of boxes and goals, an unknown character, or is not enclosed by walls stops the run
 with an error naming the level's index. With this benchmark `--n` is the maximum number of levels used (the first `n`
 in the file) instead of instances per `T*` bucket, and `--seed` has no effect. `T*` is computed by the A* oracle (node
-cap 300,000). A level the oracle cannot solve is not dropped: every CSV gets a `solver=skipped` (`method=skipped` for
-agents) row for it with `T=-1` and the oracle's status (`no_path` or `node_limit`); rows for loaded levels also carry
+cap 300,000). A level the oracle cannot solve, or that is already solved (all boxes on goals, `T*` = 0), is not dropped: every CSV gets a `solver=skipped` (`method=skipped` for
+agents) row for it with `T=-1` and the oracle's status (`no_path`, `node_limit` or `already_solved`); rows for loaded levels also carry
 an `index` column (position in the file). A tiny hand-made 3-level sample in this format is in
 `tests/data/boxoban_sample.txt`. **No results on real Boxoban levels are included in this repository**; the published
 tables use only the generated benchmarks.
+
+Notes: the validator checks rectangular rows, legal characters, one player, as many boxes as goals, and that the player
+cannot reach the grid border. It does not require 10x10, does not accept `-` as a floor character, and does not check
+that boxes are reachable: a level with an unreachable box simply comes back as a `skipped` row (`no_path` or
+`node_limit`). Output files are named `<command>_boxoban_file.csv`, so two different level files written to the same
+`--out` overwrite each other; use a separate `--out` per file.
 
 ## Layout
 

@@ -58,7 +58,8 @@ def use_boxoban_file(path):
 
 
 def _fixed_instances(levels, limit):
-    """First `limit` levels; T* comes from the oracle. A level the oracle cannot solve keeps its slot as a skip instance."""
+    """First `limit` levels; T* comes from the oracle. A level the oracle cannot solve (or that is already solved)
+    keeps its slot as a skip instance."""
     out = []
     for idx, (p, s) in enumerate(levels[:limit]):
         o = _oracles.setdefault(p, Oracle(p))
@@ -66,6 +67,8 @@ def _fixed_instances(levels, limit):
         if T == INF:  # Oracle reports INF for no_path and node_limit alike; recover which
             status = "no_path" if p.prune(s) else astar.solve(p, s, max_nodes=o.max_nodes).status
             out.append(Instance(p, s, -1, o, skip=status if status != "ok" else "no_path", index=idx))
+        elif T == 0:  # already solved: no T* to ratio against, so it is skipped like an unsolved level
+            out.append(Instance(p, s, -1, o, skip="already_solved", index=idx))
         else:
             out.append(Instance(p, s, int(T), o, index=idx))
     return out

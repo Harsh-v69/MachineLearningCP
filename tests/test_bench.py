@@ -3,7 +3,7 @@ import sys
 
 from tapegraph import bench
 from tapegraph.benchmarks import BENCHMARKS, make_instances
-from tapegraph.solvers import bfs
+from tapegraph.solvers import astar, bfs, idastar
 
 
 def test_make_instances_fills_buckets_with_true_distances():
@@ -155,14 +155,23 @@ def test_multibox_sokoban_benches_are_nontrivial_and_astar_idastar_match_bfs(mon
     monkeypatch.setitem(BENCHMARKS, name, replace(BENCHMARKS[name], T_targets=[6, 10]))  # BFS-feasible buckets only
     insts = make_instances(name, per_bucket=3, seed=5)
     assert len(insts) == 6
-    hard = 0
+    costs = []
     for i in insts:
         assert (i.problem.H, i.problem.W) == shape and len(i.start[1]) == boxes and i.T > 0  # no already-solved starts
         b = bfs.solve(i.problem, i.start)  # BFS ignores h and prune
         assert b.status == "ok" and b.cost == i.T
         assert_solvers_agree(i.problem, i.start, b)
-        hard += i.T >= 5
-    assert hard == 6
+        costs.append(astar.solve(i.problem, i.start).cost)
+    assert sum(c >= 8 for c in costs) >= 3, costs  # actual data: 3 of 6 for each bench; several non-shallow instances
+
+
+def test_astar_and_idastar_agree_on_sokoban2_high_buckets(monkeypatch):
+    monkeypatch.setitem(BENCHMARKS, "sokoban2", replace(BENCHMARKS["sokoban2"], T_targets=[14, 18]))
+    insts = make_instances("sokoban2", per_bucket=2, seed=3)
+    assert len(insts) == 4 and min(i.T for i in insts) >= 13
+    for i in insts:
+        a, d = astar.solve(i.problem, i.start), idastar.solve(i.problem, i.start)
+        assert a.status == d.status == "ok" and a.cost == d.cost == i.T
 
 
 def test_multibox_targets_reach_beyond_the_single_box_ones():
@@ -235,8 +244,7 @@ def test_oracle_node_limit_gives_skipped_rows_with_that_status(tmp_path, monkeyp
 def test_boxoban_file_cli_errors(tmp_path, monkeypatch, capsys):
     monkeypatch.setitem(BENCHMARKS, "boxoban_file", None)
     bad = tmp_path / "bad.txt"
-    bad.write_text("; 4\n####\n#@ #\n####\n")  # no boxes/goals is fine, but the missing-goal check below needs a real error
-    bad.write_text("; 4\n####\n#@$#\n####\n")
+    bad.write_text("; 4\n####\n#@$#\n####\n")  # one box, no goal: rejected by the validator, error names level 4
     for argv in (["solvers", "--bench", "boxoban_file"],  # no file
                  ["solvers", "--bench", "river", "--boxoban_file", str(SAMPLE)],  # file with another bench
                  ["solvers", "--bench", "boxoban_file", "--boxoban_file", str(tmp_path / "nope.txt")],
@@ -259,3 +267,22 @@ def test_sokoban2_fills_every_bucket_without_warning(capsys):
     insts = make_instances("sokoban2", per_bucket=5, seed=1)  # sokoban3 takes ~25 s, so it is tuned by hand (README/report)
     assert len(insts) == 5 * len(BENCHMARKS["sokoban2"].T_targets) and capsys.readouterr().err == ""
     assert all(i.T > 0 for i in insts)
+
+
+SOLVED = ["####", "#@*#", "####"]  # the only box already sits on the only goal
+
+
+def test_already_solved_loaded_level_is_a_skipped_row_in_every_command(tmp_path, monkeypatch):
+    path = tmp_path / "solved.txt"
+    path.write_text(SAMPLE.read_text() + "\n; 3\n" + "\n".join(SOLVED) + "\n")
+    rows = _boxoban_file_run(tmp_path / "s", monkeypatch, "solvers", path, "--solvers", "astar")  # no ZeroDivisionError
+    assert len(rows) == 4 and [r["status"] for r in rows if r["solver"] == "skipped"] == ["already_solved"]
+    rows = _boxoban_file_run(tmp_path / "a", monkeypatch, "agents", path, "--episodes", "2", "--no_ilp")
+    assert [(r["status"], r["index"], r["T"]) for r in rows if r["method"] == "skipped"] == [("already_solved", "3", "-1")]
+    for design in ("bind", "frac"):
+        rows = _boxoban_file_run(tmp_path / design, monkeypatch, "constrained", path, "--design", design)
+        sk = [r for r in rows if r["solver"] == "skipped" and r["status"] == "already_solved"]
+        assert [(r["status"], r["index"], r["ok"], r["T"]) for r in sk] == [("already_solved", "3", "0", "-1")]
+    monkeypatch.setattr(sys, "argv", ["bench", "report", "--out", str(tmp_path / "bind")])
+    bench.main()
+    assert "already_solved" in (tmp_path / "bind" / "results.md").read_text()

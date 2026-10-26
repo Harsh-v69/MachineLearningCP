@@ -149,7 +149,7 @@ def _constrained_frac(a):
                 "agrees_with_astar": int(ra.status == "ok" and r.status == "ok" and r.cost == ra.cost),
                 "nodes": r.nodes, "seconds": round(r.seconds, 5), **tail,
             })
-    print(f"[constrained] skipped {skipped} infeasible/unsolved instances (recorded as solver=skipped rows)")
+    print(f"[constrained] skipped {skipped} infeasible/unsolved/already-solved instances (recorded as solver=skipped rows)")
     _write(Path(a.out) / f"constrained_{a.bench}.csv", rows)
 
 
@@ -240,7 +240,7 @@ def _constrained_bind(a):
                     "agrees_with_astar": int(ra.status == "ok" and ok and r.cost == ra.cost),
                     "nodes": r.nodes, "seconds": round(r.seconds, 5), **tail,
                 })
-    print(f"[constrained] skipped {skipped} instances with no binding feasible budget (recorded as solver=skipped rows): "
+    print(f"[constrained] skipped {skipped} instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): "
           f"{dict(Counter(r['status'] for r in rows if r['solver'] == 'skipped'))}")
     _write(Path(a.out) / f"constrained_{a.bench}.csv", rows)
 
@@ -302,7 +302,7 @@ def run_report(a):
          ["bench", "T", "solver"], ["ok", "cost_ratio", "nodes", "seconds"]),
         ("Agents (success within budget under noise)", "agents_*.csv", ["bench", "T", "method"],
          ["success", "mean_steps", "solves", "solver_fail", "seconds"]),
-        ("Constrained (design=bind: B = T*+c_slack, level bind: R = r_opt-1, tight: R = r_min, so the optimum must be longer than T*; design=frac: R = floor(res_frac * optimum resource), level frac; forced_longer = share of solved rows with cost > T*; agrees_with_astar = rate of both solved with identical cost; solver=skipped rows are instances with no derivable or feasible R; cost means are over solved instances only)",
+        ("Constrained (design=bind: B = T*+c_slack, level bind: R = r_opt-1, tight: R = r_min, so the optimum must be longer than T*; design=frac: R = floor(res_frac * optimum resource), level frac; forced_longer = share of solved rows with cost > T*; agrees_with_astar = rate of both solved with identical cost; solver=skipped rows are instances with no derivable or feasible R, or (T=-1) a user-supplied level skipped by the oracle: status = the oracle status or already_solved; cost means are over solved instances only)",
          "constrained_*.csv", ["bench", "level", "T", "solver"], ["ok", "forced_longer", "agrees_with_astar", "cost", "nodes", "seconds"]),
     ]
     md = ["# Results\n"]

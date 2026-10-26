@@ -1,0 +1,7 @@
+17:32:51 START river_ep300
+17:32:51 START sokoban_ep300
+17:42:29 END river_ep300 rc=0 578s
+[saved] results_new\agents_ep300\agents_river.csv (120 rows)
+17:46:50 END sokoban_ep300 rc=0 839s
+[saved] results_new\agents_ep300\agents_sokoban.csv (100 rows)
+PAR2-ALL-DONE

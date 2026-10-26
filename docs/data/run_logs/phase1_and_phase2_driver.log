@@ -1,0 +1,42 @@
+solvers --bench sokoban2 --n 5 --out results_new/solvers rc=0 27s
+[saved] results_new\solvers\solvers_sokoban2.csv (125 rows)
+solvers --bench sokoban3 --n 5 --out results_new/solvers rc=0 223s
+[saved] results_new\solvers\solvers_sokoban3.csv (125 rows)
+solvers --bench cube3 --n 5 --max_nodes 100000 --out results_new/solvers rc=0 87s
+[saved] results_new\solvers\solvers_cube3.csv (100 rows)
+constrained --design bind --c_slack 4 --bench sokoban2 --n 20 --out results_new/bind_s4 rc=0 42s
+[constrained] skipped 96 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 96}
+[saved] results_new\bind_s4\constrained_sokoban2.csv (112 rows)
+constrained --design bind --c_slack 4 --bench sokoban3 --n 10 --out results_new/bind_s4 rc=0 207s
+[constrained] skipped 46 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 46}
+[saved] results_new\bind_s4\constrained_sokoban3.csv (62 rows)
+constrained --design bind --c_slack 4 --bench cube3 --n 5 --max_nodes 100000 --out results_new/bind_s4 rc=0 173s
+[constrained] skipped 3 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 2, 'node_limit': 1}
+[saved] results_new\bind_s4\constrained_cube3.csv (63 rows)
+constrained --design bind --c_slack 2 --bench river --n 20 --out results_new/bind_s2 rc=0 9s
+[constrained] skipped 77 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 77}
+[saved] results_new\bind_s2\constrained_river.csv (249 rows)
+constrained --design bind --c_slack 2 --bench sokoban --n 20 --out results_new/bind_s2 rc=0 18s
+[make_instances] sokoban T*=22: only 10/20 instances after 5000 tries
+[constrained] skipped 83 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 83}
+[saved] results_new\bind_s2\constrained_sokoban.csv (111 rows)
+constrained --design bind --c_slack 2 --bench sokoban2 --n 20 --out results_new/bind_s2 rc=0 29s
+[constrained] skipped 97 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 97}
+[saved] results_new\bind_s2\constrained_sokoban2.csv (109 rows)
+constrained --design bind --c_slack 2 --bench cube2 --n 4 --out results_new/bind_s2 rc=0 386s
+[constrained] skipped 2 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 2}
+[saved] results_new\bind_s2\constrained_cube2.csv (60 rows)
+constrained --design bind --c_slack 8 --bench river --n 20 --out results_new/bind_s8 rc=0 8s
+[constrained] skipped 77 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 77}
+[saved] results_new\bind_s8\constrained_river.csv (249 rows)
+constrained --design bind --c_slack 8 --bench sokoban --n 20 --out results_new/bind_s8 rc=0 21s
+[make_instances] sokoban T*=22: only 10/20 instances after 5000 tries
+[constrained] skipped 83 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 83}
+[saved] results_new\bind_s8\constrained_sokoban.csv (111 rows)
+constrained --design bind --c_slack 8 --bench sokoban2 --n 20 --out results_new/bind_s8 rc=0 109s
+[constrained] skipped 94 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 94}
+[saved] results_new\bind_s8\constrained_sokoban2.csv (118 rows)
+constrained --design bind --c_slack 8 --bench cube2 --n 4 --out results_new/bind_s8 rc=0 405s
+[constrained] skipped 2 instances with no binding feasible budget or no oracle solution (T=-1: oracle status or already_solved) (recorded as solver=skipped rows): {'no_tradeoff': 2}
+[saved] results_new\bind_s8\constrained_cube2.csv (60 rows)
+PHASE1-DONE (solvers + bind)

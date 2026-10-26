@@ -95,6 +95,7 @@ Data directory map (`<kind>` is `solvers`, `agents` or `constrained`):
 | `new_solvers/` | solvers on sokoban2, sokoban3, cube3 | `results_new_solvers.md` |
 | `new_agents/` | agents on sokoban2 (100 episodes), sokoban3 (30 episodes, ILP disabled) | `results_new_agents.md` |
 | `agents_ep300/` | agents on river and sokoban, 300 episodes | `results_agents_ep300.md` |
+| `run_logs/` | wall-clock logs of the second-phase runs (including the two cube3 agents attempts that did not complete); see its `README.txt` | none |
 
 Both constrained designs write `constrained_<bench>.csv`, so they must use different `--out` directories; each run's
 `--out` was a scratch directory and its CSVs were copied to `docs/data/<dataset>/`. `--design` now **defaults to

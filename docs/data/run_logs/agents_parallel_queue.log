@@ -1,0 +1,5 @@
+17:28:51 START sokoban3_agents
+17:28:51 START cube3_agents
+17:43:05 END sokoban3_agents rc=0 854s
+[saved] results_new\agents\agents_sokoban3.csv (75 rows)
+20:29:02 END cube3_agents rc=127 10811s

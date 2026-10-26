@@ -70,6 +70,35 @@ rows carry `ilp_status`; the committed CSVs in `docs/data/` predate those column
 `docs/data/main/`, `docs/data/rf95|rf97|rf100/` and `docs/data/bind/` (tables: `docs/results.md`, `docs/results_rf95.md`,
 `docs/results_bind.md`).
 
+Two further generated benchmarks are available but not part of `all` or the published tables: `--bench sokoban2` (7x9,
+2 boxes, `T*` targets 6/10/14/18/22) and `--bench sokoban3` (8x10, 3 boxes, `T*` targets 10/14/18/22/26); both use the
+Sokoban generator with reverse-play depth 60 to 600 and fill every bucket at `--n 5` (about 3 s and 25 s respectively).
+
+## Using real Boxoban levels
+
+The repo ships no real levels and downloads nothing. The built-in `boxoban` benchmark is a locally generated 10x10,
+4-box imitation. To run on real levels, obtain a file yourself in DeepMind's Boxoban text format (for example one of
+the `.txt` files of the public `google-deepmind/boxoban-levels` repository, cloned or downloaded by you) and point the
+CLI at it:
+
+```bash
+python -m tapegraph.bench solvers     --bench boxoban_file --boxoban_file path/to/000.txt --n 20 --out boxoban_real
+python -m tapegraph.bench agents      --bench boxoban_file --boxoban_file path/to/000.txt --n 20 --episodes 20 --no_ilp --out boxoban_real
+python -m tapegraph.bench constrained --bench boxoban_file --boxoban_file path/to/000.txt --n 20 --out boxoban_real
+```
+
+`--bench boxoban_file` and `--boxoban_file PATH` must be given together, and the benchmark exists only then (it is not
+part of `all`). Each level starts with a `; <index>` line followed by its grid (`#` wall, space floor, `.` goal, `$` box,
+`@` player, `*` box on goal, `+` player on goal). The loader is strict: a level that is not rectangular, has no or
+several players, a different number of boxes and goals, an unknown character, or is not enclosed by walls stops the run
+with an error naming the level's index. With this benchmark `--n` is the maximum number of levels used (the first `n`
+in the file) instead of instances per `T*` bucket, and `--seed` has no effect. `T*` is computed by the A* oracle (node
+cap 300,000). A level the oracle cannot solve is not dropped: every CSV gets a `solver=skipped` (`method=skipped` for
+agents) row for it with `T=-1` and the oracle's status (`no_path` or `node_limit`); rows for loaded levels also carry
+an `index` column (position in the file). A tiny hand-made 3-level sample in this format is in
+`tests/data/boxoban_sample.txt`. **No results on real Boxoban levels are included in this repository**; the published
+tables use only the generated benchmarks.
+
 ## Layout
 
 See `docs/superpowers/specs/2026-10-22-tape-graph-design.md`. The measured tables from the run described below are

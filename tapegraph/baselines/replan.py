@@ -9,6 +9,7 @@ class Replan:
     def __init__(self, problem, solver, **cfg):
         self.problem, self.solver, self.cfg = problem, solver, cfg
         self.solves = 0
+        self.solver_fail = 0  # solves that returned a non-ok status (the silent first-legal-action fallback below)
         self.reset(0)
 
     def reset(self, seed):
@@ -18,6 +19,7 @@ class Replan:
         if not self.plan or s != self.expect:
             self.solves += 1
             r = self.solver(self.problem, s, budget=rem, **self.cfg)
+            self.solver_fail += r.status != "ok"
             self.plan = deque(zip(r.path, r.states[1:])) if r.status == "ok" else deque()
         if not self.plan:
             return next((a for a, _, _ in self.problem.neighbors(s)), "")

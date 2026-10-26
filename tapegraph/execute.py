@@ -35,5 +35,6 @@ def evaluate(problem, start, policy, B, eta, episodes, seed):
         "success": wins / episodes,
         "mean_steps": steps / episodes,
         "solves": getattr(policy, "solves", 0) / episodes,
+        "solver_fail": getattr(policy, "solver_fail", 0) / episodes,  # per episode; Replan's silent fallbacks
         "seconds": (time.perf_counter() - t0) / episodes,
     }

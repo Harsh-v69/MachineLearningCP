@@ -1,14 +1,23 @@
-"""Usage: python -m tapegraph.bench {solvers|agents|constrained|report} --bench river --n 5 --out results"""
+"""Usage: python -m tapegraph {solvers|agents|constrained|report|all} --bench river --n 5 --out results
+(`tapegraph all --profile smoke|full --out DIR` runs the whole pipeline; see README)."""
 from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
+import platform
+import shlex
+import subprocess
+import time
 from collections import Counter, defaultdict
 from functools import partial
+from importlib import metadata
 from pathlib import Path
 from statistics import mean
+from typing import NamedTuple
 
+from . import __version__
 from .baselines.react_sim import ReActSim
 from .baselines.replan import Replan
 from .baselines.tape_sim import TapeSim
@@ -39,6 +48,19 @@ def _usable(name):
     return name != "ilp" or ilp.ORTOOLS_AVAILABLE
 
 
+def _params(a, *extra):
+    """Run parameters stamped on every solvers/constrained row; `extra` names further args (slack, c_slack, res_frac)."""
+    return {"seed": a.seed, "max_nodes": a.max_nodes, "n": a.n, "time_limit": a.time_limit,
+            **{k: getattr(a, k) for k in extra}}
+
+
+def _solve(a, name, *args, **kw):
+    """SOLVERS[name](...); only the ILP takes a time limit."""
+    if name == "ilp":
+        kw["time_limit"] = a.time_limit
+    return SOLVERS[name](*args, **kw)
+
+
 def run_solvers(a):
     rows = []
     for inst in make_instances(a.bench, a.n, a.seed):
@@ -46,11 +68,11 @@ def run_solvers(a):
         for name in a.solvers:
             if not _usable(name):
                 continue
-            r = SOLVERS[name](inst.problem, inst.start, budget=B, max_nodes=a.max_nodes)
+            r = _solve(a, name, inst.problem, inst.start, budget=B, max_nodes=a.max_nodes)
             rows.append({
                 "bench": a.bench, "T": inst.T, "solver": name, "status": r.status, "ok": int(r.status == "ok"),
                 "cost_ratio": r.cost / inst.T if r.status == "ok" else "",
-                "nodes": r.nodes, "seconds": round(r.seconds, 5),
+                "nodes": r.nodes, "seconds": round(r.seconds, 5), **_params(a, "slack"),
             })
     _write(Path(a.out) / f"solvers_{a.bench}.csv", rows)
 
@@ -83,27 +105,28 @@ def _constrained_frac(a):
     for inst in make_instances(a.bench, a.n, a.seed):
         p, B = inst.problem, inst.T + a.slack
         head = {"bench": a.bench, "T": inst.T, "level": "frac"}
+        tail = _params(a, "slack", "res_frac")
         base = astar.solve(p, inst.start, budget=B, max_nodes=a.max_nodes)
         if base.status != "ok":  # cannot derive R
             skipped += 1
-            rows.append({**head, "solver": "skipped", "status": base.status, "ok": 0})
+            rows.append({**head, "solver": "skipped", "status": base.status, "ok": 0, **tail})
             continue
         R = math.floor(a.res_frac * base.res)
-        results = {n: SOLVERS[n](p, inst.start, budget=B, res_budget=R, max_nodes=a.max_nodes)
+        results = {n: _solve(a, n, p, inst.start, budget=B, res_budget=R, max_nodes=a.max_nodes)
                    for n in ("astar", "ilp") if _usable(n)}
         ra = results["astar"]
         if ra.status == "no_path":  # proven infeasible at this resource budget
             skipped += 1
             # ilp_status makes a disagreement visible (ILP found a path where A* proved none)
             rows.append({**head, "solver": "skipped", "status": "infeasible", "ok": 0, "R": R,
-                         "ilp_status": results["ilp"].status if "ilp" in results else "not_run"})
+                         "ilp_status": results["ilp"].status if "ilp" in results else "not_run", **tail})
             continue
         for n, r in results.items():
             rows.append({
                 **head, "solver": n, "status": r.status, "ok": int(r.status == "ok"), "R": R,
                 "cost": r.cost if r.status == "ok" else "",
                 "agrees_with_astar": int(ra.status == "ok" and r.status == "ok" and r.cost == ra.cost),
-                "nodes": r.nodes, "seconds": round(r.seconds, 5),
+                "nodes": r.nodes, "seconds": round(r.seconds, 5), **tail,
             })
     print(f"[constrained] skipped {skipped} infeasible/unsolved instances (recorded as solver=skipped rows)")
     _write(Path(a.out) / f"constrained_{a.bench}.csv", rows)
@@ -172,12 +195,14 @@ def _constrained_bind(a):
     for inst in make_instances(a.bench, a.n, a.seed):
         p = ResView(inst.problem)
         d = bind_budgets(p, inst.start, inst.T, a.c_slack, a.max_nodes)
+        tail = _params(a, "c_slack")
         if "skip" in d:
             skipped += 1
-            rows.append({"bench": a.bench, "T": inst.T, "level": "-", "solver": "skipped", "status": d["skip"], "ok": 0})
+            rows.append({"bench": a.bench, "T": inst.T, "level": "-", "solver": "skipped", "status": d["skip"], "ok": 0,
+                         **tail})
             continue
         for level, R in d["levels"].items():
-            results = {n: SOLVERS[n](p, inst.start, budget=d["B"], res_budget=R, max_nodes=a.max_nodes)
+            results = {n: _solve(a, n, p, inst.start, budget=d["B"], res_budget=R, max_nodes=a.max_nodes)
                        for n in ("astar", "ilp") if _usable(n)}
             ra = results["astar"]
             for n, r in results.items():
@@ -188,7 +213,7 @@ def _constrained_bind(a):
                     "cost": r.cost if ok else "",
                     "forced_longer": int(r.cost > inst.T) if ok else "",  # "" (not 0) so the report mean is over ok rows
                     "agrees_with_astar": int(ra.status == "ok" and ok and r.cost == ra.cost),
-                    "nodes": r.nodes, "seconds": round(r.seconds, 5),
+                    "nodes": r.nodes, "seconds": round(r.seconds, 5), **tail,
                 })
     print(f"[constrained] skipped {skipped} instances with no binding feasible budget (recorded as solver=skipped rows): "
           f"{dict(Counter(r['status'] for r in rows if r['solver'] == 'skipped'))}")
@@ -279,9 +304,85 @@ def run_report(a):
     print(f"[saved] {out / 'results.md'}")
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["solvers", "agents", "constrained", "report"])
+class Step(NamedTuple):
+    sub: str  # output subdirectory of --out
+    args: list  # bench CLI arguments without --out
+
+
+def _steps(sub, *cmds):
+    return [Step(sub, c.split()) for c in cmds]
+
+
+def plan(profile):
+    """The commands behind `all`. `full` = the published commands (README "Run" table, seed = CLI default 1);
+    `smoke` = a tiny pass over River and Cube2 that exercises every code path (solvers, agents, constrained bind, report).
+    Each experiment kind writes to its own subdirectory (frac and bind both write constrained_<bench>.csv) and gets one
+    report, after its last experiment."""
+    B = ["river", "sokoban", "boxoban", "cube2"]
+    if profile == "full":
+        agents = {"river": "--episodes 100", "sokoban": "--episodes 100", "boxoban": "--episodes 20 --no_ilp",
+                  "cube2": "--episodes 30 --no_ilp"}
+        bind_n = {"river": 20, "sokoban": 20, "boxoban": 10, "cube2": 4}
+        groups = [
+            ("solvers", [f"solvers --bench {b} --n 5" for b in B]),
+            ("agents", [f"agents --bench {b} --n 5 {agents[b]}" for b in B]),
+            ("constrained_frac", [f"constrained --design frac --bench {b} --n 5" for b in B]),
+            ("constrained_bind", [f"constrained --design bind --c_slack 4 --bench {b} --n {bind_n[b]}" for b in B]),
+        ]
+    else:  # smoke: cube2 gets a small node cap so BFS/ILP fail fast instead of grinding
+        cap = "--max_nodes 20000"
+        groups = [
+            ("solvers", ["solvers --bench river --n 1", f"solvers --bench cube2 --n 1 {cap}"]),
+            ("agents", ["agents --bench river --n 1 --episodes 3", f"agents --bench cube2 --n 1 --episodes 2 --no_ilp {cap}"]),
+            ("constrained_bind", ["constrained --design bind --bench river --n 1",
+                                  f"constrained --design bind --bench cube2 --n 1 {cap}"]),
+        ]
+    return [st for sub, cmds in groups for st in _steps(sub, *cmds) + _steps(sub, "report")]
+
+
+def _version(pkg):
+    try:
+        return metadata.version(pkg)
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def _git_commit():
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent, capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _step_argv(st, out):
+    return [*st.args, "--out", str(Path(out) / st.sub)]
+
+
+def run_all(a):
+    steps = plan(a.profile)
+    parser = build_parser()
+    man = {"profile": a.profile, "out": str(a.out), "python": platform.python_version(), "numpy": _version("numpy"),
+           "ortools": _version("ortools"), "tapegraph": __version__, "git_commit": _git_commit(),
+           "steps": [{"command": "python -m tapegraph.bench " + shlex.join(argv), "parameters": vars(parser.parse_args(argv)),
+                      "seconds": None} for argv in (_step_argv(st, a.out) for st in steps)]}
+    if a.dry_run:
+        print(json.dumps(man, indent=2))
+        return
+    path = Path(a.out) / "run_manifest.json"
+    for st, entry in zip(steps, man["steps"]):
+        print(f"[all] {entry['command']}")
+        t0 = time.perf_counter()
+        main(_step_argv(st, a.out))
+        entry["seconds"] = round(time.perf_counter() - t0, 3)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(man, indent=2))  # rewritten after every step: a long run leaves a usable partial manifest
+    print(f"[saved] {path}")
+
+
+def build_parser():
+    ap = argparse.ArgumentParser(prog="tapegraph")
+    ap.add_argument("cmd", choices=["solvers", "agents", "constrained", "report", "all"])
     ap.add_argument("--bench", choices=list(BENCHMARKS), default="river")
     ap.add_argument("--n", type=int, default=5, help="instances per T* bucket")
     ap.add_argument("--seed", type=int, default=1)
@@ -298,9 +399,18 @@ def main():
     ap.add_argument("--c_slack", type=int, default=4, help="constrained bind: length budget is T*+c_slack")
     ap.add_argument("--no_ilp", action="store_true",
                     help="agents: skip ours_ilp and make TapeSim use BFS on the folded graph instead of the ILP")
+    ap.add_argument("--time_limit", type=float, default=10.0, help="solvers/constrained: ILP time limit per solve, seconds")
+    ap.add_argument("--profile", choices=["smoke", "full"], default="smoke",
+                    help="all: smoke = tiny River+Cube2 pass; full = the published commands (hours)")
+    ap.add_argument("--dry_run", action="store_true", help="all: print the commands and manifest skeleton, run nothing")
     ap.add_argument("--out", default="results")
-    a = ap.parse_args()
-    {"solvers": run_solvers, "agents": run_agents, "constrained": run_constrained, "report": run_report}[a.cmd](a)
+    return ap
+
+
+def main(argv=None):
+    a = build_parser().parse_args(argv)
+    {"solvers": run_solvers, "agents": run_agents, "constrained": run_constrained, "report": run_report,
+     "all": run_all}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -93,7 +93,8 @@ def graph_path_bfs(start, goals, edges):
 
 
 def solve(problem, start, budget=INF, res_budget=None, max_nodes=200_000, time_limit=10.0):
-    """ILP on the bounded subgraph {g + h <= budget} (the same ball A* would expand), capped at max_nodes.
+    """ILP on the bounded subgraph {g + h <= budget}, capped at max_nodes. With budget = T*+slack this ball is larger
+    than the f <= T* region A* expands, and it is built without resource pruning.
 
     ponytail: BFS layering for g assumes unit edge cost.
     """

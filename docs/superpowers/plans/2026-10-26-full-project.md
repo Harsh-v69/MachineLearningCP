@@ -27,7 +27,7 @@ scope, the download is not).
   a reviewer.
 - Existing behaviour is preserved: all 83 tests keep passing; `--design frac` and the published commands still reproduce.
 - Commit trailer on every commit: `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`; commits use
-  `git -c user.name="tape-graph" -c user.email="harshvardhanr264@gmail.com"`.
+  `git -c user.name="tape-graph" -c user.email="<author email>"`.
 - Long experiments run one process at a time (timing columns must not be contended), writing to a fresh `--out` directory.
 
 ## File structure (additions)

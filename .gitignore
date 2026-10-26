@@ -8,3 +8,6 @@ results_bind/
 *.egg-info/
 smoke_out/
 full_out/
+.run_*
+results_new/
+results_*/

@@ -12,14 +12,14 @@
 
 ## Global Constraints
 
-- New project at `C:\Users\harsh\Desktop\TAPE\tape-graph\`; `TAPE-main` is never modified.
+- New project at the repository root (`tape-graph/`); the sibling `TAPE-main` is never modified.
 - All edges have cost 1.0 (path length). A second per-edge resource (`Problem.res`) exists only for the constrained experiment.
 - Python 3.12; numpy for the cube; `ortools` is imported lazily and the code and tests must work (ILP tests skipped) without it.
 - Tests are plain `pytest`/`assert`; no other test framework, no fixtures beyond module-level helpers.
 - Dependencies are installed only after the user confirms (Task 1 Step 1).
 - No plotting in this plan (spec §7 said "only if matplotlib installed"; deferred as YAGNI, tables only).
 - Deliberate deviation from spec §5: the ILP uses an edge-flow formulation (one binary per edge) instead of TAPE's time-expanded model. Costs are positive, so the optimum is a simple path, and the model is `L` times smaller. The time-expanded form is only needed for node-score objectives, which this project does not use.
-- Run all commands from `C:\Users\harsh\Desktop\TAPE\tape-graph` (bash syntax shown).
+- Run all commands from the repository root (bash syntax shown).
 
 ## File Structure
 
@@ -65,7 +65,7 @@ tape-graph/
 Ask: "OK to run `pip install numpy pytest ortools`?" Only after a yes:
 
 ```bash
-cd /c/Users/harsh/Desktop/TAPE/tape-graph
+cd <repository root>
 python -m pip install numpy pytest ortools
 python -c "import numpy, pytest, ortools; print('ok')"
 ```

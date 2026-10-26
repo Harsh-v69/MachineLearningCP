@@ -84,6 +84,10 @@ def rx(x):
     return f"{x:.0f}x" if x >= 10 else f"{x:.2f}x"
 
 
+def pl(n, word):
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
 def counts(c):
     return ", ".join(f"{n} {s}" for s, n in sorted(c.items())) or "none"
 
@@ -463,15 +467,15 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
                f"for BFS, A*, IDA* and the ILP {exact_text} ({num(S['exact_n'])} solved rows), and {unc_text}. ")
     if B:
         ab += (f"In a resource-constrained design whose budget always rules out every length-optimal path "
-               f"({len(b_benches)} benchmarks; {cs_text}), {bind_text}"
+               f"({pl(len(b_benches), 'benchmark')}; {cs_text}), {bind_text}"
                + (f" (median ILP/A* time ratio per benchmark and c_slack from {rx(min(b_meds))} to {rx(max(b_meds))})" if b_meds else "")
                + f". {fastfail_text}")
     if react_d:
         ab += (f"Under the TAPE paper's noise model, re-planning with A* on the true graph "
                f"{'exceeds' if min(react_d) > 0 else 'differs from'} a simulated ReAct by "
-               f"{f3(min(react_d))} to {f3(max(react_d))} in mean per-instance success across {n_agent_benches} benchmarks"
+               f"{f3(min(react_d))} to {f3(max(react_d))} in mean per-instance success across {pl(n_agent_benches, 'benchmark')}"
                + (f", and differs from a simulated TAPE by {f3(min(tape_d))} to {f3(max(tape_d))}; the bootstrap interval of "
-                  f"that difference contains 0 on {tape_zero} of {len(tape_d)} benchmarks{tape_excl}" if tape_d else "")
+                  f"that difference contains 0 on {tape_zero} of {pl(len(tape_d), 'benchmark')}{tape_excl}" if tape_d else "")
                + ". ")
     ab += ("ReAct and TAPE are simulated with the paper's noise model; no language model was run.")
     w(ab + "\n")
@@ -678,7 +682,7 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
           f"- Solve counts: {unc_text}"
           + (f"; per benchmark its median time ratio ranged from {rx(min(p['_med'] for p in ilp_pairs))} to "
              f"{rx(max(p['_med'] for p in ilp_pairs))}" if ilp_pairs else "") + ".\n"
-          + "".join(f"- {s}: {counts(Counter({st: n for (s2, st), n in S['fails'].items() if s2 == s}))} non-ok rows.\n"
+          + "".join(f"- {s} non-ok rows: {counts(Counter({st: n for (s2, st), n in S['fails'].items() if s2 == s}))}.\n"
                     for s in _order({s for s, _ in S["fails"]}, SOLVER_ORDER)))
         suf = _suffixes(found["solvers"])
         for d, b, _ in sorted(S["data"], key=lambda x: (bkey(x[1]), x[0])):
@@ -836,12 +840,19 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
                   "and never corrected." if react_d else ""))
     same = sum(a["same"] for a in A)
     common = sum(a["common"] for a in A)
-    lim.append("**tape (simulated) and ours are close by construction.** tape's rollouts come from an exact oracle with "
-               "injected errors, and a shortest path in the folded graph is (close to) an optimal path of the true graph, "
-               "which ours_astar follows."
-               + (f" They have identical success on {same} of {common} instances over {n_agent_benches} benchmarks "
+    excl = [a["bench"] for a, p in tape_p if not p["ci_lo"] <= 0 <= p["ci_hi"]]
+    lim.append("**tape (simulated) and ours are close in success.** A hypothesis for why (not tested here): tape's "
+               "rollouts come from an exact oracle with injected errors, so a shortest path in the folded graph is (close "
+               "to) an optimal path of the true graph, which ours_astar follows."
+               + (f" They have identical success on {same} of {common} instances over {pl(n_agent_benches, 'benchmark')} "
                   "(one agents dataset per benchmark, Section 7.4)." if common else "")
-               + " The real difference is cost (no oracle, no rollouts, no ILP), not success.")
+               + (f" Measured: ours_astar minus tape (simulated) is {f3(min(tape_d))} to {f3(max(tape_d))} in mean "
+                  f"per-instance success; the success difference is small (at most {f3(max(abs(x) for x in tape_d))} in "
+                  f"absolute value) but its bootstrap interval excludes 0 on {len(excl)} of {pl(len(tape_d), 'benchmark')}"
+                  + (f" ({and_list(f'`{b}`' for b in excl)})" if excl else "")
+                  + ", so it is not always indistinguishable from 0." if tape_d else "")
+               + " The difference that does not depend on the noise model is cost: ours needs no oracle, no rollouts and "
+               "no ILP.")
     thin = [b for b in b_benches if all(r["trade-off"] < THIN for r in B if r["bench"] == b)]
     lim.append("**Constrained evidence is thin on some benchmarks and the resources are unusual.**"
                + (f" Fewer than {THIN} trade-off instances at every c_slack run: "
@@ -884,9 +895,6 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
     lim.append("**Pooled Wilson intervals assume independent episodes.** Episodes of one instance share the level, so the "
                "pooled intervals are optimistic; the paired bootstrap resamples instances and is the more conservative "
                "comparison.")
-    lim.append("**Test gaps of the first version are closed** (BFS node limit, IDA* deepening on a toy graph, an "
-               "inadmissible-heuristic negative control and the `make_instances` warning now have direct tests in "
-               "`tests/test_polish.py`); the remaining risk is in what the tests do not model, such as timing.")
     w("".join(f"{i}. {t}\n" for i, t in enumerate(lim, 1)))
     w(f"\n**Threats to validity.** The comparison with ReAct and TAPE is a comparison with simulations under one noise "
       "model; a real language model's errors are neither independent nor uniformly harmful, and TAPE's real cost (LLM "
@@ -925,7 +933,7 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
         con.append(f"For BFS, A*, IDA* and the ILP, {exact_text} ({num(S['exact_n'])} solved rows), and A* with a pattern "
                    "database or distance heuristic "
                    + ("solved every unconstrained instance it was given" if a_fail == 0
-                      else f"failed on {a_fail} unconstrained instances")
+                      else f"failed on {pl(a_fail, 'unconstrained instance')}")
                    + f". Instances exist only where the oracle (an exact table, or A* with a {num(ORACLE_CAP)}-node cap) "
                    "found T*, so this sample excludes instances that A*-based search could not solve (the node-cap "
                    "limitation in Section 8).")
@@ -933,7 +941,7 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
         never = ilp_faster == 0 and b_fast == 0
         con.append(("The ILP did not beat A* in any measured regime. " if never else "The ILP beat A* only on some rows. ")
                    + (f"Unconstrained: {unc_text}. " if S["data"] else "")
-                   + (f"Binding-constrained ({len(b_benches)} benchmarks; {cs_text}): {bind_text}. {fastfail_text}" if B else "")
+                   + (f"Binding-constrained ({pl(len(b_benches), 'benchmark')}; {cs_text}): {bind_text}. {fastfail_text}" if B else "")
                    + "This is scoped to the edge-flow formulation, the time limit, the node caps and the resources measured "
                    "here; it does not show that an ILP cannot win with other objectives (e.g. TAPE's node scores), other "
                    "formulations or much larger graphs.")
@@ -941,7 +949,7 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
         con.append(f"Re-planning on the true graph {'beats' if min(react_d) > 0 else 'differs from'} simulated ReAct by "
                    f"{f3(min(react_d))} to {f3(max(react_d))} in mean success"
                    + (f"; against simulated TAPE the bootstrap interval of the difference contains 0 on {tape_zero} of "
-                      f"{len(tape_d)} benchmarks{tape_excl}" if tape_d else "")
+                      f"{pl(len(tape_d), 'benchmark')}{tape_excl}" if tape_d else "")
                    + ". Because both baselines are simulations that share an exact oracle, this supports the claim that "
                    "the loop recovers TAPE's success without a language model only within that model.")
     con.append("What the evidence does not support: anything about real language models, about resources an application "

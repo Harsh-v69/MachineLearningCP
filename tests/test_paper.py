@@ -174,8 +174,20 @@ def test_toy_numbers_equal_hand_computed_values(toy, tmp_path):
             "from a simulated TAPE by 0.050 to 0.100; the bootstrap interval of that difference contains 0 on 1 of 2 "
             "benchmarks; it excludes 0 with ours_astar higher on 1 (by at most 0.100) and with ours_astar lower on 0.") in abstract
     conclusion = text.split("## 10 Conclusion\n")[1]
-    assert bind_text in conclusion and fast in conclusion
-    assert "unconstrained instances (A* 3 of 3)" in conclusion
+    assert ("The ILP beat A* only on some rows. Unconstrained: the ILP solved 2 of 3 unconstrained instances (A* 3 of 3) "
+            "and was faster than A* on 0 of the 2 where both solved. Binding-constrained (1 benchmark; c_slack 2 and 4): "
+            f"{bind_text}. {fast} This is scoped") in conclusion
+    assert "did not beat A*" not in text
+    assert ("Re-planning on the true graph beats simulated ReAct by 0.450 to 0.750 in mean success; against simulated TAPE "
+            "the bootstrap interval of the difference contains 0 on 1 of 2 benchmarks; it excludes 0 with ours_astar "
+            "higher on 1 (by at most 0.100) and with ours_astar lower on 0. Because both baselines") in conclusion
+    assert "solved every unconstrained instance it was given." in conclusion
+    # limitation 2: computed from the paired differences (toy: CI contains 0; toy2: +0.1 on both instances, excludes 0)
+    assert ("Measured: ours_astar minus tape (simulated) is 0.050 to 0.100 in mean per-instance success; the success "
+            "difference is small (at most 0.100 in absolute value) but its bootstrap interval excludes 0 on 1 of 2 "
+            "benchmarks (`toy2`), so it is not always indistinguishable from 0.") in text
+    assert "not success" not in text and "Test gaps of the first version" not in text
+    assert "- ilp non-ok rows: 1 timeout." in L
     # pending: exactly one line, naming every planned file that is absent
     assert text.count("_pending: data not yet available") == 1
     for (dd, bb) in mp.PENDING:
@@ -189,6 +201,21 @@ def test_same_instances_key():
     assert not mp.same_instances([a, [{"T": 3, "r_opt": 6, "skip": None}, a[1]]])  # r_opt differs
     assert not mp.same_instances([a, a[:1]])  # different number of instances
     assert not mp.same_instances([a, [a[1], a[0]]])  # T* sequence differs
+
+
+def test_astar_failures_and_ilp_never_faster_branches(tmp_path):
+    d = tmp_path / "data"
+    s = lambda T, solver, st, sec: {"bench": "toy", "T": T, "solver": solver, "status": st, "ok": int(st == "ok"),
+                                    "cost_ratio": 1.0 if st == "ok" else "", "nodes": 4, "seconds": sec}
+    write(d / "main" / "solvers_toy.csv", [s(3, "astar", "ok", 0.01), s(3, "ilp", "ok", 0.2),
+                                           s(5, "astar", "node_limit", 1.0), s(5, "ilp", "too_large", 0.5)])
+    text = mp.build_paper(d, tmp_path / "nofigs", tmp_path)
+    claim_check(text)
+    conclusion = text.split("## 10 Conclusion\n")[1]
+    assert "A* with a pattern database or distance heuristic failed on 1 unconstrained instance." in conclusion
+    assert ("The ILP did not beat A* in any measured regime. Unconstrained: the ILP solved 1 of 2 unconstrained "
+            "instances (A* 1 of 2) and was faster than A* on 0 of the 1 where both solved. This is scoped") in conclusion
+    assert "- astar non-ok rows: 1 node_limit." in text.splitlines()
 
 
 def test_missing_agent_directories_are_tolerated(tmp_path):

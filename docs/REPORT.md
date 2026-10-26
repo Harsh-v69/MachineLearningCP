@@ -233,7 +233,7 @@ the 18 trade-off instances, all at `T*` <= 5.
 
 A* solved all rows (453 of 453; A* by construction: instances and budgets are derived with A*). On cube2 the ILP solved 14/29, 8/29 and 0/29 rows at `c_slack` 2, 4, 8, but the sweep mostly
 measures the ILP's subgraph growth: at the `bind` level `R = r_opt - 1` and the constrained optimum do not depend on `c_slack`, so A* expands
-identical nodes in every run (mean nodes over the `bind`-level rows: cube2 41,166.6 at `c_slack` 2, 4 and 8; river 42.5; sokoban 276.1) while the ILP's
+identical nodes in every run on cube2, river and sokoban (sokoban2's A* means differ across runs only because its trade-off instance set differs: 3, 4 and 6 instances; mean nodes over the `bind`-level rows: cube2 41,166.6 at `c_slack` 2, 4 and 8; river 42.5; sokoban 276.1) while the ILP's
 explicit subgraph (the `g + h <= T* + c_slack` ball, built without resource pruning) grows (cube2 131,418.2, 243,148.5, 433,078.5; river 30.3, 32.0, 37.4; sokoban
 268.0, 397.1, 496.7). The sweep therefore shows the edge-flow ILP's sensitivity to a slack length budget, not a harder trade-off; it ran at the same `--n`
 as the `c_slack` 4 runs on purpose, so the instances pair across runs (a larger `--n` was not run). The same cells as a ratio of mean seconds: river 70x, 66x, 72x;
@@ -320,7 +320,7 @@ reviewed. The reviews changed real outcomes:
    1; the `bind` resources are unusual by design; A* `ok` at the `tight` level partly repeats the bisection's last probe, so the
    informative number is the ILP's behaviour, not A*'s solve rate; instances where A* fails during the bisection are skipped,
    which biases the sample toward instances A* handles. The `c_slack` sweep (2, 4, 8) mostly measures the growth of the
-   ILP's explicit subgraph: at the `bind` level `R` and the optimum do not depend on `c_slack`, and A* expands identical nodes in every run (section 5.3).
+   ILP's explicit subgraph: at the `bind` level `R` and the optimum do not depend on `c_slack`, and A* expands identical nodes in every run on cube2, river and sokoban (section 5.3).
 4. **Fairness is approximate.** The ILP's subgraph is the `{g + h <= T* + slack}` ball (`T* + c_slack` in the `bind` runs; larger
    than A*'s region, built without resource pruning), its graph build counts toward its time, it runs 8 workers against
    single-threaded A*, and it has a 10 s limit A* lacks. ILP failure rates depend on that limit and on the node caps.

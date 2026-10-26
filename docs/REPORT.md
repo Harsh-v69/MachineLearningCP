@@ -1,6 +1,6 @@
 # tape-graph: project report
 
-Status at code commit `365263c` (tests: 202
+Status at code commit `63eac93` (tests: 203
 passed and 5 skipped; about 5,900 lines of Python across package, tests and scripts). Every number below is taken from
 `docs/paper.md` (generated from the CSVs under `docs/data/`), the generated tables `docs/results*.md` or the raw CSVs;
 the README holds the same results with more per-bucket detail and the reproduction commands. Two time-ratio statistics appear: the paper headlines the **median of per-row ILP/A*
@@ -41,7 +41,7 @@ imitation; Rubik's 2x2x2 and 3x3x3, half-turn metric):
 4. **Everything that is simulated is labelled as such.** ReAct and TAPE are models of LLM behaviour using the paper's
    noise model (planning error `delta` = 0.16, execution noise `eta` = 0.04), not LLM runs. No language model was run.
 
-<!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced when the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
+cube3 agents: attempted twice, not completed. No agents comparison exists for cube3, so the agents results cover six benchmarks (river, sokoban, sokoban2, sokoban3, boxoban, cube2), not seven. The cube3 solver and `bind` results are unaffected.
 
 ## 2. How the project maps to the original goals
 
@@ -70,7 +70,7 @@ tapegraph/
   baselines/        react_sim.py  tape_sim.py  replan.py
 scripts/            make_figures.py  make_paper.py  probe_resources.py (which resources trade off against length)
 docs/               paper.md (generated), results*.md (generated), data/ (CSVs), figures/ (49 SVGs), this report, spec, plans
-tests/              202 passed + 5 skipped
+tests/              203 passed + 5 skipped
 ```
 
 ### 3.1 The `Problem` interface
@@ -270,7 +270,7 @@ reversible domains and irrecoverable on pushes, but the buckets differ in `T*`, 
 In the earlier 100-episode `main` run, tape had higher success than ours_astar on 10 of 100 instances, lower on 23 and equal on 67 (river,
 sokoban, boxoban, cube2).
 
-<!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced when the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
+The cube3 agents run was attempted twice and did not complete. The full run (`agents --bench cube3 --n 5 --episodes 20 --no_ilp --max_nodes 100000`) ran 3 h (176 CPU-minutes) and a reduced run (`--n 2 --episodes 10`, same flags) ran 54 min (53 CPU-minutes); the controller stopped both without a result file (the agents CSV is written only when a benchmark's run ends), so no partial output exists. The likely cause, not verified, is the exact-distance oracle (A* with a corner-only pattern database, about 10k nodes/s, 300,000-node cap) that the simulated ReAct and TAPE query on every off-path state. The agents comparison therefore covers six benchmarks (river, sokoban, sokoban2, sokoban3, boxoban, cube2), not seven; the cube3 solver and `bind` results are unaffected. A cheaper oracle, a heuristic with edge information, or a smaller `T*` range would be the next thing to try (suggestions, none was run).
 
 ### 5.5 Figures, paper and reproduction tooling
 
@@ -303,7 +303,7 @@ reviewed. The reviews changed real outcomes:
 | The figure review found that the `bind` figures ignore skipped A* `node_limit` rows (so "never dropped" was too strong) | README and section 4.2 wording qualified |
 | After the `c_slack` sweep was run, README/REPORT prose still said a tighter `c_slack` had not been tried and that the constrained regime was barely exercised | Found while preparing this refresh; the prose was rewritten (section 5.3) |
 | The first README/REPORT said `tape` and `ours_astar` were "close by construction, not by coincidence" and that the difference was "not shown to matter" | With 300 episodes and more benchmarks the paired difference is small but excludes 0 on four of six benchmarks; wording replaced (section 5.4) |
-| cube3 A* uses roughly 7 KB per expansion (a 500,000-node cap peaked at about 3.5 GB on the development machine) | All cube3 runs use `--max_nodes 100000`; the solver and `bind` runs ran one at a time (the cube3 agents run ran in parallel with other jobs); the oracle's fixed 300,000 cap, which ignores `--max_nodes`, was noted and not changed |
+| cube3 A* uses roughly 7 KB per expansion (a 500,000-node cap peaked at about 3.5 GB on the development machine) | All cube3 runs use `--max_nodes 100000`; the solver and `bind` runs ran one at a time (the two cube3 agents attempts ran next to other jobs and did not complete); the oracle's fixed 300,000 cap, which ignores `--max_nodes`, was noted and not changed |
 
 ## 7. Limitations and threats to validity
 
@@ -325,7 +325,7 @@ reviewed. The reviews changed real outcomes:
    than A*'s region, built without resource pruning), its graph build counts toward its time, it runs 8 workers against
    single-threaded A*, and it has a 10 s limit A* lacks. ILP failure rates depend on that limit and on the node caps.
 5. **Reduced runs.** Agents episodes: river 300, sokoban 300, sokoban2 100, sokoban3 30, Boxoban 20, Cube2 30. ILP disabled
-   (no `ours_ilp` rows; `tape` used BFS on the folded graph) on Boxoban, Cube2, sokoban3 and cube3. Buckets hold 1 to 5
+   (no `ours_ilp` rows; `tape` used BFS on the folded graph) on Boxoban, Cube2 and sokoban3; the two cube3 agents attempts also had it disabled but produced no data. Buckets hold 1 to 5
    instances, so success differences of a few points are within noise at the bucket level. Pooled Wilson intervals assume
    independent episodes; the paired bootstrap over instances is the honest comparison.
 6. **Timing columns.** The solver and constrained runs (original and new, including the `c_slack` sweep) ran one at a time and
@@ -345,7 +345,7 @@ reviewed. The reviews changed real outcomes:
 ```bash
 cd tape-graph
 pip install -e ".[test]"            # numpy, ortools, pytest; installs the `tapegraph` console script
-python -m pytest -q                 # 202 passed, 5 skipped (--runslow adds the cube3 corner-PDB cold build)
+python -m pytest -q                 # 203 passed, 5 skipped (--runslow adds the cube3 corner-PDB cold build)
 tapegraph all --profile smoke --out smoke_out    # about 20 s
 tapegraph all --profile full  --out full_out     # the original four-benchmark published commands, sequentially (hours)
 python scripts/make_figures.py                   # docs/figures from docs/data
@@ -370,6 +370,6 @@ Still not done:
 - **Real Boxoban results.** The loader exists, but no real level file was downloaded or run; this needs a file supplied by the user.
 - **More constrained evidence on multi-box puzzles.** Only 4 to 6 trade-off instances on sokoban2 and sokoban3, 1 on Boxoban; and a
   resource model that applications would recognise.
-- **cube3 agents.** <!-- CUBE3-AGENTS -->cube3 agents: PENDING (see docs/paper.md section 7.4); this sentence is replaced when the run finishes or is abandoned.<!-- CUBE3-AGENTS -->
+- **cube3 agents comparison (attempted twice, not completed).** Two runs (n = 5 with 20 episodes, then n = 2 with 10 episodes, both `--no_ilp --max_nodes 100000`) were stopped after 3 h and 54 min without writing a result; the likely cause, not verified, is the exact-distance oracle. A cheaper oracle, a heuristic with edge information, or a smaller `T*` range would be the next step (suggestions, not run).
 - **Untested mechanism** for the small `ours_astar` over `tape` margin (section 5.4). (The `c_slack` effect on the ILP's subgraph is separated from the budget effect by the `bind`-level rows, section 5.3: A* nodes are constant across `c_slack`, ILP nodes grow.)
 - An oracle cap that follows `--max_nodes` (it is fixed at 300,000), and a smaller-memory A* for cube3.

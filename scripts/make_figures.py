@@ -205,6 +205,21 @@ def bind_cslack_bar(bench, by_c):
                      title=f"{bench}: solve rate by c_slack (rows per c_slack, {rowsn}; 95% Wilson)")
 
 
+def bind_by_bench(found):
+    """{bench: {c_slack: (dirname, rows)}} for the design=bind constrained CSVs (files with a level column; first
+    directory in sorted order wins for a repeated (bench, c_slack))."""
+    by_bench = defaultdict(dict)
+    for d, bench, rows in found["constrained"]:
+        if "level" not in rows[0]:
+            continue  # design=frac (no level column): not a bind run
+        c = next((r["c_slack"] for r in rows if r.get("c_slack") not in ("", None)), LEGACY_C_SLACK)
+        if c in by_bench[bench]:
+            print(f"[skip] constrained {d}/{bench} c_slack {c}: already taken from another directory")
+            continue
+        by_bench[bench][c] = (d, rows)
+    return by_bench
+
+
 # ---- driver -----------------------------------------------------------------------------------------------------
 
 def make_figures(data="docs/data", out="docs/figures"):
@@ -234,15 +249,7 @@ def make_figures(data="docs/data", out="docs/figures"):
                 if f["ilp_rate"] is None:
                     print(f"[skip] ILP rate {d}/{bench}: no ilp rows")
                 emit(f"ilp_rate_{bench}{sfx}.svg", f["ilp_rate"])
-    by_bench = defaultdict(dict)  # bench -> c_slack -> rows (first directory wins)
-    for d, bench, rows in found["constrained"]:
-        if "level" not in rows[0]:
-            continue  # design=frac (no level column): not a bind run
-        c = next((r["c_slack"] for r in rows if r.get("c_slack") not in ("", None)), LEGACY_C_SLACK)
-        if c in by_bench[bench]:
-            print(f"[skip] constrained {d}/{bench} c_slack {c}: already taken from another directory")
-            continue
-        by_bench[bench][c] = rows
+    by_bench = {b: {c: rows for c, (_, rows) in cs.items()} for b, cs in bind_by_bench(found).items()}
     if not by_bench:
         print("[skip] no bind constrained_*.csv (files with a level column)")
     for bench in sorted(by_bench):

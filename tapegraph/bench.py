@@ -337,16 +337,48 @@ def agent_instance_rows(rows):
     return used, excluded, unknown, dups
 
 
+def pool_success(rs):
+    """Pooled success of instance rows (from `agent_instance_rows`): successes = sum of k, trials = sum of episodes,
+    95% Wilson interval (floats; the interval treats the trials as independent)."""
+    k, n = sum(r["k"] for r in rs), sum(r["ep"] for r in rs)
+    lo, hi = wilson_interval(k, n)
+    return {"instances": len({r["inst"] for r in rs}), "successes": k, "trials": n,
+            "success": k / n if n else math.nan, "ci_lo": lo, "ci_hi": hi}
+
+
+def paired_differences(used):
+    """Per benchmark, ours_astar - tape and ours_astar - react: mean over instances of the per-instance success
+    difference, 95% percentile bootstrap CI (B = 2000, seed 0) resampled over instances. Returns (rows with float
+    mean_diff / ci_lo / ci_hi, notes for benchmarks whose instance sets do not align)."""
+    prow, palign = [], []
+    for bn in dict.fromkeys(r["bench"] for r in used):
+        succ = defaultdict(dict)  # method -> instance -> success rate of that instance
+        for r in used:
+            if r["bench"] == bn:
+                succ[r["method"]][r["inst"]] = r["k"] / r["ep"]
+        for other in ("tape", "react"):
+            a, o = succ.get("ours_astar", {}), succ.get(other, {})
+            if not a or not o:
+                continue
+            if set(a) != set(o):
+                palign.append(f"{bn}: instance sets of ours_astar ({len(a)}) and {other} ({len(o)}) do not align; "
+                              "no paired difference reported.\n")
+                continue
+            d = [a[i] - o[i] for i in sorted(a)]
+            lo, hi = bootstrap_ci(d)
+            prow.append({"bench": bn, "comparison": f"ours_astar - {other}", "instances": len(d),
+                         "mean_diff": sum(d) / len(d), "ci_lo": lo, "ci_hi": hi})
+    return prow, palign
+
+
 def agents_ci_sections(rows):
     """Three markdown sections (Wilson per bucket, pooled per benchmark, paired differences) from agents rows
     (the rows are reduced to instance rows by `agent_instance_rows`)."""
     used, excluded, unknown, dups = agent_instance_rows(rows)
 
     def pool(rs, extra):
-        k, n = sum(r["k"] for r in rs), sum(r["ep"] for r in rs)
-        lo, hi = wilson_interval(k, n)
-        return {**extra, "instances": len({r["inst"] for r in rs}), "successes": k, "trials": n,
-                "success": _f4(k / n), "ci_lo": _f4(lo), "ci_hi": _f4(hi)}
+        p = pool_success(rs)
+        return {**extra, **p, **{k: _f4(p[k]) for k in ("success", "ci_lo", "ci_hi")}}
 
     def group(keys):
         g = defaultdict(list)
@@ -373,24 +405,8 @@ def agents_ci_sections(rows):
               + _md([{**pool(rs, dict(zip(("bench", "method"), key))), "episodes": ",".join(map(str, sorted({r["ep"] for r in rs})))}
                      for key, rs in group(("bench", "method"))])
               + "\n" + notes)
-    prow, palign = [], []
-    for bn in dict.fromkeys(r["bench"] for r in used):
-        succ = defaultdict(dict)  # method -> instance -> success rate of that instance
-        for r in used:
-            if r["bench"] == bn:
-                succ[r["method"]][r["inst"]] = r["k"] / r["ep"]
-        for other in ("tape", "react"):
-            a, o = succ.get("ours_astar", {}), succ.get(other, {})
-            if not a or not o:
-                continue
-            if set(a) != set(o):
-                palign.append(f"{bn}: instance sets of ours_astar ({len(a)}) and {other} ({len(o)}) do not align; "
-                              "no paired difference reported.\n")
-                continue
-            d = [a[i] - o[i] for i in sorted(a)]
-            lo, hi = bootstrap_ci(d)
-            prow.append({"bench": bn, "comparison": f"ours_astar - {other}", "instances": len(d),
-                         "mean_diff": _f4(sum(d) / len(d)), "ci_lo": _f4(lo), "ci_hi": _f4(hi)})
+    prow, palign = paired_differences(used)
+    prow = [{**r, **{k: _f4(r[k]) for k in ("mean_diff", "ci_lo", "ci_hi")}} for r in prow]
     paired = ("## Paired differences in success (mean over instances of success_ours_astar - success_other; "
               "95% percentile bootstrap, B = 2000, resampled over instances, paired by instance)\n\n"
               + _md(prow) + "\n" + "".join(palign) + notes)

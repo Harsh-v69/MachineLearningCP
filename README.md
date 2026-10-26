@@ -216,6 +216,14 @@ Averaged over instances (the `tape` rows use the real ILP for River and Sokoban 
 Boxoban and Cube), success is react / tape / ours_astar / ours_ilp: River 0.455 / 0.951 / 0.954 / 0.959,
 Sokoban 0.248 / 0.862 / 0.872 / 0.874, Boxoban 0.225 / 0.850 / 0.855 / none, Cube 0.539 / 0.967 / 0.965 / none.
 
+`python -m tapegraph.bench report` appends three sections after all older ones: 95% Wilson intervals per (bench, `T*`,
+method) bucket, the same pooled per benchmark, and the paired differences `ours_astar - tape` and
+`ours_astar - react` with a 95% percentile bootstrap CI. Pooling rule: successes = sum over instances of
+round(success x episodes), trials = episodes x instances (the Wilson interval treats those trials as independent);
+the instance is the unit of the paired bootstrap (the difference of the two methods' success on the same instance,
+resampled over instances). Skipped levels (`T` = -1) are excluded and counted; CSVs without an `episodes` column use
+100/100/20/30 episodes (River/Sokoban/Boxoban/Cube), and the report says so.
+
 - ReAct-sim falls with `T*` overall (not monotonically on Boxoban: 0.20 at `T*` 8, 0.30 at 9, 0.35 at 11, 0.225 at 15,
   with few instances per bucket) and is far below the others from the first bucket (0.53 to 0.84 at the smallest `T*`,
   0.05 to 0.32 at the largest). `tape`, `ours_astar` and `ours_ilp` are within a few points

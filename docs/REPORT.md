@@ -1,7 +1,7 @@
 # tape-graph: project report
 
 Status at code commit `63eac93` (tests: 203
-passed and 5 skipped; about 5,900 lines of Python across package, tests and scripts). Every number below is taken from
+passed and 5 skipped; about 6,200 lines of Python across package, tests and scripts). Every number below is taken from
 `docs/paper.md` (generated from the CSVs under `docs/data/`), the generated tables `docs/results*.md` or the raw CSVs;
 the README holds the same results with more per-bucket detail and the reproduction commands. Two time-ratio statistics appear: the paper headlines the **median of per-row ILP/A*
 seconds ratios** and lists the **ratio of mean seconds** (mean ILP seconds over mean A* seconds on the same rows, pulled toward

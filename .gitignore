@@ -5,3 +5,5 @@ results/
 .superpowers/
 results_rf*/
 results_bind/
+*.egg-info/
+smoke_out/

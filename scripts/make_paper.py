@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from make_figures import SEC_FLOOR, _order, _suffixes, bind_by_bench, bind_pairs, load  # noqa: E402
-from tapegraph.bench import (SOLVERS, _md, agent_instance_rows, build_parser, paired_differences, plan,  # noqa: E402
+from tapegraph.bench import (SOLVERS, _md, agent_instance_rows, build_parser, is_bind_csv, paired_differences, plan,  # noqa: E402
                              pool_success, status_table, summarize)
 from tapegraph.benchmarks import BENCHMARKS, _river, make_instances  # noqa: E402
 from tapegraph.problems import cube2, cube3  # noqa: E402
@@ -193,7 +193,7 @@ def analyse_solvers(found):
 def analyse_frac(found):
     out = []
     for d, b, rows in found["constrained"]:
-        if "level" in rows[0]:
+        if is_bind_csv(rows):
             continue
         sk = Counter(r["status"] for r in rows if r["solver"] == "skipped")
         A = [r for r in rows if r["solver"] == "astar"]
@@ -365,10 +365,10 @@ def command(kind, d, bench, rows):
         cmd = _plan_cmd(PLAN_SUB[(d, kind)], bench)
     elif kind == "solvers" and r0.get("n") not in ("", None):
         cmd = f"solvers --bench {bench} --n {r0['n']}" + _opt(r0, "max_nodes", "seed", "slack", "time_limit")
-    elif kind == "constrained" and "level" in r0 and all(r0.get(k) not in ("", None) for k in ("c_slack", "n")):
+    elif kind == "constrained" and is_bind_csv(rows) and all(r0.get(k) not in ("", None) for k in ("c_slack", "n")):
         cmd = (f"constrained --design bind --c_slack {r0['c_slack']} --bench {bench} --n {r0['n']}"
                + _opt(r0, "max_nodes", "seed", "time_limit"))
-    elif kind == "constrained" and "level" not in r0 and d in FRAC_RES:
+    elif kind == "constrained" and not is_bind_csv(rows) and d in FRAC_RES:
         base = _plan_cmd("constrained_frac", bench)
         cmd = base and f"{base} --res_frac {FRAC_RES[d]}"
     elif kind == "agents" and r0.get("episodes") not in ("", None):
@@ -651,7 +651,7 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
     rows = []
     for kind in ("solvers", "constrained", "agents"):
         for d, b, rs in sorted(found[kind], key=lambda x: (x[0], bkey(x[1]))):
-            rows.append({"dataset": f"`{d}`", "kind": kind if kind != "constrained" else ("constrained bind" if "level" in rs[0] else "constrained frac"),
+            rows.append({"dataset": f"`{d}`", "kind": kind if kind != "constrained" else ("constrained bind" if is_bind_csv(rs) else "constrained frac"),
                          "bench": f"`{b}`", "rows": len(rs), "command": f"`{command(kind, d, b, rs) or 'not recorded'}`"})
     w(_md(rows))
     have = {(d, b) for d, b, _ in found["agents"]}

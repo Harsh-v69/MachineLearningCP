@@ -257,3 +257,16 @@ def test_broken_interpretation_markers_fail_loudly(tmp_path, body):
         mp.main(["--data", str(tmp_path / "none"), "--figures", str(tmp_path), "--out", str(p)])
     assert p.read_text(encoding="utf-8") == body  # never overwritten
     assert mp.read_interpretation(tmp_path / "absent.md") == ""
+
+
+def test_frac_csv_with_level_column_is_still_frac(toy, tmp_path):
+    """Current code writes level='frac' into design=frac CSVs: that must not turn them into bind runs."""
+    d, figs = toy
+    before = mp.build_paper(d, figs, tmp_path)
+    src = d / "main" / "constrained_toy.csv"
+    rows = list(csv.DictReader(open(src, newline="")))
+    write(src, [{"level": "frac", **r} for r in rows])
+    after = mp.build_paper(d, figs, tmp_path)
+    assert after == before
+    assert "constrained frac" in after and mp.analyse_frac(mp.load(d))  # frac rows were analysed, not dropped
+    assert not mp.is_bind_csv(rows) and mp.is_bind_csv([{"level": "-"}, {"level": "bind"}])

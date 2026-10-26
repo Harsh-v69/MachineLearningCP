@@ -175,3 +175,12 @@ def test_deterministic_bytes(data, tmp_path):
 def test_cli_entry_point(data, tmp_path):
     mf.main(["--data", str(data), "--out", str(tmp_path / "cli")])
     assert (tmp_path / "cli" / "agents_toy.svg").exists()
+
+
+def test_frac_csv_with_level_column_makes_no_bind_figures(tmp_path):
+    d = tmp_path / "data"
+    write(d / "main" / "constrained_toy.csv", [  # current-format frac CSV: level == "frac"
+        {"bench": "toy", "T": 3, "level": "frac", "solver": "astar", "status": "ok", "ok": 1, "R": 3, "seconds": 0.1},
+        {"bench": "toy", "T": 3, "level": "frac", "solver": "skipped", "status": "infeasible", "ok": 0, "R": 2}])
+    assert mf.bind_by_bench(mf.load(d)) == {}
+    assert mf.make_figures(d, tmp_path / "o") == []

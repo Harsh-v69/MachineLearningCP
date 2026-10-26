@@ -250,6 +250,12 @@ def run_constrained(a):
     {"bind": _constrained_bind, "frac": _constrained_frac}[a.design](a)
 
 
+def is_bind_csv(rows):
+    """True for a design=bind constrained CSV: its rows carry level bind / tight (skipped rows: '-'). design=frac CSVs
+    have no level column (old) or level 'frac' (current), so the mere presence of the column says nothing."""
+    return any(r.get("level") in ("bind", "tight", "-") for r in rows)
+
+
 def _num(v):
     for cast in (int, float):
         try:

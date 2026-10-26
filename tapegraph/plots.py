@@ -115,8 +115,21 @@ def _text(x, y, s, size=11, anchor="start", cls="", color=INK, extra=""):
     return f'<text{c} x="{_n(x)}" y="{_n(y)}" font-size="{size}" text-anchor="{anchor}" fill="{color}"{extra}>{_t(s)}</text>'
 
 
+def _title(title, w):
+    """Title text, wrapped greedily at ~78 characters into at most two centred lines."""
+    lines, cur = [], ""
+    for word in str(title).split():
+        if cur and len(cur) + 1 + len(word) > 78 and len(lines) == 0:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = (cur + " " + word).strip()
+    lines.append(cur)
+    return [_text(w / 2, 20 + 16 * i, ln, 13, "middle", "title") for i, ln in enumerate(lines)]
+
+
 def _empty(title, w, h, msg="no data"):
-    body = [_text(w / 2, 24, title, 14, "middle", "title"), _text(w / 2, h / 2, msg, 14, "middle", "nodata", MUTED)]
+    body = _title(title, w) + [_text(w / 2, h / 2, msg, 14, "middle", "nodata", MUTED)]
     return _svg(w, h, title, f"{title}: {msg}", body)
 
 
@@ -147,7 +160,7 @@ def _legend(entries, x, y):
 def _layout(w, h, series, legend_names, strips):
     longest = max([len(n) for n in legend_names] + [len(s["name"]) + 2 for s in strips] + [0])
     right = 16 + (longest * 6.4 + 40 if longest else 0)
-    left, top, bottom = 66, 44 + 18 * len(strips) + (6 if strips else 0), 54
+    left, top, bottom = 66, 48 + 18 * len(strips) + (6 if strips else 0), 54
     return left, top, w - right, h - bottom
 
 
@@ -173,7 +186,7 @@ def _xy(kind, series, title, xlabel, ylabel, xlog, ylog, xlim, ylim, ci, width, 
                         yv.append(float(s[k][i]))
     for s in fails:
         xv += [float(x) for x in s["x"] if xs_ok(x)]
-    if not xv or not yv:
+    if not xv:  # nothing to place; failure markers alone still get a frame (y axis falls back to a default range)
         return _empty(title, width, height)
     xt, x0, x1 = _axis(xv, xlog, xlim)
     yt, y0, y1 = _axis(yv, ylog, ylim)
@@ -189,7 +202,7 @@ def _xy(kind, series, title, xlabel, ylabel, xlog, ylog, xlim, ylim, ci, width, 
 
     px = lambda v: left + sc(v, x0, x1, xlog) * (right - left)  # noqa: E731
     py = lambda v: bottom - sc(v, y0, y1, ylog) * (bottom - top)  # noqa: E731
-    body = [_text(width / 2, 22, title, 14, "middle", "title")]
+    body = _title(title, width)
     for t in yt:
         body.append(f'<line class="grid" x1="{_n(left)}" x2="{_n(right)}" y1="{_n(py(t))}" y2="{_n(py(t))}" stroke="{GRID}"/>')
         body.append(_text(left - 6, py(t) + 4, _fmt_tick(t, ylog), 10, "end", "ytick-label", MUTED))
@@ -289,7 +302,7 @@ def bar_chart(categories, series, title="", xlabel="", ylabel="", ylim=None, wid
     py = lambda v: bottom - min(1.0, max(0.0, (v - y0) / (y1 - y0))) * (bottom - top)  # noqa: E731
     band = (right - left) / len(categories)
     bw = band * 0.8 / len(series)
-    body = [_text(width / 2, 22, title, 14, "middle", "title")]
+    body = _title(title, width)
     for t in yt:
         body.append(f'<line class="grid" x1="{_n(left)}" x2="{_n(right)}" y1="{_n(py(t))}" y2="{_n(py(t))}" stroke="{GRID}"/>')
         body.append(_text(left - 6, py(t) + 4, _fmt_tick(t), 10, "end", "ytick-label", MUTED))

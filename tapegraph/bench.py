@@ -304,11 +304,11 @@ def _f4(x):
     return "" if x != x else f"{x:.4f}"
 
 
-def agents_ci_sections(rows):
-    """Three markdown sections (Wilson per bucket, pooled per benchmark, paired differences) from agents rows.
-    successes = round(success * episodes) per instance row, trials = episodes per row; skipped rows (T < 0 or no
-    success) are excluded and counted. An instance is a run of rows with distinct methods: `inst_seed` if the CSV has
-    it, else the position of the cycle react/tape/ours_astar/... (rows of one instance are consecutive in the CSV)."""
+def agent_instance_rows(rows):
+    """Agents rows -> (used, excluded, unknown_benches, dups): one dict per usable instance row with its instance id
+    `inst`, `ep` (episodes) and `k` (successes). successes = round(success * episodes), trials = episodes. Skipped rows
+    (T < 0 or no success) are excluded and counted. An instance is a run of rows with distinct methods: `inst_seed` if
+    the CSV has it, else the position of the cycle react/tape/ours_astar/... (rows of one instance are consecutive)."""
     used, excluded, pos, unknown, dups, seen_keys = [], 0, {}, set(), 0, set()
     for r in rows:
         if r.get("method") == "skipped" or r.get("success") in ("", None) or r.get("T", 0) < 0:
@@ -334,6 +334,13 @@ def agents_ci_sections(rows):
         seen_keys.add((r["bench"], r["method"], inst))
         # success is stored to 5 decimals, so success * episodes is within 1e-5 * episodes of an integer: round() is exact for episodes < ~1e4
         used.append({**r, "inst": inst, "ep": ep, "k": round(float(r["success"]) * ep), "looked_up": looked_up})
+    return used, excluded, unknown, dups
+
+
+def agents_ci_sections(rows):
+    """Three markdown sections (Wilson per bucket, pooled per benchmark, paired differences) from agents rows
+    (the rows are reduced to instance rows by `agent_instance_rows`)."""
+    used, excluded, unknown, dups = agent_instance_rows(rows)
 
     def pool(rs, extra):
         k, n = sum(r["k"] for r in rs), sum(r["ep"] for r in rs)

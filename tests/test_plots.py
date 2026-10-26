@@ -127,3 +127,14 @@ def test_bar_chart_counts_whiskers_and_patterns():
     assert texts(r, "xtick-label") == ["c2", "c4", "c8"] and texts(r, "legend") == ["ILP", "A*"]
     fills = {b.get("fill") for b in by_class(r, "bar")}
     assert fills == {"url(#fill0)", "url(#fill1)"} and len(list(r.iter(NS + "pattern"))) == 2
+
+
+def test_only_failures_still_draws_the_strip():
+    s = [{"name": "p", "x": [], "y": []}, {"name": "f", "x": [0.1, 0.2], "kind": "fail", "owner": "p"}]
+    r = parse(scatter(s, title="t", xlog=True, ylog=True))
+    assert len(by_class(r, "fail")) == 2 and not by_class(r, "nodata")
+
+
+def test_long_title_wraps_into_two_visible_lines():
+    r = parse(line_chart(S2, title="word " * 30))
+    assert len(by_class(r, "title")) == 2 and max(len(t) for t in texts(r, "title")) <= 80

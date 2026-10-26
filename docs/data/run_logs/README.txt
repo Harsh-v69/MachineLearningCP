@@ -19,4 +19,4 @@ cube3_agents_reduced_attempt.log  reduced cube3 agents attempt (n = 2, 10 episod
                                   step's output file was empty).
 
 The agents runs overlapped each other and development work, so their `seconds` columns are contended; the solvers and
-bind runs ran one at a time (see the README sections "Findings" and "Caveats" for the provenance notes).
+bind runs ran one at a time (see the README section "How the results were produced").

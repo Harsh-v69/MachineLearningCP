@@ -1,10 +1,14 @@
+import csv
 import random
 import time
+from dataclasses import replace
 
 import numpy as np
 import pytest
 from toy import assert_solvers_agree
 
+from tapegraph import bench
+from tapegraph.benchmarks import BENCHMARKS
 from tapegraph.oracle import Oracle
 from tapegraph.problems import cube2, cube3
 from tapegraph.problems.cube3 import Cube3
@@ -129,6 +133,15 @@ def test_astar_and_idastar_match_bfs_with_the_stand_in_heuristic():
     assert_solvers_agree(WEAK, WEAK.random_start(rng, 5))
 
 
+def test_cube3_bench_runs_end_to_end_with_oracle_t_star(tmp_path, monkeypatch):
+    assert BENCHMARKS["cube3"].exact and BENCHMARKS["cube3"].T_targets == [3, 5, 7, 9]
+    monkeypatch.setitem(BENCHMARKS, "cube3", replace(BENCHMARKS["cube3"], make=lambda rng: WEAK, T_targets=[3]))
+    bench.main(["solvers", "--bench", "cube3", "--n", "1", "--out", str(tmp_path)])
+    rows = list(csv.DictReader(open(tmp_path / "solvers_cube3.csv")))
+    assert {r["solver"] for r in rows} >= {"bfs", "astar", "wastar", "idastar"}
+    assert all(r["T"] == "3" and r["status"] == "ok" and float(r["cost_ratio"]) == 1.0 for r in rows)
+
+
 # ---- the real 88,179,840-entry corner PDB (cold build ~35 s, then cached in .cache/); run with --runslow ----
 
 # Depth distribution of the 3x3x3 corner group in the half-turn metric (published, e.g. Korf 1997): sums to 8! * 3^7.
@@ -172,3 +185,11 @@ def test_astar_idastar_optimal_and_oracle_t_star_within_scramble_depth(real):
         a, i = astar.solve(real, s), idastar.solve(real, s)
         assert a.status == i.status == "ok" and a.cost == i.cost == oracle.dist(s) <= depth
 
+
+@pytest.mark.slow
+def test_cube3_bench_reports_bfs_node_limit_rows(tmp_path):
+    bench.main(["solvers", "--bench", "cube3", "--n", "1", "--max_nodes", "20000", "--out", str(tmp_path)])
+    rows = list(csv.DictReader(open(tmp_path / "solvers_cube3.csv")))
+    assert {r["T"] for r in rows} == {"3", "5", "7", "9"}
+    assert any(r["solver"] == "bfs" and r["status"] == "node_limit" for r in rows)
+    assert all(r["status"] == "ok" for r in rows if r["solver"] in ("astar", "idastar"))

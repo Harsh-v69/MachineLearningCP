@@ -1,11 +1,14 @@
 import random
+import time
 
 import numpy as np
 import pytest
+from toy import assert_solvers_agree
 
+from tapegraph.oracle import Oracle
 from tapegraph.problems import cube2, cube3
 from tapegraph.problems.cube3 import Cube3
-from tapegraph.solvers import astar, bfs, idastar
+from tapegraph.solvers import astar, idastar
 
 CUBE = Cube3(pdb=[0])  # moves/tables only; the tests that need h() swap in a heuristic below
 
@@ -60,6 +63,32 @@ def test_resources_match_cube2_convention():
     assert CUBE.res_bind(s, "U2", None) == 1 and CUBE.res_bind(s, "U'", None) == 0
 
 
+def test_chunked_pdb_build_reproduces_the_verified_cube2_table():
+    # cube2's (perm 5040 x twist 729) table is checked against the known 2x2x2 distribution in test_cube2; odd chunk and
+    # block sizes exercise every boundary of the chunking
+    c2 = cube2.Cube2.shared()
+    assert np.array_equal(cube3.build_pdb(c2.PM, c2.TM, chunk=997, block=100_003), c2.dist)
+
+
+def test_pdb_build_on_cube3_corner_subspaces_matches_plain_bfs():
+    one = np.zeros((1, 18), dtype=np.int32)  # trivial second coordinate
+    assert np.array_equal(cube3.build_pdb(CUBE.PM, one, chunk=1000, block=7000), cube2._bfs_1d(CUBE.PM))
+    assert np.array_equal(cube3.build_pdb(one, CUBE.TM, chunk=100, block=700), cube2._bfs_1d(CUBE.TM))
+    assert cube2._bfs_1d(CUBE.PM).min() == 0 and cube2._bfs_1d(CUBE.TM).min() == 0  # all 8! perms and 3^7 twists reached
+
+
+def test_pdb_cache_is_reused_and_a_stale_cache_rebuilt(tmp_path, monkeypatch):
+    c2 = cube2.Cube2.shared()  # small stand-in space (also max depth 11) for the 88M-entry corner table
+    monkeypatch.setattr(cube3, "_CACHE", tmp_path / "pdb.npy")
+    builds = []
+    monkeypatch.setattr(cube3, "build_pdb", lambda PM, TM: builds.append(1) or c2.dist.copy())
+    assert np.array_equal(cube3.load_or_build(c2.PM, c2.TM), c2.dist) and len(builds) == 1
+    assert np.array_equal(cube3.load_or_build(c2.PM, c2.TM), c2.dist) and len(builds) == 1  # cache hit
+    np.save(tmp_path / "pdb.npy", np.zeros(10, dtype=np.int8))  # stale
+    assert np.array_equal(cube3.load_or_build(c2.PM, c2.TM), c2.dist) and len(builds) == 2
+    assert np.load(tmp_path / "pdb.npy").shape == c2.dist.shape
+
+
 def test_random_start_never_repeats_an_axis_and_stays_within_depth():
     rng = random.Random(1)
     for depth in range(5):
@@ -67,3 +96,79 @@ def test_random_start_never_repeats_an_axis_and_stays_within_depth():
             assert DIST4[CUBE.random_start(rng, depth)] <= depth
     # with no same-axis repeats, walks of length <= 3 are optimal
     assert all(DIST4[CUBE.random_start(rng, 3)] == 3 for _ in range(50))
+
+
+class _CornerBound:
+    """Small admissible stand-in for the 88M-entry corner PDB: max(corner-permutation distance, twist distance)."""
+
+    def __init__(self):
+        one = np.zeros((1, 18), dtype=np.int32)
+        self.p = cube3.build_pdb(CUBE.PM, one).tolist()
+        self.t = cube3.build_pdb(one, CUBE.TM).tolist()
+
+    def __getitem__(self, i):
+        p, t = divmod(i, cube3.NT)
+        return max(self.p[p], self.t[t])
+
+
+WEAK = Cube3(pdb=_CornerBound())
+
+
+def test_heuristic_reads_the_corner_index_and_is_admissible_within_depth_4():
+    assert WEAK.h(WEAK.goal) == 0
+    assert all(WEAK.h(s) <= d for s, d in DIST4.items())
+    assert sum(WEAK.h(s) == d for s, d in DIST4.items() if d == 4) > 1000  # informative, not h == 0
+
+
+def test_astar_and_idastar_match_bfs_with_the_stand_in_heuristic():
+    rng = random.Random(2)
+    for _ in range(5):
+        s = WEAK.random_start(rng, 4)
+        a, i = astar.solve(WEAK, s), idastar.solve(WEAK, s)
+        assert a.status == i.status == "ok" and a.cost == i.cost == DIST4[s]
+    assert_solvers_agree(WEAK, WEAK.random_start(rng, 5))
+
+
+# ---- the real 88,179,840-entry corner PDB (cold build ~35 s, then cached in .cache/); run with --runslow ----
+
+# Depth distribution of the 3x3x3 corner group in the half-turn metric (published, e.g. Korf 1997): sums to 8! * 3^7.
+CORNER_COUNTS = [1, 18, 243, 2874, 28000, 205416, 1168516, 5402628, 20776176, 45391616, 15139616, 64736]
+
+
+@pytest.mark.slow
+def test_cold_pdb_build_matches_known_corner_distribution_and_is_reused(tmp_path, monkeypatch):
+    monkeypatch.setattr(cube3, "_CACHE", tmp_path / "pdb.npy")
+    t = time.perf_counter()
+    pdb = cube3.load_or_build(CUBE.PM, CUBE.TM)
+    assert time.perf_counter() - t < 300
+    assert pdb.shape == (88_179_840,) and pdb.dtype == np.int8 and pdb[0] == 0 and pdb.max() == 11
+    assert [int((pdb == d).sum()) for d in range(12)] == CORNER_COUNTS
+    monkeypatch.setattr(cube3, "build_pdb", None)  # a second build would raise
+    assert np.array_equal(cube3.load_or_build(CUBE.PM, CUBE.TM), pdb)
+
+
+@pytest.fixture(scope="module")
+def real():
+    return Cube3.shared()
+
+
+@pytest.mark.slow
+def test_corner_pdb_is_admissible_against_bfs_distance(real):
+    dist5 = _layers(real, 5)
+    rng = random.Random(5)
+    for _ in range(200):
+        s = real.random_start(rng, rng.randint(1, 5))
+        assert real.h(s) <= dist5[s]
+    assert all(real.h(s) <= d for s, d in dist5.items())
+
+
+@pytest.mark.slow
+def test_astar_idastar_optimal_and_oracle_t_star_within_scramble_depth(real):
+    rng = random.Random(6)
+    assert_solvers_agree(real, real.random_start(rng, 5))  # against plain BFS
+    oracle = Oracle(real)
+    for depth in (5, 6, 7, 7):
+        s = real.random_start(rng, depth)
+        a, i = astar.solve(real, s), idastar.solve(real, s)
+        assert a.status == i.status == "ok" and a.cost == i.cost == oracle.dist(s) <= depth
+

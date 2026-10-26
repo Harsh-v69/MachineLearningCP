@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from itertools import permutations, product
+from pathlib import Path
 
 import numpy as np
 
@@ -21,6 +22,7 @@ _FACES = {
 }
 NT = 3 ** 7  # corner twist coordinate size; corner index = perm * NT + twist (8! * 3^7 = 88,179,840)
 _Q = 1 << 18  # an edge-quad coordinate (4 tracked edges: positions x flips = 11880 * 16 = 190080) fits in 18 bits
+_CACHE = Path(__file__).resolve().parents[2] / ".cache" / "cube3_corner_pdb.npy"
 
 
 def _mul(a, b):
@@ -70,6 +72,46 @@ def _tables(mv):
     return PM.astype(np.int32), TM.astype(np.int32), np.stack(QM, 1).astype(np.int32), (perm8, twist, qpos, qflip)
 
 
+def build_pdb(PM, TM, chunk=1 << 20, block=1 << 23):
+    """Distance from index 0 over the product space (PM coordinate) x (TM coordinate), index p * len(TM) + t.
+
+    Layered BFS with no frontier list: layer d is re-read from `dist == d` in blocks of `block` entries and expanded in
+    chunks of `chunk` states (memory beyond `dist` <= ~17 * block + ~40 * chunk bytes; duplicate writes are harmless).
+    """
+    nt = len(TM)
+    dist = np.full(len(PM) * nt, -1, dtype=np.int8)
+    dist[0] = 0
+    PMT, TMT = (np.ascontiguousarray(X.T, dtype=np.int32) for X in (PM, TM))  # row m = move m, contiguous
+    d, grew = 0, True
+    while grew:
+        grew = False
+        for lo in range(0, len(dist), block):
+            idx = np.flatnonzero(dist[lo:lo + block] == d).astype(np.int32) + lo
+            for c in range(0, len(idx), chunk):
+                p, t = np.divmod(idx[c:c + chunk], nt)
+                for m in range(len(PMT)):
+                    y = PMT[m][p] * nt + TMT[m][t]
+                    y = y[dist[y] < 0]
+                    if len(y):
+                        dist[y] = d + 1
+                        grew = True
+        d += 1
+    return dist
+
+
+def load_or_build(PM, TM, max_depth=11):
+    """Corner pattern database, cached in .cache/ (rebuilt when missing, stale or corrupt)."""
+    n = len(PM) * len(TM)
+    if _CACHE.exists():
+        cached = np.load(_CACHE)
+        if cached.shape == (n,) and cached.dtype == np.int8 and cached[0] == 0 and cached.max() == max_depth:
+            return cached
+    dist = build_pdb(PM, TM)
+    _CACHE.parent.mkdir(exist_ok=True)
+    np.save(_CACHE, dist)
+    return dist
+
+
 class Cube3(Problem):
     """3x3x3 cube in half-turn metric (18 moves, unit cost).
 
@@ -88,7 +130,8 @@ class Cube3(Problem):
         self.goal = sum(qid[tuple(range(4 * k, 4 * k + 4))] * 16 << (36 - 18 * k) for k in range(3))
         self._rows = [(n, memoryview(self.PM[:, m].copy()), memoryview(self.TM[:, m].copy()),
                        memoryview(self.QM[:, m].copy())) for m, n in enumerate(self.names)]
-        self.pdb = pdb
+        # pdb: anything indexable by corner index; tests pass a small stand-in instead of the 88M-entry table
+        self.pdb = memoryview(load_or_build(self.PM, self.TM)) if pdb is None else pdb
 
     @classmethod
     def shared(cls):

@@ -10,6 +10,7 @@ from .oracle import Oracle
 from .problem import INF, Problem
 from .problems.boxoban import boxoban_level, load_boxoban_file
 from .problems.cube2 import Cube2
+from .problems.cube3 import Cube3
 from .problems.river import River
 from .problems.sokoban import Sokoban
 from .solvers import astar
@@ -19,7 +20,7 @@ from .solvers import astar
 class Bench:
     make: Optional[Callable[[random.Random], Problem]]
     T_targets: List[int]
-    exact: bool = False  # True: random_start(depth) already returns T* == depth
+    exact: bool = False  # True: random_start(rng, target) (river/cube2: T* == depth; cube3: T* <= depth, oracle-checked)
     depth: Tuple[int, int] = (10, 60)  # reverse-play steps range when not exact
     levels: Optional[tuple] = None  # fixed (problem, start) pairs (user-supplied file); make/T_targets/depth are then unused
 
@@ -36,6 +37,7 @@ BENCHMARKS = {
     "boxoban": Bench(boxoban_level, [8, 12, 16, 20], depth=(30, 150)),
     "river": Bench(lambda rng: _river(), [4, 6, 8, 10, 12, 14], exact=True),
     "cube2": Bench(lambda rng: Cube2.shared(), [3, 5, 7, 9, 11], exact=True),
+    "cube3": Bench(lambda rng: Cube3.shared(), [3, 5, 7, 9], exact=True),  # T=10: wA* hit the 500k cap
 }
 
 

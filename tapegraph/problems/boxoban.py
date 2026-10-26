@@ -43,7 +43,7 @@ def load_boxoban_file(path):
     (# wall, space floor, . goal, $ box, @ player, * box on goal, + player on goal); blank lines after a grid are ignored.
     Returns [(Sokoban, start)]. Any malformed level raises ValueError naming its header index; nothing is skipped silently."""
     levels, label, rows = [], None, None
-    lines = Path(path).read_text().splitlines()
+    lines = Path(path).read_text(encoding="utf-8-sig").splitlines()
 
     def close():
         while rows and not rows[-1].strip():

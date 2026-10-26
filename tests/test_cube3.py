@@ -194,3 +194,14 @@ def test_cube3_bench_reports_bfs_node_limit_rows(tmp_path):
     assert {r["T"] for r in rows} == {"3", "5", "7", "9"}
     assert any(r["solver"] == "bfs" and r["status"] == "node_limit" for r in rows)
     assert all(r["status"] == "ok" for r in rows if r["solver"] in ("astar", "idastar"))
+
+
+def test_truncated_cache_is_rebuilt_and_saves_leave_no_temp_files(tmp_path, monkeypatch):
+    c2 = cube2.Cube2.shared()
+    cache = tmp_path / "pdb.npy"
+    monkeypatch.setattr(cube3, "_CACHE", cache)
+    monkeypatch.setattr(cube3, "build_pdb", lambda PM, TM: c2.dist.copy())
+    np.save(cache, c2.dist)
+    cache.write_bytes(cache.read_bytes()[:200])  # an interrupted np.save leaves a truncated .npy
+    assert np.array_equal(cube3.load_or_build(c2.PM, c2.TM), c2.dist)  # rebuilt, not an exception
+    assert np.array_equal(np.load(cache), c2.dist) and [p.name for p in tmp_path.iterdir()] == ["pdb.npy"]

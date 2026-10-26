@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections import deque
 from pathlib import Path
 
@@ -15,6 +16,29 @@ _QUARTER = {
     "F": ([1, 5, 2, 3, 0, 4, 6, 7], [1, 2, 0, 0, 2, 1, 0, 0]),
 }
 _CACHE = Path(__file__).resolve().parents[2] / ".cache" / "cube2_dist.npy"
+
+
+def load_cached(path, valid):
+    """The array saved at `path` if it loads and `valid(array)`; None when missing, stale, truncated or unreadable
+    (the caller then rebuilds)."""
+    try:
+        a = np.load(path)
+    except Exception:  # missing, or a truncated/corrupt file left by an interrupted save
+        return None
+    return a if valid(a) else None
+
+
+def save_atomic(path, array):
+    """np.save to a temp file in the same directory, then os.replace: an interrupted save never leaves a partial `path`."""
+    path = Path(path)
+    path.parent.mkdir(exist_ok=True)
+    tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
+    try:
+        with open(tmp, "wb") as fh:
+            np.save(fh, array)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def _mul(a, b):
@@ -85,11 +109,9 @@ class Cube2(Problem):
 
     def _load_or_build(self):
         NT = self.NT
-        if _CACHE.exists():
-            cached = np.load(_CACHE)
-            if cached.shape == (len(self.PM) * NT,) and cached.dtype == np.int8 and cached[0] == 0 and cached.max() == 11:
-                return cached
-            # stale or corrupt cache: fall through and rebuild
+        cached = load_cached(_CACHE, lambda a: a.shape == (len(self.PM) * NT,) and a.dtype == np.int8 and a[0] == 0 and a.max() == 11)
+        if cached is not None:
+            return cached  # otherwise missing, stale or corrupt: rebuild
         dist = np.full(len(self.PM) * NT, -1, dtype=np.int8)
         dist[0] = 0
         frontier, d = np.array([0], dtype=np.int64), 0
@@ -100,8 +122,7 @@ class Cube2(Problem):
             nxt = nxt[dist[nxt] < 0]
             dist[nxt] = d
             frontier = nxt
-        _CACHE.parent.mkdir(exist_ok=True)
-        np.save(_CACHE, dist)
+        save_atomic(_CACHE, dist)
         return dist
 
     @classmethod

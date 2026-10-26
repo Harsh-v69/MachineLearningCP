@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from ..problem import Problem
+from .cube2 import load_cached, save_atomic
 
 # Standard cubie model. Corners URF UFL ULB UBR DFR DLF DBL DRB = 0..7; edges UR UF UL UB DR DF DL DB FR FL BL BR = 0..11.
 # Quarter turns in "replaced-by" form: (cp, co, ep, eo) with cp[i] = cubie moved into position i and co/eo the twist/flip
@@ -100,15 +101,13 @@ def build_pdb(PM, TM, chunk=1 << 20, block=1 << 23):
 
 
 def load_or_build(PM, TM, max_depth=11):
-    """Corner pattern database, cached in .cache/ (rebuilt when missing, stale or corrupt)."""
+    """Corner pattern database, cached in .cache/ (rebuilt when missing, stale, truncated or unreadable; saved atomically via a temp file and os.replace)."""
     n = len(PM) * len(TM)
-    if _CACHE.exists():
-        cached = np.load(_CACHE)
-        if cached.shape == (n,) and cached.dtype == np.int8 and cached[0] == 0 and cached.max() == max_depth:
-            return cached
+    cached = load_cached(_CACHE, lambda a: a.shape == (n,) and a.dtype == np.int8 and a[0] == 0 and a.max() == max_depth)
+    if cached is not None:
+        return cached
     dist = build_pdb(PM, TM)
-    _CACHE.parent.mkdir(exist_ok=True)
-    np.save(_CACHE, dist)
+    save_atomic(_CACHE, dist)
     return dist
 
 

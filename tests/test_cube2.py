@@ -58,3 +58,15 @@ def test_stale_cache_is_rebuilt(tmp_path, monkeypatch):
     dist = cube2.Cube2.shared()._load_or_build()
     assert dist.shape == (5040 * 729,) and dist.dtype == np.int8 and dist[0] == 0 and dist.max() == 11
     assert np.load(bad).shape == dist.shape
+
+
+def test_truncated_cache_is_rebuilt(tmp_path, monkeypatch):
+    import numpy as np
+    from tapegraph.problems import cube2
+    good = np.load(cube2._CACHE) if cube2._CACHE.exists() else cube2.Cube2.shared().dist
+    bad = tmp_path / "dist.npy"
+    np.save(bad, good)
+    bad.write_bytes(bad.read_bytes()[:100])
+    monkeypatch.setattr(cube2, "_CACHE", bad)
+    dist = cube2.Cube2.shared()._load_or_build()
+    assert dist.shape == (5040 * 729,) and np.load(bad).shape == dist.shape

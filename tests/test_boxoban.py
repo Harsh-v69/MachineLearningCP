@@ -95,3 +95,9 @@ def test_file_level_errors(tmp_path):
     p.write_text("##########\n; 0\n" + "\n".join(_sample_levels()[0]) + "\n")
     with pytest.raises(ValueError, match="before the first"):
         load_boxoban_file(p)
+
+
+def test_load_file_with_utf8_bom(tmp_path):
+    f = tmp_path / "bom.txt"
+    f.write_bytes(b"\xef\xbb\xbf" + SAMPLE.read_bytes())  # e.g. a file saved by Windows Notepad
+    assert len(load_boxoban_file(f)) == 3

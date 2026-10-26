@@ -366,9 +366,9 @@ def test_ci_sections_pool_trials_and_pair_by_instance():
     lo, hi = bench.wilson_interval(190, 200)
     assert f"{lo:.4f}" in cells and f"{hi:.4f}" in cells
     p = next(l for l in paired.split("\n") if "ours_astar - tape" in l)
-    assert "0.1" in p and "| 2 |" in p
-    assert "100" in pooled and "documented" in pooled  # episode lookup note
-    assert "Excluded from the intervals: 1 skipped" in paired + pooled + bucket
+    assert _cells(p)[2:4] == ["2", "0.1000"]  # instances, mean difference ((1 - .8) + (.9 - .9)) / 2
+    assert "episodes per instance taken from the documented lookup {'river': 100" in pooled
+    assert "Excluded from the intervals: 1 skipped rows (T = -1 or no success value)." in paired + pooled + bucket
 
 
 def test_ci_sections_prefer_episodes_column_and_report_misaligned_instances():
@@ -384,20 +384,27 @@ def _paired_row(paired, name):
     return next((_cells(l) for l in paired.split("\n") if name in l), None)
 
 
-def test_ci_sections_inst_seed_grouping_with_one_instance_missing_tape():
-    rows = [dict(r, episodes=10, inst_seed=100 + 7919 * (i // 3)) for i, r in enumerate(_two_instances()[:6])]
-    del rows[4]  # instance 2 lacks its tape row
+def test_ci_sections_inst_seed_grouping_with_first_cycle_row_missing():
+    """Instance 100 has no react row (the FIRST row of its cycle). Grouping by inst_seed keeps its tape and ours_astar rows
+    together; positional grouping would glue the next instance's react row onto it (and the instance ids would be 0, 1)."""
+    rows = [dict(r, episodes=10, inst_seed=s) for r, s in zip(
+        [_arow("tape", .8), _arow("ours_astar", 1.0), _arow("react", .6), _arow("tape", .9), _arow("ours_astar", .9)],
+        [100, 100, 8019, 8019, 8019])]
+    assert [(r["method"], r["inst"]) for r in bench.agent_instance_rows(rows)[0]] == [
+        ("tape", 100), ("ours_astar", 100), ("react", 8019), ("tape", 8019), ("ours_astar", 8019)]
     _, _, paired = bench.agents_ci_sections(rows)
-    assert _paired_row(paired, "ours_astar - react")[2:4] == ["2", "0.4000"]  # (.5 + .3) / 2
-    assert _paired_row(paired, "ours_astar - tape") is None
-    assert "instance sets of ours_astar (2) and tape (1) do not align" in paired
+    assert _paired_row(paired, "ours_astar - tape")[2:4] == ["2", "0.1000"]  # ((1 - .8) + (.9 - .9)) / 2
+    assert _paired_row(paired, "ours_astar - react") is None
+    assert "instance sets of ours_astar (2) and react (1) do not align" in paired
 
 
 def test_ci_sections_drop_duplicate_rows():
     base = [dict(r, episodes=10, inst_seed=5) for r in _two_instances()[:3]]
     bucket, pooled, paired = bench.agents_ci_sections(base + base)  # concatenated CSV
     assert _cells(next(l for l in pooled.split("\n") if "| tape |" in l))[2:5] == ["1", "8", "10"]
-    assert "3 duplicate rows" in pooled and "3 duplicate rows" in paired
+    assert "3 duplicate rows (same" in pooled and "3 duplicate rows (same" in paired
+    one = bench.agents_ci_sections(base + base[:1])[1]
+    assert "1 duplicate row (same" in one  # singular
     assert _paired_row(paired, "ours_astar - tape")[2:4] == ["1", "0.2000"]
 
 
@@ -415,5 +422,5 @@ def test_report_survives_old_csv_of_benchmark_without_documented_episodes(tmp_pa
     assert "| sokoban2 | 5 | tape |" in old  # old tables still render it
     pooled = ns[next(k for k in ns if "pooled" in k)]
     assert "| river | tape |" in pooled and "| sokoban2 |" not in pooled
-    assert "(sokoban2): episodes unknown" in pooled
-    assert "Excluded from the intervals: 3 skipped rows" in pooled
+    assert "3 rows excluded because the benchmark has no `episodes` column and no documented episode count (sokoban2: 3)" in pooled
+    assert "Excluded from the intervals: 0 skipped rows" in pooled  # unknown-episode rows are counted apart

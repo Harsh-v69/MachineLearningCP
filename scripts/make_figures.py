@@ -6,7 +6,7 @@ Directories under --data are discovered by globbing `*/`; files are `<kind>_<ben
 solvers | agents | constrained. A figure whose inputs are absent is skipped with a printed note, so directories that
 land later (new_agents, agents_ep300, ...) are picked up automatically. A file name carries the directory as a suffix
 only when the same (kind, bench) exists in more than one directory (the `main` one stays unsuffixed).
-Figures: agents_<bench>, solvers_nodes_<bench>, solvers_seconds_<bench>, ilp_rate_<bench>,
+Figures: agents_<bench> (one dataset per benchmark: the one with the most episodes), solvers_nodes_<bench>, solvers_seconds_<bench>, ilp_rate_<bench>,
 bind_scatter_<bench>_c<c_slack>, bind_cslack_<bench>.
 """
 from __future__ import annotations
@@ -78,6 +78,18 @@ def agent_series(rows):
         series.append({"name": m, "x": ts, "y": [cell[(m, t)][0] / cell[(m, t)][1] for t in ts],
                        "lo": [c[0] for c in ci], "hi": [c[1] for c in ci]})
     return series, len({r["inst"] for r in used}), sorted({r["ep"] for r in used})
+
+
+def best_agents(datasets):
+    """{bench: dataset} of the one agents dataset per benchmark that the paper uses: the most episodes per instance (ties:
+    a non-main directory, then by name). `datasets` are dicts with keys dataset, bench, episodes; the others are superseded
+    (a later run of a benchmark re-uses the same instances and noise seeds, so counting both counts episodes twice)."""
+    best = {}
+    for a in datasets:
+        k = (max(a["episodes"]), a["dataset"] != "main", a["dataset"])
+        if a["bench"] not in best or k > best[a["bench"]][0]:
+            best[a["bench"]] = (k, a)
+    return {b: a for b, (_, a) in best.items()}
 
 
 def agents_figure(bench, tag, rows):
@@ -235,7 +247,12 @@ def make_figures(data="docs/data", out="docs/figures"):
         suf = _suffixes(found[kind])
         if not found[kind]:
             print(f"[skip] no {kind}_*.csv under {data}")
+        used = best_agents([{"dataset": d, "bench": b, "episodes": eps}
+                            for d, b, rows in found[kind] if kind == "agents" and (eps := agent_series(rows)[2])])
         for d, bench, rows in found[kind]:
+            if kind == "agents" and used.get(bench, {}).get("dataset", d) != d:
+                print(f"[skip] agents {d}/{bench}: superseded by {used[bench]['dataset']} (most episodes per instance)")
+                continue
             tag, sfx = ("" if d == "main" else f" [{d}]"), suf[(d, bench)]
             if kind == "agents":
                 svg = agents_figure(bench, tag, rows)

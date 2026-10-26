@@ -20,13 +20,13 @@ import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
-from statistics import median
+from statistics import mean, median
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from make_figures import SEC_FLOOR, _order, _suffixes, bind_by_bench, bind_pairs, load  # noqa: E402
+from make_figures import SEC_FLOOR, _order, _suffixes, best_agents, bind_by_bench, bind_pairs, load  # noqa: E402
 from tapegraph.bench import (SOLVERS, _md, agent_instance_rows, build_parser, is_bind_csv, paired_differences, plan,  # noqa: E402
                              pool_success, status_table, summarize)
 from tapegraph.benchmarks import BENCHMARKS, _river, make_instances  # noqa: E402
@@ -52,8 +52,9 @@ PENDING = {  # agents files planned when this generator was written: (dir, bench
 FRAC_RES = {"main": 0.9, "rf95": 0.95, "rf97": 0.97, "rf100": 1.0}
 PLAN_SUB = {("main", "solvers"): "solvers", ("main", "agents"): "agents", ("main", "constrained"): "constrained_frac",
             ("bind", "constrained"): "constrained_bind"}
-AGENTS_N = 5  # agents CSVs carry no `n` column; every agents run used --n 5
-AGENTS_EXTRA = {("new_agents", "cube3"): " --max_nodes 100000"}  # not a CSV column for agents
+AGENTS_N = 5  # fallback for agents CSVs without an `n` column (see agents_n); the older runs used --n 5
+AGENTS_EXTRA = {("new_agents", "cube3"): " --max_nodes 100000"}  # fallback for agents CSVs without a `max_nodes` column
+BYCONS = "A* by construction: instances and budgets are derived with A*"  # qualifies every A*-vs-ILP solve count
 THIN = 10  # "thin" = fewer trade-off instances than this at every c_slack run
 MARK, END = "<!-- INTERPRETATION-7.4 -->", "<!-- /INTERPRETATION-7.4 -->"
 DEFAULTS = vars(build_parser().parse_args(["solvers"]))
@@ -263,6 +264,10 @@ def bind_row(bench, c, d, rows):
             "ratio of mean seconds": mean_ratio(both),
             "ILP faster (both ok)": fb, "ILP faster (ILP failed)": ff,
             "cost - T* (A* ok rows)": ", ".join(f"+{k}: {v}" for k, v in sorted(incr.items())) or "none",
+            "_nodes": {sv: mean(float(r["nodes"]) for r in rows if r.get("solver") == sv and r.get("level") == "bind"
+                              and r.get("nodes") not in ("", None))
+                       for sv in ("astar", "ilp") if any(r.get("solver") == sv and r.get("level") == "bind"
+                                                         and r.get("nodes") not in ("", None) for r in rows)},
             "_orphans": orphans, "_i_ok": i_ok, "_a_ok": a_ok, "_rows": len(pairs), "_med": median(t) if t else math.nan,
             "_recs": recs, "_both_ords": {ords[id(a)] for a, _ in both},
             "_trade_ords": {i for i, r in enumerate(recs) if r["skip"] is None},
@@ -334,13 +339,9 @@ def pick_agents(datasets):
     by name). The others are superseded and left out of every table and aggregate: a later run on the same benchmark
     (e.g. agents_ep300 with seed 1 and --n 5) re-uses the same instances and per-instance seeds, so its first episodes
     repeat the earlier run's. Returns (kept, [(superseded, kept_instead)])."""
-    best = {}
-    for a in datasets:
-        k = (max(a["episodes"]), a["dataset"] != "main", a["dataset"])
-        if a["bench"] not in best or k > best[a["bench"]][0]:
-            best[a["bench"]] = (k, a)
-    kept = sorted((a for a in datasets if best[a["bench"]][1] is a), key=lambda a: bkey(a["bench"]))
-    return kept, [(a, best[a["bench"]][1]) for a in datasets if best[a["bench"]][1] is not a]
+    best = best_agents(datasets)
+    kept = sorted((a for a in datasets if best[a["bench"]] is a), key=lambda a: bkey(a["bench"]))
+    return kept, [(a, best[a["bench"]]) for a in datasets if best[a["bench"]] is not a]
 
 
 # ---- commands behind each dataset -------------------------------------------------------------------------------
@@ -354,6 +355,17 @@ def _plan_cmd(sub, bench):
         if st.sub == sub and "--bench" in st.args and st.args[st.args.index("--bench") + 1] == bench:
             return " ".join(st.args)
     return None
+
+
+def agents_n(r0, rows):
+    """--n of an agents run: the `n` column (CSVs written since it was added); else inferred as distinct instances per T*
+    bucket when every bucket holds the same count; else the AGENTS_N fallback (older CSVs carry no n)."""
+    if r0.get("n") not in ("", None):
+        return r0["n"]
+    per_t = Counter()
+    for i in {(r["T"], r["inst"]) for r in agent_instance_rows(rows)[0]}:
+        per_t[i[0]] += 1
+    return next(iter(per_t.values())) if per_t and len(set(per_t.values())) == 1 else AGENTS_N
 
 
 def command(kind, d, bench, rows):
@@ -372,9 +384,9 @@ def command(kind, d, bench, rows):
         base = _plan_cmd("constrained_frac", bench)
         cmd = base and f"{base} --res_frac {FRAC_RES[d]}"
     elif kind == "agents" and r0.get("episodes") not in ("", None):
-        cmd = (f"agents --bench {bench} --n {AGENTS_N} --episodes {r0['episodes']}"
-               + (" --no_ilp" if r0.get("use_ilp") == 0 else "") + _opt(r0, "delta", "eta", "slack", "N", "seed")
-               + AGENTS_EXTRA.get((d, bench), ""))
+        cmd = (f"agents --bench {bench} --n {agents_n(r0, rows)} --episodes {r0['episodes']}"
+               + (" --no_ilp" if r0.get("use_ilp") == 0 else "") + _opt(r0, "delta", "eta", "slack", "N", "seed", "max_nodes")
+               + ("" if r0.get("max_nodes") not in ("", None) else AGENTS_EXTRA.get((d, bench), "")))
     return f"python -m tapegraph.bench {cmd}" if cmd else None
 
 
@@ -443,9 +455,9 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
     distinct_note = (f"{BD['both']} distinct instances" if not BD["unverified"]
                      else f"{BD['both']} instances, counted per run on {and_list(BD['unverified'])}")
     (iok, iall), (aok_u, aall_u) = S["ilp_solved"], S["astar_solved"]
-    unc_text = (f"the ILP solved {iok} of {iall} unconstrained instances (A* {aok_u} of {aall_u}) and was faster than A* on "
+    unc_text = (f"the ILP solved {iok} of {iall} unconstrained instances (A* {aok_u} of {aall_u}; {BYCONS}) and was faster than A* on "
                 f"{ilp_faster} of the {ilp_both} where both solved")
-    bind_text = (f"the ILP solved {b_iok} of {b_rows} (instance, level, c_slack) rows (A* {b_aok} of {b_rows}); on the "
+    bind_text = (f"the ILP solved {b_iok} of {b_rows} (instance, level, c_slack) rows (A* {b_aok} of {b_rows}; {BYCONS}); on the "
                  f"{b_both} rows where both solved ({distinct_note}; the c_slack runs of a benchmark re-use the same "
                  f"instances) it returned the same cost as A* on {b_same} and was faster on {b_fast}")
     n_agent_benches = len({a["bench"] for a in A})
@@ -589,8 +601,8 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
       "agent re-plans on deviation.\n"
       "- **ours_astar / ours_ilp**: the REPLAN loop of Section 2 with A* or the ILP as `solve`.\n"
       "- Execution noise applies to every method: with probability eta the executed action is a different legal action.\n")
-    w(f"The oracle behind both simulations is exact (distance tables, or A* with a {num(ORACLE_CAP)}-node cap). This makes "
-      "tape (simulated) close to ours_astar by construction (Section 8).\n")
+    w(f"The oracle behind both simulations is exact (distance tables, or A* with a {num(ORACLE_CAP)}-node cap). A hypothesis "
+      "for why tape (simulated) and ours_astar are close is given in Section 8.\n")
     w("### 4.5 Instances, budgets and metrics\n")
     w(f"Instances are generated per target T* (accepted within {TOL} step{'s' if TOL != 1 else ''} of the target and reported under their true T*, "
       "verified by an exact table or the oracle); River and the cubes draw a start at an exact or scrambled depth, the "
@@ -648,6 +660,15 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
       "CSV itself. Generated summary tables per dataset are in "
       + ", ".join(f"[`{p.name}`]({rel(p, paper_dir)})" for p in sorted(Path(paper_dir).glob("results*.md")))
       + ".\n")
+    w("Provenance of the agents commands: agents CSVs written since the `n` and `max_nodes` columns were added carry "
+      "both. For older agents CSVs `--n` is inferred as the number of distinct instances per T* bucket when every bucket "
+      f"holds the same count, and otherwise the recorded fallback `--n {AGENTS_N}` is used; `--max_nodes` for an older "
+      "CSV comes from a hand-typed record ("
+      + (", ".join(f"`{d}/{b}`:{x}" for (d, b), x in AGENTS_EXTRA.items()) or "none")
+      + "). The commands of such files are therefore reconstructions, not recorded values.\n")
+    w("The `bind` c_slack sweep (2 and 8) uses the same `--n` per benchmark as the c_slack 4 runs. This is a deliberate "
+      "choice, not a limit: the runs then share the same instances, so rows pair across c_slack; a larger `--n` for the "
+      "sweep was not run.\n")
     rows = []
     for kind in ("solvers", "constrained", "agents"):
         for d, b, rs in sorted(found[kind], key=lambda x: (x[0], bkey(x[1]))):
@@ -743,6 +764,25 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
                                            if r else "not run")
                 sw.append(row)
             w(_md(sw))
+            nd = []
+            for b in multi:
+                rs = {r["c_slack"]: r["_nodes"] for r in B if r["bench"] == b}
+                cs = [c for c in b_cs if c in rs and {"astar", "ilp"} <= set(rs[c])]
+                if len(cs) > 1:
+                    same = len({round(rs[c]["astar"], 6) for c in cs}) == 1
+                    nd.append(f"`{b}` (c_slack {' / '.join(map(str, cs))}) A* " + (f"{rs[cs[0]]['astar']:,.1f} at every c_slack" if same
+                                              else " / ".join(f"{rs[c]['astar']:,.1f}" for c in cs))
+                              + " and ILP " + " / ".join(f"{rs[c]['ilp']:,.1f}" for c in cs)
+                              + ("" if same else " (the A* means differ because the set of trade-off instances differs between "
+                                 "runs: " + " / ".join(str(next(r["trade-off"] for r in B if r["bench"] == b and r["c_slack"] == c))
+                                                       for c in cs) + " instances)"))
+            if nd:
+                w("\nWhat the sweep measures. At level `bind` the resource budget R = r_opt - 1 and the constrained optimum do "
+                  "not depend on c_slack (r_opt is defined at length T*), so A* has the same search problem on every instance in every run, "
+                  "while the ILP's graph is the ball of states within T* + c_slack steps and grows with c_slack. Mean nodes "
+                  "over the `bind`-level rows (including rows where a solver failed): "
+                  + "; ".join(nd) + ". The sweep therefore mostly shows how the "
+                  "edge-flow ILP scales with a slack length budget; it is not a harder trade-off for A*.\n")
         fails = Counter()
         for r in B:
             fails.update(r["_ifail"])
@@ -861,9 +901,11 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
                + " The `bind` resources (pushes only, passengers squared, half-turns only) were chosen because they create "
                "trade-offs, so the experiment tests solver behaviour under a binding budget, not a realistic cost model. "
                "A* `ok` at the `tight` level repeats the bisection's last probe, so A*'s solve rate there is not informative; "
-               "the ILP's behaviour is. The c_slack sweep couples two things: a larger c_slack enlarges the length budget and "
-               "also the ILP's explicit subgraph (the ball grows with the budget), so ILP failures at larger c_slack cannot "
-               "be attributed to the budget alone. Instances where A* fails during the bisection are skipped, which biases "
+               "the ILP's behaviour is. The c_slack sweep mostly measures the ILP's subgraph growth: at the `bind` level R = "
+               "r_opt - 1 and the constrained optimum do not depend on c_slack, so A* expands the same nodes in every run "
+               "while the ILP's explicit ball {g + h <= T* + c_slack} grows with the length budget (node means in "
+               "Section 7.3). ILP failures at larger c_slack are therefore a statement about the edge-flow ILP's "
+               "sensitivity to a slack length budget, not about a harder trade-off. Instances where A* fails during the bisection are skipped, which biases "
                "the sample toward instances A* can handle.")
     lim.append(f"**Fairness between the ILP and A* is approximate.** The ILP's subgraph is the ball {{g + h <= budget}}, i.e. "
                f"{{g + h <= T* + slack}} in the unconstrained runs and {{g + h <= T* + c_slack}} in the `bind` runs (larger "
@@ -880,8 +922,9 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
                    "a few points are within noise."
                    + (" Older agents CSVs have no `episodes` column; their episode counts come from the documented lookup "
                       "`tapegraph.bench.DOCUMENTED_EPISODES`." if any(a["looked_up"] for a in A) else ""))
-    lim.append("**Timing columns.** Wall-clock `seconds` depend on what else ran on the machine; the published `main` agents "
-               "runs ran as parallel processes (README), so their `seconds` are inflated. react and tape `seconds` include "
+    lim.append("**Timing columns.** Wall-clock `seconds` depend on what else ran on the machine; every agents run (`main`, "
+               "`new_agents`, `agents_ep300`) ran as parallel processes next to other work (README), so every agents "
+               "`seconds` column is contended and inflated. react and tape `seconds` include "
                "oracle computations and are not comparable to ours_*.")
     caps = sorted({(r["bench"], m) for r in B for m in r["_max_nodes"] if m != DEFAULTS["max_nodes"]}
                   | {(b, r["max_nodes"]) for _, b, rs in S["data"] for r in rs[:1]

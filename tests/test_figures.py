@@ -160,7 +160,8 @@ def test_missing_data_is_skipped_with_note(tmp_path, capsys):
 def test_directory_suffix_only_on_collisions(data, tmp_path):
     write(data / "agents_ep300" / "agents_toy.csv", agents_rows())
     names = mf.make_figures(data, tmp_path)
-    assert "agents_toy.svg" in names and "agents_toy_agents_ep300.svg" in names
+    assert "agents_toy.svg" not in names and "agents_toy_agents_ep300.svg" in names  # tie on episodes: the non-main run wins
+    assert "solvers_nodes_toy.svg" in names  # no collision for solvers: no suffix
     assert "[agents_ep300]" in svg(tmp_path / "agents_toy_agents_ep300.svg").find(NS + "title").text
 
 
@@ -184,3 +185,15 @@ def test_frac_csv_with_level_column_makes_no_bind_figures(tmp_path):
         {"bench": "toy", "T": 3, "level": "frac", "solver": "skipped", "status": "infeasible", "ok": 0, "R": 2}])
     assert mf.bind_by_bench(mf.load(d)) == {}
     assert mf.make_figures(d, tmp_path / "o") == []
+
+
+def test_superseded_agents_dataset_gets_no_figure(tmp_path, capsys):
+    d = tmp_path / "data"
+    write(d / "main" / "agents_toy.csv", agents_rows())  # 10 episodes
+    longer = agents_rows()
+    for r in longer:
+        r["episodes"] = 30
+    write(d / "agents_ep300" / "agents_toy.csv", longer)
+    names = mf.make_figures(d, tmp_path / "o")
+    assert names == ["agents_toy_agents_ep300.svg"]  # the main run (fewer episodes) is superseded
+    assert "superseded by agents_ep300" in capsys.readouterr().out

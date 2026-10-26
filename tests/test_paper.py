@@ -143,7 +143,7 @@ def test_toy_numbers_equal_hand_computed_values(toy, tmp_path):
     assert ("| toy | 2 | bindy | 4 | 1 | 3 no_tradeoff | 1 | 1 / 1 | 1 / 1 | none | 1 | 1 | 0.50x | 0.50x to 0.50x | 0.50x "
             "| 1 | 0 | +2: 1 |") in L
     assert "| `toy` | ILP 1/1, 1 inst., 0.50x | ILP 3/4, 2 inst., 100x |" in L
-    bind_text = ("the ILP solved 4 of 5 (instance, level, c_slack) rows (A* 5 of 5); on the 4 rows where both solved "
+    bind_text = ("the ILP solved 4 of 5 (instance, level, c_slack) rows (A* 5 of 5; A* by construction: instances and budgets are derived with A*); on the 4 rows where both solved "
                  "(2 distinct instances; the c_slack runs of a benchmark re-use the same instances) it returned the same "
                  "cost as A* on 3 and was faster on 1")
     assert f"- Over all benchmarks and c_slack values: {bind_text}" in text
@@ -166,7 +166,7 @@ def test_toy_numbers_equal_hand_computed_values(toy, tmp_path):
     assert "identical success on 0 of 4 instances over 2 benchmarks" in text
     # abstract: denominators of both solvers, distinct instances, benchmarks (not datasets), the tape_excl clause
     abstract = text.split("## Abstract\n")[1].split("## 1 ")[0]
-    assert ("the ILP solved 2 of 3 unconstrained instances (A* 3 of 3) and was faster than A* on 0 of the 2 where both "
+    assert ("the ILP solved 2 of 3 unconstrained instances (A* 3 of 3; A* by construction: instances and budgets are derived with A*) and was faster than A* on 0 of the 2 where both "
             "solved") in abstract
     fast = "On 1 (instance, level, c_slack) rows the ILP returned before A* but with a failure status; a fast failure is not a win."
     assert bind_text in abstract and fast in abstract
@@ -174,7 +174,7 @@ def test_toy_numbers_equal_hand_computed_values(toy, tmp_path):
             "from a simulated TAPE by 0.050 to 0.100; the bootstrap interval of that difference contains 0 on 1 of 2 "
             "benchmarks; it excludes 0 with ours_astar higher on 1 (by at most 0.100) and with ours_astar lower on 0.") in abstract
     conclusion = text.split("## 10 Conclusion\n")[1]
-    assert ("The ILP beat A* only on some rows. Unconstrained: the ILP solved 2 of 3 unconstrained instances (A* 3 of 3) "
+    assert ("The ILP beat A* only on some rows. Unconstrained: the ILP solved 2 of 3 unconstrained instances (A* 3 of 3; A* by construction: instances and budgets are derived with A*) "
             "and was faster than A* on 0 of the 2 where both solved. Binding-constrained (1 benchmark; c_slack 2 and 4): "
             f"{bind_text}. {fast} This is scoped") in conclusion
     assert "did not beat A*" not in text
@@ -214,7 +214,7 @@ def test_astar_failures_and_ilp_never_faster_branches(tmp_path):
     conclusion = text.split("## 10 Conclusion\n")[1]
     assert "A* with a pattern database or distance heuristic failed on 1 unconstrained instance." in conclusion
     assert ("The ILP did not beat A* in any measured regime. Unconstrained: the ILP solved 1 of 2 unconstrained "
-            "instances (A* 1 of 2) and was faster than A* on 0 of the 1 where both solved. This is scoped") in conclusion
+            "instances (A* 1 of 2; A* by construction: instances and budgets are derived with A*) and was faster than A* on 0 of the 1 where both solved. This is scoped") in conclusion
     assert "- astar non-ok rows: 1 node_limit." in text.splitlines()
 
 
@@ -270,3 +270,31 @@ def test_frac_csv_with_level_column_is_still_frac(toy, tmp_path):
     assert after == before
     assert "constrained frac" in after and mp.analyse_frac(mp.load(d))  # frac rows were analysed, not dropped
     assert not mp.is_bind_csv(rows) and mp.is_bind_csv([{"level": "-"}, {"level": "bind"}])
+
+
+def test_agents_command_n_column_inferred_or_fallback(tmp_path):
+    def agents(path, insts, **extra):  # insts: (T, inst_seed) pairs
+        write(path, [{"bench": "cube3", "T": T, "method": m, "success": 0.5, "mean_steps": 3, "solves": 1, "seconds": 0.1,
+                      "episodes": 10, "use_ilp": 0, "inst_seed": s, **extra}
+                     for T, s in insts for m in ("react", "tape", "ours_astar")])
+    d = tmp_path / "data"
+    agents(d / "new_agents" / "agents_cube3.csv", [(3, 1), (3, 2), (5, 3), (5, 4)])  # no n column: 2 per bucket
+    agents(d / "agents_ep300" / "agents_cube3.csv", [(3, 1), (3, 2), (5, 3)])  # uneven buckets: ambiguous -> AGENTS_N
+    agents(d / "other" / "agents_cube3.csv", [(3, 1), (5, 2)], n=7, max_nodes=1234)  # newer CSV records both
+    cmds = {dd: mp.command("agents", dd, b, rs) for dd, b, rs in mp.load(d)["agents"]}
+    assert cmds["new_agents"] == "python -m tapegraph.bench agents --bench cube3 --n 2 --episodes 10 --no_ilp --max_nodes 100000"
+    assert f"--n {mp.AGENTS_N} --episodes 10" in cmds["agents_ep300"]
+    assert cmds["other"] == "python -m tapegraph.bench agents --bench cube3 --n 7 --episodes 10 --no_ilp --max_nodes 1234"
+
+
+def test_sweep_sentence_and_by_construction_qualifier(toy, tmp_path):
+    d, figs = toy
+    text = mp.build_paper(d, figs, tmp_path)
+    # toy bind rows all have nodes = 5, so the A* means are equal across c_slack 2 and 4 and so are the ILP means
+    assert ("`toy` (c_slack 2 / 4) A* 5.0 at every c_slack and ILP 5.0 / 5.0. The sweep therefore mostly shows how the "
+            "edge-flow ILP scales with a slack length budget") in text
+    q = "A* by construction: instances and budgets are derived with A*"
+    assert text.count(q) >= 4  # abstract (unconstrained and bind), section 7.1 and 7.3 bullets, conclusion
+    assert "every agents `seconds` column is contended" in text
+    assert "close to ours_astar by construction" not in text
+    assert "`--n` is inferred as the number of distinct instances per T* bucket" in text

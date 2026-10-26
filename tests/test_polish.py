@@ -2,6 +2,7 @@
 import csv
 import importlib.util
 import json
+import shlex
 import subprocess
 import sys
 import tomllib
@@ -127,7 +128,7 @@ def test_all_runs_steps_sequentially_into_subdirs_and_writes_manifest(tmp_path, 
     man = json.loads((out / "run_manifest.json").read_text())
     assert man["profile"] == "smoke" and len(man["steps"]) == 4
     assert all(isinstance(s["seconds"], float) and s["seconds"] > 0 for s in man["steps"])
-    assert man["steps"][0]["command"].endswith(f"--out {out / 'solvers'}") or str(out / "solvers") in man["steps"][0]["command"]
+    assert man["steps"][0]["command"].endswith("--out " + shlex.quote(str(out / "solvers")))
     assert man["steps"][2]["parameters"]["design"] == "bind" and man["steps"][2]["parameters"]["c_slack"] == 4
     assert man["python"].startswith("3.") and man["numpy"] and man["ortools"]
     assert "git_commit" in man  # a commit hash inside a checkout, None otherwise

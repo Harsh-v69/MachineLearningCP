@@ -112,7 +112,8 @@ def run_agents(a):
             r = evaluate(p, inst.start, mk(), B, a.eta, a.episodes, seed)
             rows.append({"bench": a.bench, "T": inst.T, "method": name, **{k: round(v, 5) for k, v in r.items()},
                          "delta": a.delta, "eta": a.eta, "slack": a.slack, "episodes": a.episodes, "N": a.N,
-                         "use_ilp": int(use_ilp), "seed": a.seed, "inst_seed": seed, **_idx(inst)})
+                         "use_ilp": int(use_ilp), "seed": a.seed, "inst_seed": seed, "n": a.n, "max_nodes": a.max_nodes,
+                         **_idx(inst)})
     _write(Path(a.out) / f"agents_{a.bench}.csv", rows)
 
 
@@ -311,11 +312,12 @@ def _f4(x):
 
 
 def agent_instance_rows(rows):
-    """Agents rows -> (used, excluded, unknown_benches, dups): one dict per usable instance row with its instance id
+    """Agents rows -> (used, excluded, unknown_rows, dups): one dict per usable instance row with its instance id
     `inst`, `ep` (episodes) and `k` (successes). successes = round(success * episodes), trials = episodes. Skipped rows
-    (T < 0 or no success) are excluded and counted. An instance is a run of rows with distinct methods: `inst_seed` if
+    (T < 0 or no success) are excluded and counted; rows of a benchmark with unknown episodes are counted per bench in
+    `unknown_rows` ({bench: rows}). An instance is a run of rows with distinct methods: `inst_seed` if
     the CSV has it, else the position of the cycle react/tape/ours_astar/... (rows of one instance are consecutive)."""
-    used, excluded, pos, unknown, dups, seen_keys = [], 0, {}, set(), 0, set()
+    used, excluded, pos, unknown, dups, seen_keys = [], 0, {}, Counter(), 0, set()
     for r in rows:
         if r.get("method") == "skipped" or r.get("success") in ("", None) or r.get("T", 0) < 0:
             excluded += 1
@@ -323,8 +325,7 @@ def agent_instance_rows(rows):
         ep = r.get("episodes")
         looked_up = ep in ("", None)
         if looked_up and r["bench"] not in DOCUMENTED_EPISODES:  # old CSV of a benchmark with no documented episode count
-            excluded += 1
-            unknown.add(r["bench"])
+            unknown[r["bench"]] += 1  # counted apart from the skipped rows
             continue
         ep = DOCUMENTED_EPISODES[r["bench"]] if looked_up else int(ep)
         b = pos.setdefault(r["bench"], {"n": 0, "seen": set()})
@@ -392,12 +393,13 @@ def agents_ci_sections(rows):
             g[tuple(r[k] for k in keys)].append(r)
         return sorted(g.items(), key=lambda kv: kv[0])
 
-    notes = f"Excluded from the intervals: {excluded} skipped rows (T = -1, no success value, or unknown episodes).\n"
+    notes = f"Excluded from the intervals: {excluded} skipped rows (T = -1 or no success value).\n"
     if unknown:
-        notes += (f"Benchmarks without an `episodes` column and no documented episode count ({', '.join(sorted(unknown))}): "
-                  "episodes unknown, their rows are excluded from these sections (counted above).\n")
+        notes += (f"{sum(unknown.values())} rows excluded because the benchmark has no `episodes` column and no documented "
+                  f"episode count ({', '.join(f'{b}: {n}' for b, n in sorted(unknown.items()))}): episodes unknown.\n")
     if dups:
-        notes += f"{dups} duplicate rows (same bench, method and instance) dropped, first occurrence kept.\n"
+        notes += (f"{dups} duplicate row{'s' if dups != 1 else ''} (same bench, method and instance) dropped, "
+                  "first occurrence kept.\n")
     lk = sorted({r["bench"] for r in used if r["looked_up"]})
     if lk:
         notes += (f"Benchmarks without an `episodes` column ({', '.join(lk)}): episodes per instance taken from the documented "

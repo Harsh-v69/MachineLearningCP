@@ -24,6 +24,7 @@ from .baselines.tape_sim import TapeSim
 from .benchmarks import BENCHMARKS, make_instances, use_boxoban_file
 from .execute import evaluate
 from .solvers import astar, bfs, idastar, ilp
+from .stats import bootstrap_ci, wilson_interval
 
 SOLVERS = {
     "bfs": bfs.solve,
@@ -294,6 +295,86 @@ def _md(rows):
     lines += ["| " + " | ".join(str(r[k]) for k in keys) + " |" for r in rows]
     return "\n".join(lines) + "\n"
 
+# Episodes per instance of the published agents runs (README "How the results were produced"); only used for CSVs
+# without an `episodes` column (written before that column existed).
+DOCUMENTED_EPISODES = {"river": 100, "sokoban": 100, "boxoban": 20, "cube2": 30}
+
+
+def _f4(x):
+    return "" if x != x else f"{x:.4f}"
+
+
+def agents_ci_sections(rows):
+    """Three markdown sections (Wilson per bucket, pooled per benchmark, paired differences) from agents rows.
+    successes = round(success * episodes) per instance row, trials = episodes per row; skipped rows (T < 0 or no
+    success) are excluded and counted. An instance is a run of rows with distinct methods: `inst_seed` if the CSV has
+    it, else the position of the cycle react/tape/ours_astar/... (rows of one instance are consecutive in the CSV)."""
+    used, excluded, pos = [], 0, {}
+    for r in rows:
+        if r.get("method") == "skipped" or r.get("success") in ("", None) or r.get("T", 0) < 0:
+            excluded += 1
+            continue
+        ep = r.get("episodes")
+        looked_up = ep in ("", None)
+        ep = DOCUMENTED_EPISODES[r["bench"]] if looked_up else int(ep)
+        b = pos.setdefault(r["bench"], {"n": 0, "seen": set()})
+        inst = r["inst_seed"] if r.get("inst_seed") not in ("", None) else None
+        if inst is None:
+            if r["method"] in b["seen"]:
+                b["n"], b["seen"] = b["n"] + 1, set()
+            b["seen"].add(r["method"])
+            inst = b["n"]
+        used.append({**r, "inst": inst, "ep": ep, "k": round(float(r["success"]) * ep), "looked_up": looked_up})
+
+    def pool(rs, extra):
+        k, n = sum(r["k"] for r in rs), sum(r["ep"] for r in rs)
+        lo, hi = wilson_interval(k, n)
+        return {**extra, "instances": len({r["inst"] for r in rs}), "successes": k, "trials": n,
+                "success": _f4(k / n), "ci_lo": _f4(lo), "ci_hi": _f4(hi)}
+
+    def group(keys):
+        g = defaultdict(list)
+        for r in used:
+            g[tuple(r[k] for k in keys)].append(r)
+        return sorted(g.items(), key=lambda kv: kv[0])
+
+    notes = f"Excluded from the intervals: {excluded} skipped rows (T = -1 or no success value).\n"
+    lk = sorted({r["bench"] for r in used if r["looked_up"]})
+    if lk:
+        notes += (f"Benchmarks without an `episodes` column ({', '.join(lk)}): episodes per instance taken from the documented "
+                  f"lookup {DOCUMENTED_EPISODES} (README, how the results were produced).\n")
+    pooling = "successes = sum over instance rows of round(success * episodes); trials = episodes x instances; 95% Wilson interval"
+    bucket = (f"## Agents: success per (bench, T*, method) with 95% Wilson intervals ({pooling})\n\n"
+              + _md([pool(rs, dict(zip(("bench", "T", "method"), key))) for key, rs in group(("bench", "T", "method"))])
+              + "\n" + notes)
+    pooled = (f"## Agents: pooled per benchmark ({pooling}; the interval treats the trials as independent, "
+              "although the episodes of one instance share a level)\n\n"
+              + _md([{**pool(rs, dict(zip(("bench", "method"), key))), "episodes": ",".join(map(str, sorted({r["ep"] for r in rs})))}
+                     for key, rs in group(("bench", "method"))])
+              + "\n" + notes)
+    prow, palign = [], []
+    for bn in dict.fromkeys(r["bench"] for r in used):
+        succ = defaultdict(dict)  # method -> instance -> success rate of that instance
+        for r in used:
+            if r["bench"] == bn:
+                succ[r["method"]][r["inst"]] = r["k"] / r["ep"]
+        for other in ("tape", "react"):
+            a, o = succ.get("ours_astar", {}), succ.get(other, {})
+            if not a or not o:
+                continue
+            if set(a) != set(o):
+                palign.append(f"{bn}: instance sets of ours_astar ({len(a)}) and {other} ({len(o)}) do not align; "
+                              "no paired difference reported.\n")
+                continue
+            d = [a[i] - o[i] for i in sorted(a)]
+            lo, hi = bootstrap_ci(d)
+            prow.append({"bench": bn, "comparison": f"ours_astar - {other}", "instances": len(d),
+                         "mean_diff": _f4(sum(d) / len(d)), "ci_lo": _f4(lo), "ci_hi": _f4(hi)})
+    paired = ("## Paired differences in success (mean over instances of success_ours_astar - success_other; "
+              "95% percentile bootstrap, B = 2000, resampled over instances, paired by instance)\n\n"
+              + _md(prow) + "\n" + "".join(palign) + notes)
+    return [bucket, pooled, paired]
+
 
 def run_report(a):
     out = Path(a.out)
@@ -325,6 +406,7 @@ def run_report(a):
     md.append("ILP status on skipped-infeasible constrained rows (ilp_status recorded for "
               f"{len(rec)} of {len(skipped)}; ilp_status = ok would mean the ILP found a path where A* proved none): "
               f"{counts if counts else 'none recorded'}\n")
+    md += agents_ci_sections(loaded["agents_*.csv"])  # appended after every older section
     (out / "results.md").write_text("\n".join(md))
     print(f"[saved] {out / 'results.md'}")
 

@@ -286,3 +286,91 @@ def test_already_solved_loaded_level_is_a_skipped_row_in_every_command(tmp_path,
     monkeypatch.setattr(sys, "argv", ["bench", "report", "--out", str(tmp_path / "bind")])
     bench.main()
     assert "already_solved" in (tmp_path / "bind" / "results.md").read_text()
+
+
+# ---- report: confidence intervals (golden against the committed docs/results.md) ----
+import argparse
+import re
+import shutil
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _sections(text):
+    return {p.split("\n", 1)[0]: "## " + p for p in text.split("\n## ")[1:]}
+
+
+def _drop_cols(section, cols):
+    out = []
+    keep = None
+    for ln in section.split("\n"):
+        if ln.startswith("|"):
+            cells = ln.strip().strip("|").split("|")
+            if keep is None:
+                keep = [i for i, c in enumerate(cells) if c.strip() not in cols]
+            ln = "|" + "|".join(cells[i] for i in keep) + "|"
+        else:
+            keep = None
+        out.append(ln)
+    return "\n".join(out)
+
+
+def _regen(tmp_path):
+    for f in (ROOT / "docs" / "data" / "main").glob("*.csv"):
+        shutil.copy(f, tmp_path / f.name)
+    bench.run_report(argparse.Namespace(out=str(tmp_path)))
+    return (tmp_path / "results.md").read_text(), (ROOT / "docs" / "results.md").read_text()
+
+
+def test_report_reproduces_committed_results_and_appends_ci_sections(tmp_path):
+    new, old = _regen(tmp_path)
+    ns, os_ = _sections(new), _sections(old)
+    pre = lambda d, p: next(k for k in d if k.startswith(p))
+    # unchanged sections: byte-identical
+    for p in ("Solvers", "Failure breakdown: solvers", "Failure breakdown: constrained"):
+        assert ns[pre(ns, p)] == os_[pre(os_, p)], p
+    # later tasks added columns to the agents (solver_fail) and constrained (level, forced_longer) summaries
+    a_new, a_old = ns[pre(ns, "Agents (success")], os_[pre(os_, "Agents (success")]
+    assert _drop_cols(a_new, {"solver_fail"}) == a_old
+    c_new, c_old = ns[pre(ns, "Constrained")], os_[pre(os_, "Constrained")]
+    assert _drop_cols(c_new, {"level", "forced_longer"}).split("\n", 1)[1] == c_old.split("\n", 1)[1]
+    # CI sections come after every old section
+    heads = list(ns)
+    last_old = max(i for i, h in enumerate(heads) if h.startswith(("Solvers", "Agents (success", "Constrained", "Failure")))
+    ci = [i for i, h in enumerate(heads) if "Wilson" in h or "Paired" in h or "pooled" in h.lower()]
+    assert len(ci) == 3 and min(ci) > last_old
+    assert new.index("ILP status on skipped-infeasible") < new.index(heads[min(ci)])
+
+
+def _arow(method, success, T=4, bench_="river", **kw):
+    return {"bench": bench_, "T": T, "method": method, "success": success, **kw}
+
+
+def _two_instances():
+    return [_arow("react", .5), _arow("tape", .8), _arow("ours_astar", 1.0),
+            _arow("react", .6), _arow("tape", .9), _arow("ours_astar", .9),
+            {"bench": "boxoban", "T": -1, "method": "skipped", "status": "unsolved"}]
+
+
+def test_ci_sections_pool_trials_and_pair_by_instance():
+    bucket, pooled, paired = bench.agents_ci_sections(_two_instances())
+    assert "Wilson" in bucket and "pooled" in pooled.lower() and "Paired" in paired
+    row = next(l for l in pooled.split("\n") if "| ours_astar |" in l).split("|")
+    cells = [c.strip() for c in row]
+    assert "190" in cells and "200" in cells  # successes, trials = 100 episodes x 2 instances
+    lo, hi = bench.wilson_interval(190, 200)
+    assert f"{lo:.4f}" in cells and f"{hi:.4f}" in cells
+    p = next(l for l in paired.split("\n") if "ours_astar - tape" in l)
+    assert "0.1" in p and "| 2 |" in p
+    assert "100" in pooled and "documented" in pooled  # episode lookup note
+    assert "Excluded from the intervals: 1 skipped" in paired + pooled + bucket
+
+
+def test_ci_sections_prefer_episodes_column_and_report_misaligned_instances():
+    rows = [dict(r, episodes=10) for r in _two_instances()[:5]]  # second instance has no ours_astar row
+    bucket, pooled, paired = bench.agents_ci_sections(rows)
+    cells = [c.strip() for c in next(l for l in pooled.split("\n") if "| tape |" in l).split("|")]
+    assert "17" in cells and "20" in cells  # round(.8*10)+round(.9*10), 2 instances x 10 episodes
+    assert "documented" not in pooled
+    assert "do not align" in paired

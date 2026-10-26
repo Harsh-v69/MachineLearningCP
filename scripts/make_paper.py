@@ -47,6 +47,15 @@ PENDING = {  # agents files planned when this generator was written: (dir, bench
     ("agents_ep300", "river"): "300 episodes, ILP enabled",
     ("agents_ep300", "sokoban"): "300 episodes, ILP enabled",
 }
+ATTEMPTED = {  # planned agents files whose runs were attempted and abandoned: reported instead of "pending"
+    ("new_agents", "cube3"): (
+        "the cube3 agents run was attempted twice and did not complete. The full run (`--n 5 --episodes 20 --no_ilp "
+        "--max_nodes 100000`) was stopped after 3 h (176 CPU-minutes) and a reduced run (`--n 2 --episodes 10`, same "
+        "flags) after 54 min (53 CPU-minutes); neither wrote a result file, because the agents CSV is written only "
+        "when a benchmark's run ends. The likely cause, not verified, is the exact-distance oracle (A* with a "
+        "corner-only pattern database, about 10k nodes/s, 300,000-node cap) that the simulated ReAct and TAPE query "
+        "on every off-path state."),
+}
 # Run configuration the older CSVs do not record (README "Run" and "How the results were produced"; .run_new.sh for
 # the newer runs). Newer CSVs carry their parameters as columns and the commands are rebuilt from those.
 FRAC_RES = {"main": 0.9, "rf95": 0.95, "rf97": 0.97, "rf100": 1.0}
@@ -864,6 +873,10 @@ def build_paper(data_dir=ROOT / "docs" / "data", figures_dir=ROOT / "docs" / "fi
         for a in A:
             w(figs.link(f"agents_{a['bench']}{suf[(a['dataset'], a['bench'])]}.svg",
                         f"{a['bench']} ({a['dataset']}): success vs T*, 95% Wilson band"))
+    for k in [k for k in missing if k in ATTEMPTED]:
+        w(f"\n_Not completed: {ATTEMPTED[k]} There is no `{dref}/{k[0]}/agents_{k[1]}.csv`, so the agents comparison "
+          f"covers {len({a['bench'] for a in A})} benchmarks. Its tables appear here if a future run writes the file._\n")
+    missing = [k for k in missing if k not in ATTEMPTED]
     if missing:
         w("\n_pending: data not yet available: "
           + "; ".join(f"`{dref}/{d}/agents_{b}.csv` ({PENDING[(d, b)]})" for d, b in missing)

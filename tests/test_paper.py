@@ -52,24 +52,18 @@ def test_committed_claim_check_and_pending_lines(committed):
     text = committed[0]
     claim_check(text)
     assert "simulated" in text and "no results on real Boxoban levels" in text
-    for d, b in mp.PENDING:  # pending exactly while the file is absent
+    for d, b in mp.PENDING:  # named exactly while the file is absent (pending line, or the attempted-not-completed note)
         assert (f"`docs/data/{d}/agents_{b}.csv`" in text) != (ROOT / "docs" / "data" / d / f"agents_{b}.csv").is_file()
     assert text.count("_pending: data not yet available") <= 1
-
-
-def _layout(text):
-    """Data files listed in the paper's section 9 layout table."""
-    return set(re.findall(r"^\| `docs/data/([^/]+)/` \| (.*) \|$", text, re.M))
+    assert "the cube3 agents run was attempted twice and did not complete" in text
+    assert "so the agents comparison covers 6 benchmarks." in text
 
 
 def test_committed_paper_is_a_fresh_build(committed):
     """docs/paper.md must equal a fresh build from the committed data. While the agents data is still landing the
-    controller regenerates the paper after each copy into docs/data; until then the committed paper lists a different
-    data set in its section 9 layout table and this check is skipped (it is not skipped once the sets agree)."""
+    controller regenerates the paper after each copy into docs/data. The data set is final: a stale paper fails."""
     on_disk = (ROOT / "docs" / "paper.md").read_text(encoding="utf-8").replace("\r\n", "\n")  # autocrlf checkouts
     fresh = mp.build_paper(interpretation=mp.read_interpretation(ROOT / "docs" / "paper.md"))
-    if _layout(on_disk) != _layout(fresh):
-        pytest.skip("docs/paper.md predates the current docs/data set (agents data landing; regenerate with make_paper.py)")
     assert on_disk == fresh
 
 
@@ -188,10 +182,14 @@ def test_toy_numbers_equal_hand_computed_values(toy, tmp_path):
             "benchmarks (`toy2`), so it is not always indistinguishable from 0.") in text
     assert "not success" not in text and "Test gaps of the first version" not in text
     assert "- ilp non-ok rows: 1 timeout." in L
-    # pending: exactly one line, naming every planned file that is absent
+    # pending: exactly one line, naming every planned file that is absent except the attempted-and-abandoned one
     assert text.count("_pending: data not yet available") == 1
     for (dd, bb) in mp.PENDING:
-        assert f"/{dd}/agents_{bb}.csv` (" in text
+        assert (f"/{dd}/agents_{bb}.csv` (" in text) != ((dd, bb) in mp.ATTEMPTED)
+    # the attempted cube3 run gets a note, not a pending entry; the toy data has 2 agents benchmarks
+    assert "_Not completed: the cube3 agents run was attempted twice and did not complete." in text
+    assert "(176 CPU-minutes)" in text and "(53 CPU-minutes)" in text and "not verified" in text
+    assert "/new_agents/agents_cube3.csv`, so the agents comparison covers 2 benchmarks." in text
     assert "](" not in text.split("## 8 ")[0].split("## 7 Results")[1]  # no figure files exist: no links in results
 
 
@@ -226,6 +224,20 @@ def test_missing_agent_directories_are_tolerated(tmp_path):
     claim_check(text)
     assert "_No agents data._" in text and "_No `bind` data._" in text
     assert text.count("_pending: data not yet available") == 1
+
+
+def test_generic_pending_path_and_cube3_note_when_file_exists(toy, tmp_path, monkeypatch):
+    d, figs = toy
+    monkeypatch.setitem(mp.PENDING, ("new_agents", "synthetic_x"), "5 episodes")
+    text = mp.build_paper(d, figs, tmp_path)
+    assert text.count("_pending: data not yet available") == 1
+    assert "/new_agents/agents_synthetic_x.csv` (5 episodes)" in text
+    assert "agents_cube3.csv` (" not in text  # the attempted run is not listed as pending
+    # a future cube3 run: the file exists, so there is no note and its tables appear
+    write(d / "new_agents" / "agents_cube3.csv", [{"bench": "cube3", "T": 3, "method": m, "success": 0.5, "mean_steps": 3,
+          "solves": 1, "seconds": 0.1, "episodes": 10, "inst_seed": 1} for m in ("react", "tape", "ours_astar")])
+    text = mp.build_paper(d, figs, tmp_path)
+    assert "_Not completed:" not in text and "`cube3`" in text.split("### 7.4")[1].split("## 8 ")[0]
 
 
 def test_interpretation_block_survives_regeneration(toy, tmp_path):

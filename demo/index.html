@@ -1,0 +1,1011 @@
+<meta charset="utf-8">
+<title>TAPE Graph Demo</title>
+<style>
+/* token plan
+   color: --bg/--panel/--ink/--ink-soft/--rule (surfaces+text), --accent (ours/primary), --accent2 (tape-sim), --warn (react-sim/deviation), --good/--bad (success/fail), per-cell sokoban colors + cube face colors derived from the same warm/muted family (no primary red/yellow/blue/green clash)
+   type: --ui (interface, a clean grotesque, not Inter), --mono (grid cells, logs, numbers)
+   layout: left control rail, numbered steps 1-4 (benchmark -> generate -> solver/agent -> run), right stage (3D board/river/cube + transport + plain-English caption + event log) -- stacks to one column under 860px
+*/
+:root{
+  --bg:#f3efe6; --panel:#fffdf8; --ink:#241f16; --ink-soft:#73695a; --rule:#ddd3c2;
+  --accent:#8a3b1f; --accent-soft:#f2ddd0; --accent2:#2f5d62; --accent2-soft:#dfe9e7;
+  --warn:#9a6b12; --warn-soft:#f6e9c9; --good:#2f6b3a; --good-soft:#dcecde; --bad:#9c2b2b; --bad-soft:#f6dcdc;
+  --wall:#55493a; --floor:#efe8d8; --goal:#d8c7a0; --box:#a9712f; --boxgoal:#2f6b3a; --player:#2f5d62;
+  --cu-u:#efe8d8; --cu-d:#3a3528; --cu-f:#8a3b1f; --cu-b:#2f5d62; --cu-l:#9a6b12; --cu-r:#7a2f2f;
+  --ui:'Space Grotesk',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15130f; --panel:#1f1c16; --ink:#efe9dd; --ink-soft:#a69d8c; --rule:#3a352a;
+    --accent:#e2a07c; --accent-soft:#3a271d; --accent2:#8fc3c6; --accent2-soft:#1f3334;
+    --warn:#e3c067; --warn-soft:#3a3016; --good:#8fcf9b; --good-soft:#1c3320; --bad:#e58f8f; --bad-soft:#3a1f1f;
+    --wall:#0f0d0a; --floor:#2b2619; --goal:#4a4028; --box:#c98a3f; --boxgoal:#8fcf9b; --player:#8fc3c6;
+    --cu-u:#cbbfa0; --cu-d:#332c1c; --cu-f:#e2a07c; --cu-b:#8fc3c6; --cu-l:#e3c067; --cu-r:#c96a6a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15130f; --panel:#1f1c16; --ink:#efe9dd; --ink-soft:#a69d8c; --rule:#3a352a;
+  --accent:#e2a07c; --accent-soft:#3a271d; --accent2:#8fc3c6; --accent2-soft:#1f3334;
+  --warn:#e3c067; --warn-soft:#3a3016; --good:#8fcf9b; --good-soft:#1c3320; --bad:#e58f8f; --bad-soft:#3a1f1f;
+  --wall:#0f0d0a; --floor:#2b2619; --goal:#4a4028; --box:#c98a3f; --boxgoal:#8fcf9b; --player:#8fc3c6;
+  --cu-u:#cbbfa0; --cu-d:#332c1c; --cu-f:#e2a07c; --cu-b:#8fc3c6; --cu-l:#e3c067; --cu-r:#c96a6a;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);margin:0;}
+h1,h2,h3{font-family:var(--ui);text-wrap:balance;margin:0}
+.sitebar-inner,.wrap,.sitefooter-inner{padding-left:max(20px, env(safe-area-inset-left,0px)); padding-right:max(20px, env(safe-area-inset-right,0px))}
+
+/* full-bleed chrome bars (true edge-to-edge background) with a centered, width-matched content column inside -- this is what makes the page read as a real site rather than one floating centered card */
+.sitebar{width:100%;background:var(--panel);border-bottom:1px solid var(--rule)}
+.sitebar-inner{max-width:1320px;margin:0 auto;padding-block:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px;min-width:0;flex:1}
+.brand>div{min-width:0}
+.brandmark{width:38px;height:38px;border-radius:10px;background:var(--accent);color:var(--panel);display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.02em;flex:none}
+.brand h1{font-size:19px;font-weight:700;letter-spacing:.2px}
+.brand .tag{font-size:11.5px;color:var(--ink-soft);font-family:var(--mono);display:block;margin-top:2px;white-space:normal;word-break:break-word}
+.themetoggle{font-family:var(--mono);font-size:11.5px;font-weight:600;border:1px solid var(--rule);border-radius:999px;
+  background:var(--bg);color:var(--ink);padding:8px 16px;cursor:pointer;white-space:nowrap;flex:none;
+  transition:border-color .15s, transform .08s}
+.themetoggle:hover{border-color:var(--accent)}
+.themetoggle:active{transform:translateY(1px)}
+
+.sitefooter{width:100%;background:var(--panel);border-top:1px solid var(--rule);margin-top:34px}
+.sitefooter-inner{max-width:1320px;margin:0 auto;padding-block:16px;font-family:var(--mono);font-size:10.8px;color:var(--ink-soft);line-height:1.6}
+.sitefooter-inner b{color:var(--ink)}
+
+.wrap{max-width:1320px;margin:0 auto;padding-block:24px 10px}
+
+.intro{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;line-height:1.55}
+.intro summary{cursor:pointer;font-weight:600;font-family:var(--ui);color:var(--ink)}
+.intro p{margin:8px 0 2px;color:var(--ink-soft)}
+.intro p b{color:var(--ink)}
+
+.layout{display:grid;grid-template-columns:320px 1fr;gap:20px}
+@media (max-width:860px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:14px;
+  box-shadow:0 1px 2px rgba(20,14,5,.05), 0 10px 28px -14px rgba(138,59,31,.18)}
+.rail{display:flex;flex-direction:column;gap:10px}
+.stephead{font-size:12.5px;font-weight:700;margin:4px 0 2px;display:flex;align-items:center;gap:7px}
+.stepno{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+  background:var(--accent-soft);color:var(--accent);font-family:var(--mono);font-size:10.5px;font-weight:700;flex:none}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row .field{flex:1;min-width:70px}
+select,input[type=number]{
+  background:var(--bg);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;
+  font-family:var(--mono);font-size:12.5px;width:100%;
+}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btn{
+  font-family:var(--ui);font-weight:600;font-size:12.5px;border:1px solid var(--rule);border-radius:7px;
+  background:var(--bg);color:var(--ink);padding:8px 10px;cursor:pointer;transition:border-color .15s, transform .08s;
+}
+.btn:hover{border-color:var(--accent)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn.primary{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap}
+.pillrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pill{font-family:var(--mono);font-size:10.8px;padding:3px 8px;border-radius:999px;border:1px solid var(--rule);color:var(--ink-soft)}
+.pill.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+hr.sep{border:none;border-top:1px solid var(--rule);margin:2px 0}
+.hint{font-size:11px;color:var(--ink-soft);line-height:1.45}
+.hint.tight{margin-top:-2px}
+
+.stage{display:flex;flex-direction:column;gap:12px}
+.statusbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.stat{font-family:var(--mono);font-size:11px;color:var(--ink-soft);background:var(--bg);border:1px solid var(--rule);border-radius:6px;padding:4px 8px}
+.stat b{color:var(--ink)}
+.stat.good{color:var(--good);border-color:var(--good)}
+.stat.bad{color:var(--bad);border-color:var(--bad)}
+.stat.warn{color:var(--warn);border-color:var(--warn)}
+
+.nowcap{font-size:13px;line-height:1.4;min-height:18px;padding:0 2px}
+.nowcap b{color:var(--accent)}
+.replanbadge{display:none;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--accent);
+  background:var(--accent-soft);border:1px solid var(--accent);border-radius:999px;padding:5px 12px;width:fit-content;margin:0 auto;
+  animation:replanpop .35s ease}
+.replanbadge.show{display:flex}
+.replanbadge .spin{display:inline-block;animation:replanspin 1s linear infinite}
+@keyframes replanspin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes replanpop{0%{transform:scale(.85);opacity:0}100%{transform:scale(1);opacity:1}}
+
+.board{display:flex;justify-content:center;padding:16px 4px 10px;overflow-x:auto;perspective:900px}
+.grid{display:grid;gap:2px;transform:rotateX(16deg);transform-style:preserve-3d}
+.cell{aspect-ratio:1;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--mono);min-width:22px;
+  transition:background-color .25s, transform .25s}
+.c-wall{background:var(--wall)}
+.c-floor{background:var(--floor)}
+.c-goal{background:var(--goal)}
+.c-box{background:var(--box);color:#fff;transform:translateZ(7px)}
+.c-boxgoal{background:var(--boxgoal);color:#fff;transform:translateZ(7px)}
+.c-player{background:var(--player);color:#fff;box-shadow:inset 0 0 0 2px var(--panel);transform:translateZ(13px)}
+.c-playergoal{background:var(--player);color:#fff;box-shadow:inset 0 0 0 2px var(--goal);transform:translateZ(13px)}
+
+.river{display:flex;align-items:center;justify-content:center;gap:0;padding:14px 4px;perspective:600px}
+.bank{flex:1;min-height:120px;border:1px solid var(--rule);border-radius:8px;padding:10px;background:var(--bg);display:flex;flex-direction:column;gap:6px}
+.bank .label{font-size:10.5px;color:var(--ink-soft);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.icons{display:flex;flex-wrap:wrap;gap:4px}
+.icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);color:#fff}
+.icon.m{background:var(--accent2)}
+.icon.c{background:var(--accent)}
+.boatzone{width:90px;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--ink-soft);perspective:300px}
+.boat{width:70px;height:28px;border:2px solid var(--ink-soft);border-radius:0 0 14px 14px;display:flex;align-items:center;justify-content:center;gap:3px;
+  transition:transform .5s ease;transform-style:preserve-3d}
+.boat.right{transform:rotateY(180deg)}
+
+.cubewrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:18px 4px 6px}
+.cubestage{perspective:1600px;padding-bottom:28px}
+.cube3d{width:190px;height:190px;position:relative;transform-style:preserve-3d;transition:transform .35s cubic-bezier(.2,.7,.3,1);cursor:grab;touch-action:none}
+.cube3d.dragging{transition:none}
+.cube3d:active{cursor:grabbing}
+.cface{position:absolute;width:190px;height:190px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:5px;padding:5px;
+  background:var(--wall);border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.cface.u{transform:rotateX(90deg) translateZ(95px)}
+.cface.d{transform:rotateX(-90deg) translateZ(95px)}
+.cface.f{transform:translateZ(95px)}
+.cface.b{transform:rotateY(180deg) translateZ(95px)}
+.cface.r{transform:rotateY(90deg) translateZ(95px)}
+.cface.l{transform:rotateY(-90deg) translateZ(95px)}
+.cuberotaterow{display:flex;gap:6px}
+.cuberotatebtn{width:30px;height:30px;border-radius:7px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);
+  cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;transition:border-color .15s, transform .08s}
+.cuberotatebtn:hover{border-color:var(--accent)}
+.cuberotatebtn:active{transform:translateY(1px)}
+.csticker{border-radius:3px}
+.csticker.pulse{animation:cpulse .5s ease}
+@keyframes cpulse{0%{transform:scale(1)}40%{transform:scale(.8);box-shadow:0 0 0 2px var(--ink)}100%{transform:scale(1)}}
+.cu-u{background:var(--cu-u)} .cu-d{background:var(--cu-d)} .cu-f{background:var(--cu-f)} .cu-b{background:var(--cu-b)} .cu-l{background:var(--cu-l)} .cu-r{background:var(--cu-r)}
+.cubecap{text-align:center;font-size:10.5px;color:var(--ink-soft);margin-top:-4px}
+
+.transport{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.transport input[type=range]{flex:1;min-width:100px}
+
+.log{background:var(--bg);border:1px solid var(--rule);border-radius:8px;padding:8px 10px;max-height:220px;overflow-y:auto;font-family:var(--mono);font-size:11px;line-height:1.6}
+.log .l{padding:1px 0;border-bottom:1px dashed var(--rule)}
+.log .l:last-child{border-bottom:none}
+.log .tag{display:inline-block;min-width:56px;color:var(--ink-soft)}
+.log .tag.plan{color:var(--accent2)}
+.log .tag.exec{color:var(--ink)}
+.log .tag.dev{color:var(--warn)}
+.log .tag.replan{color:var(--accent)}
+.log .tag.done{color:var(--good)}
+.log .tag.fail{color:var(--bad)}
+
+.note{font-family:var(--mono);font-size:10.8px;color:var(--ink-soft);line-height:1.5}
+.note b{color:var(--ink)}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<div class="sitebar">
+  <div class="sitebar-inner">
+    <div class="brand">
+      <span class="brandmark">TG</span>
+      <div>
+        <h1>TAPE Graph Demo</h1>
+        <span class="tag">real BFS / A* / weighted A* / IDA* in your browser, rendered in real 3D</span>
+      </div>
+    </div>
+    <button type="button" class="themetoggle" id="themeToggle">Dark mode</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <details class="intro" open>
+    <summary>What is this, and how do I read it?</summary>
+    <p>You pick a puzzle family and some parameters, click <b>Generate</b>, and this page builds a brand-new, never-seen-before puzzle instance right there in your browser (nothing below is pre-solved or hardcoded). An independent breadth-first search then quietly works out the true shortest solution length, T*, so you have a ground truth to compare against.</p>
+    <p>Then you pick a <b>solver</b> (the search algorithm) and an <b>agent</b> (how it behaves under simulated mistakes) and click <b>Run episode</b>. The board turns into a step-by-step playback: use the transport controls or drag the scrubber to walk through exactly what the agent planned, executed, and (if it slipped) replanned, one step at a time.</p>
+    <p>Everything you see solving is a real graph search, not a canned animation &mdash; change any parameter and generate again to get a different instance.</p>
+  </details>
+
+  <div class="layout">
+    <div class="panel rail">
+      <div class="stephead"><span class="stepno">1</span>Choose a benchmark</div>
+      <div class="field">
+        <select id="bench">
+          <option value="sokoban">Sokoban (push boxes onto goals)</option>
+          <option value="river">River Crossing (move everyone across)</option>
+          <option value="cube">Rubik's 2&times;2&times;2 (constrained)</option>
+        </select>
+      </div>
+
+      <div id="sokobanParams">
+        <div class="row">
+          <div class="field"><label>Rows</label><input type="number" id="sk_rows" value="7" min="5" max="11"></div>
+          <div class="field"><label>Cols</label><input type="number" id="sk_cols" value="8" min="5" max="12"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Boxes</label><input type="number" id="sk_boxes" value="2" min="1" max="3"></div>
+          <div class="field"><label>Scramble depth</label><input type="number" id="sk_depth" value="14" min="2" max="40"></div>
+        </div>
+        <div class="field"><label>Wall density</label><input type="range" id="sk_wall" min="0" max="25" value="8"><span class="hint" id="sk_wall_v">8%</span></div>
+      </div>
+
+      <div id="riverParams" style="display:none">
+        <div class="row">
+          <div class="field"><label>Missionaries</label><input type="number" id="rv_m" value="3" min="2" max="5"></div>
+          <div class="field"><label>Cannibals</label><input type="number" id="rv_c" value="3" min="2" max="5"></div>
+        </div>
+        <div class="field"><label>Boat capacity</label><input type="number" id="rv_boat" value="2" min="2" max="3"></div>
+      </div>
+
+      <div id="cubeParams" style="display:none">
+        <div class="field"><label>Scramble length (U / R / F turns only)</label><input type="range" id="cube_depth" min="2" max="6" value="4"><span class="hint" id="cube_depth_v">4</span></div>
+        <div class="hint">Kept short on purpose: restricting moves to the 9 U/R/F turns and the scramble to 2&ndash;6 of them keeps the explored state space small enough to search exactly, instantly, in the browser. A full unconstrained 2&times;2&times;2 has 3,674,160 reachable states, and an exact 3&times;3&times;3 solver needs an 88-million-entry pattern database &mdash; neither ships client-side, so this page intentionally solves a bounded version instead of faking the real thing.</div>
+      </div>
+
+      <button class="btn primary" id="genBtn" style="margin-top:4px">Generate new instance</button>
+      <div class="note" id="genInfo">No instance generated yet.</div>
+
+      <hr class="sep">
+      <div class="stephead"><span class="stepno">2</span>Pick a solver and an agent</div>
+      <div class="field">
+        <label>Solver (plans every step)</label>
+        <select id="solver">
+          <option value="astar">A*</option>
+          <option value="bfs">BFS</option>
+          <option value="wastar">Weighted A* (w=2)</option>
+          <option value="idastar">IDA*</option>
+        </select>
+      </div>
+      <div class="hint tight"><b>BFS</b> explores evenly and is always exactly shortest, but slowest. <b>A*</b> uses a distance estimate to search far fewer nodes, still exactly shortest. <b>Weighted A*</b> is faster still but may return a slightly longer plan. <b>IDA*</b> behaves like A* with a fraction of the memory.</div>
+      <div class="field">
+        <label>Agent under test</label>
+        <select id="agent">
+          <option value="ours">Ours &mdash; replan on true graph</option>
+          <option value="tape">Simulated TAPE &mdash; N noisy rollouts folded</option>
+          <option value="react">Simulated ReAct &mdash; no recovery</option>
+        </select>
+      </div>
+      <div class="hint tight"><b>Ours</b> re-solves from scratch whenever the real state stops matching the plan. <b>Simulated TAPE</b> folds several independently noisy guessed rollouts into one graph and follows the best path through it. <b>Simulated ReAct</b> just follows noisy guesses one at a time with no recovery if something goes wrong.</div>
+      <div class="field"><label>Budget slack (steps beyond T*)</label><input type="range" id="slack" min="0" max="8" value="2"><span class="hint" id="slack_v">+2</span></div>
+      <div class="field"><label>Planning error &delta; (non-viable action)</label><input type="range" id="delta" min="0" max="60" value="16"><span class="hint" id="delta_v">0.16</span></div>
+      <div class="field"><label>Execution noise &eta; (slips to another action)</label><input type="range" id="eta" min="0" max="40" value="4"><span class="hint" id="eta_v">0.04</span></div>
+      <div class="field" id="nField"><label>TAPE rollouts N</label><input type="number" id="n_rollouts" value="8" min="2" max="16"></div>
+
+      <hr class="sep">
+      <div class="stephead"><span class="stepno">3</span>Run and watch</div>
+      <button class="btn primary" id="runBtn" disabled>Run episode</button>
+      <div class="hint">Every run reseeds its own random execution noise, so replay the same instance to see a different outcome.</div>
+    </div>
+
+    <div class="stage">
+      <div class="panel">
+        <div class="statusbar" id="statusbar">
+          <span class="stat">no instance yet</span>
+        </div>
+        <div class="board" id="board"></div>
+        <div class="cubecap" id="cubecap" style="display:none">drag the cube, or use the arrows, to look around &mdash; it's a solid cube with 6 faces, you can only see 3 at once from any angle, just like a real one</div>
+        <div class="replanbadge" id="replanBadge"><span class="spin">&#8635;</span> replanning: re-solving from the real graph this step</div>
+        <div class="nowcap" id="nowcap"></div>
+        <div class="transport">
+          <button class="btn" id="stepBack">&larr; step</button>
+          <button class="btn" id="playPause">&#9654; play</button>
+          <button class="btn" id="stepFwd">step &rarr;</button>
+          <input type="range" id="scrub" min="0" max="0" value="0">
+          <span class="hint" id="scrub_v">0 / 0</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="pillrow" id="legend"></div>
+        <hr class="sep">
+        <div class="log" id="log"><div class="l">Generate an instance, pick a solver and agent, then run an episode.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sitefooter">
+  <div class="sitefooter-inner">Built entirely in the browser: <b>no server, no hardcoded levels, no language model</b>. Every search, every puzzle, and every simulated agent run above executes as real JavaScript on this page, right now.</div>
+</div>
+
+<script>
+'use strict';
+/* ---------- tiny generic search toolkit ---------- */
+function reconstruct(parent, goalKey){
+  const acts=[]; let k=goalKey;
+  while(parent.has(k) && parent.get(k)[0]!==null){ const [pk,a]=parent.get(k); acts.push(a); k=pk; }
+  return acts.reverse();
+}
+function bfsSearch(startKey, start, isGoal, neighbors, maxNodes){
+  if(isGoal(start)) return {status:'ok',path:[],nodes:0};
+  const parent=new Map([[startKey,[null,null]]]);
+  const q=[[startKey,start]]; let qi=0, nodes=0;
+  while(qi<q.length){
+    const [uk,u]=q[qi++]; nodes++;
+    if(nodes>maxNodes) return {status:'node_limit',path:null,nodes};
+    for(const [a,v,vk] of neighbors(u)){
+      if(parent.has(vk)) continue;
+      parent.set(vk,[uk,a]);
+      if(isGoal(v)) return {status:'ok',path:reconstruct(parent,vk),nodes};
+      q.push([vk,v]);
+    }
+  }
+  return {status:'no_path',path:null,nodes};
+}
+function astarSearch(startKey, start, isGoal, neighbors, h, maxNodes, weight){
+  weight = weight||1;
+  if(isGoal(start)) return {status:'ok',path:[],nodes:0};
+  const g=new Map([[startKey,0]]); const parent=new Map([[startKey,[null,null]]]);
+  const open=[[weight*h(start),0,startKey,start]]; let nodes=0;
+  const push=(f,t,k,s)=>{ open.push([f,t,k,s]); open.sort((a,b)=>a[0]-b[0]); };
+  while(open.length){
+    const [,gc,uk,u]=open.shift();
+    if(gc>g.get(uk)) continue;
+    if(isGoal(u)) return {status:'ok',path:reconstruct(parent,uk),nodes};
+    nodes++;
+    if(nodes>maxNodes) return {status:'node_limit',path:null,nodes};
+    for(const [a,v,vk] of neighbors(u)){
+      const ng=gc+1;
+      if(!g.has(vk) || ng<g.get(vk)){
+        g.set(vk,ng); parent.set(vk,[uk,a]);
+        push(ng+weight*h(v), ng, vk, v);
+      }
+    }
+  }
+  return {status:'no_path',path:null,nodes};
+}
+function idastarSearch(startKey, start, isGoal, neighbors, h, maxNodes){
+  let bound=h(start), nodes=0, foundPath=null;
+  const path=[[startKey,start,null]];
+  function dfs(g){
+    const [uk,u] = [path[path.length-1][0], path[path.length-1][1]];
+    const f=g+h(u);
+    if(f>bound) return f;
+    if(isGoal(u)){ foundPath=path.map(p=>p[2]).slice(1); return -1; }
+    nodes++; if(nodes>maxNodes) throw 'node_limit';
+    let min=Infinity;
+    for(const [a,v,vk] of neighbors(u)){
+      if(path.some(p=>p[0]===vk)) continue;
+      path.push([vk,v,a]);
+      const t=dfs(g+1);
+      if(t===-1) return -1;
+      if(t<min) min=t;
+      path.pop();
+    }
+    return min;
+  }
+  try{
+    while(true){
+      const t=dfs(0);
+      if(t===-1) return {status:'ok',path:foundPath,nodes};
+      if(t===Infinity) return {status:'no_path',path:null,nodes};
+      bound=t;
+    }
+  }catch(e){ return {status:'node_limit',path:null,nodes}; }
+}
+function solve(kind, startKey, start, isGoal, neighbors, h, maxNodes){
+  maxNodes = maxNodes || 80000;
+  if(kind==='bfs') return bfsSearch(startKey,start,isGoal,neighbors,maxNodes);
+  if(kind==='wastar') return astarSearch(startKey,start,isGoal,neighbors,h,maxNodes,2);
+  if(kind==='idastar') return idastarSearch(startKey,start,isGoal,neighbors,h,maxNodes);
+  return astarSearch(startKey,start,isGoal,neighbors,h,maxNodes,1);
+}
+
+/* ---------- Sokoban ---------- */
+const DIRS={U:[-1,0],D:[1,0],L:[0,-1],R:[0,1]};
+function sokobanFromLayout(H,W,walls,goals){
+  const wallSet=new Set([...walls].map(([r,c])=>r+','+c));
+  const goalSet=new Set([...goals].map(([r,c])=>r+','+c));
+  function key(state){ return state.player.join(',')+'|'+[...state.boxes].sort().join(';'); }
+  function neighbors(state){
+    const out=[]; const [pr,pc]=state.player;
+    for(const a in DIRS){
+      const [dr,dc]=DIRS[a]; const nr=pr+dr, nc=pc+dc, nk=nr+','+nc;
+      if(wallSet.has(nk)) continue;
+      let boxes=state.boxes;
+      if(boxes.has(nk)){
+        const br=nr+dr, bc=nc+dc, bk=br+','+bc;
+        if(wallSet.has(bk) || boxes.has(bk)) continue;
+        boxes=new Set(boxes); boxes.delete(nk); boxes.add(bk);
+      }
+      const nstate={player:[nr,nc],boxes};
+      out.push([a,nstate,key(nstate)]);
+    }
+    return out;
+  }
+  function isGoal(state){
+    if(state.boxes.size!==goalSet.size) return false;
+    for(const b of state.boxes) if(!goalSet.has(b)) return false;
+    return true;
+  }
+  function h(state){
+    let total=0;
+    for(const b of state.boxes){
+      const [br,bc]=b.split(',').map(Number);
+      let best=Infinity;
+      for(const g of goalSet){ const [gr,gc]=g.split(',').map(Number); const d=Math.abs(br-gr)+Math.abs(bc-gc); if(d<best) best=d; }
+      total+=best;
+    }
+    return total;
+  }
+  function reverseNeighbors(state){
+    const out=[]; const [pr,pc]=state.player;
+    for(const a in DIRS){
+      const [dr,dc]=DIRS[a]; const nr=pr+dr, nc=pc+dc, nk=nr+','+nc;
+      if(wallSet.has(nk) || state.boxes.has(nk)) continue;
+      out.push({player:[nr,nc],boxes:state.boxes});
+      const br=pr-dr, bc=pc-dc, bk=br+','+bc;
+      if(state.boxes.has(bk)){
+        const pk=pr+','+pc;
+        if(wallSet.has(pk) || state.boxes.has(pk)) continue;
+        const nboxes=new Set(state.boxes); nboxes.delete(bk); nboxes.add(pk);
+        out.push({player:[nr,nc],boxes:nboxes});
+      }
+    }
+    return out;
+  }
+  return {H,W,wallSet,goalSet,key,neighbors,isGoal,h,reverseNeighbors};
+}
+function generateSokoban(H,W,nBoxes,wallProb,depth,rng){
+  const walls=[]; for(let r=0;r<H;r++) for(let c=0;c<W;c++) if(r===0||c===0||r===H-1||c===W-1) walls.push([r,c]);
+  const inner=[]; for(let r=1;r<H-1;r++) for(let c=1;c<W-1;c++) inner.push([r,c]);
+  let free=null, goals=null;
+  for(let attempt=0;attempt<200;attempt++){
+    const wset=new Set(walls.map(([r,c])=>r+','+c));
+    for(const [r,c] of inner) if(rng()<wallProb) wset.add(r+','+c);
+    const freeCells=inner.filter(([r,c])=>!wset.has(r+','+c));
+    if(freeCells.length>=nBoxes+1){
+      shuffle(freeCells,rng);
+      goals=freeCells.slice(0,nBoxes);
+      free=[...wset].map(k=>k.split(',').map(Number));
+      const env=sokobanFromLayout(H,W,free,goals);
+      const goalKeys=new Set(goals.map(g=>g.join(',')));
+      let playerCell=freeCells.find(([r,c])=>!goalKeys.has(r+','+c));
+      if(!playerCell) continue;
+      let state={player:playerCell,boxes:new Set(goals.map(g=>g.join(',')))};
+      for(let i=0;i<depth;i++){
+        const nbrs=env.reverseNeighbors(state);
+        if(!nbrs.length) break;
+        state=nbrs[Math.floor(rng()*nbrs.length)];
+      }
+      return {env, start:state};
+    }
+  }
+  throw new Error('could not generate a Sokoban layout with these parameters - try a larger grid or fewer boxes');
+}
+function shuffle(arr,rng){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+
+/* ---------- River Crossing (asymmetric start supported) ---------- */
+function riverProblemAsym(nm,nc,cap){
+  function key(s){ return s.m+','+s.c+','+s.boat; }
+  function safeAsym(s){
+    const lm=s.m, lc=s.c, rm=nm-s.m, rc=nc-s.c;
+    return (lm===0 || lm>=lc) && (rm===0 || rm>=rc);
+  }
+  function neighbors(s){
+    const out=[]; const sgn = s.boat===0 ? -1 : 1;
+    const am = s.boat===0? s.m : nm-s.m, ac = s.boat===0? s.c : nc-s.c;
+    for(let dm=0; dm<=Math.min(am,cap); dm++){
+      for(let dc=0; dc<=Math.min(ac,cap-dm); dc++){
+        if(dm+dc===0) continue;
+        const t={m:s.m+sgn*dm, c:s.c+sgn*dc, boat:1-s.boat};
+        if(t.m<0||t.m>nm||t.c<0||t.c>nc) continue;
+        if(safeAsym(t)) out.push([`${dm}M${dc}C`, t, key(t)]);
+      }
+    }
+    return out;
+  }
+  function isGoal(s){ return s.m===0 && s.c===0 && s.boat===1; }
+  function h(s){ const left=s.m+s.c; if(left===0) return 0; const trips=Math.ceil(left/cap); return s.boat===0?2*trips-1:2*trips; }
+  return {n:Math.max(nm,nc),cap,key,neighbors,isGoal,h,start:{m:nm,c:nc,boat:0}};
+}
+
+/* ---------- Rubik's 2x2x2, constrained to U/R/F generators ----------
+   Each corner cubie carries a fixed "home" position and 3 fixed home colors
+   (one per local axis). A move is a genuine 90-degree rotation matrix applied
+   to both the cubie's position and its orientation matrix, so correctness
+   follows from the rotation group acting consistently -- not from hand-typed
+   permutation tables. See selfTestCube() below for a runnable check. */
+const CUBE_HOMES = [];
+for(const x of [-1,1]) for(const y of [-1,1]) for(const z of [-1,1]) CUBE_HOMES.push([x,y,z]);
+function axisColor(axis, sign){
+  if(axis===0) return sign>0 ? 'r' : 'l';
+  if(axis===1) return sign>0 ? 'u' : 'd';
+  return sign>0 ? 'f' : 'b';
+}
+function cubeIdentity(){
+  return CUBE_HOMES.map(home=>({
+    home,
+    pos:[...home],
+    M:[[1,0,0],[0,1,0],[0,0,1]],
+    homeColors:[axisColor(0,home[0]), axisColor(1,home[1]), axisColor(2,home[2])]
+  }));
+}
+function rot90(axis, v){
+  const [x,y,z]=v;
+  if(axis==='x') return [x,-z,y];
+  if(axis==='y') return [z,y,-x];
+  return [-y,x,z];
+}
+function rotN(axis, v, turns){ let out=v; for(let i=0;i<(turns%4);i++) out=rot90(axis,out); return out; }
+const CUBE_MOVES = {
+  "U":['y',1,1], "U2":['y',1,2], "U'":['y',1,3],
+  "R":['x',1,1], "R2":['x',1,2], "R'":['x',1,3],
+  "F":['z',1,1], "F2":['z',1,2], "F'":['z',1,3],
+};
+function applyCubeMove(cubies, moveName){
+  const [axis, layerSign, turns] = CUBE_MOVES[moveName];
+  const axisIdx = axis==='x'?0:axis==='y'?1:2;
+  return cubies.map(c=>{
+    if(c.pos[axisIdx]!==layerSign) return c;
+    return { home:c.home, homeColors:c.homeColors,
+      pos: rotN(axis, c.pos, turns),
+      M: [rotN(axis,c.M[0],turns), rotN(axis,c.M[1],turns), rotN(axis,c.M[2],turns)] };
+  });
+}
+function cubeKey(cubies){ return cubies.map(c=>c.pos.join(',')+':'+c.M.map(col=>col.join('')).join('|')).join(';'); }
+function cubeMisplacedList(cubies){
+  return cubies.map(c=>{
+    const posOk = c.pos[0]===c.home[0]&&c.pos[1]===c.home[1]&&c.pos[2]===c.home[2];
+    const rotOk = c.M[0][0]===1&&c.M[0][1]===0&&c.M[0][2]===0&&c.M[1][0]===0&&c.M[1][1]===1&&c.M[1][2]===0&&c.M[2][0]===0&&c.M[2][1]===0&&c.M[2][2]===1;
+    return !(posOk&&rotOk);
+  });
+}
+function cubeIsGoal(cubies){ return cubeMisplacedList(cubies).every(x=>!x); }
+function cubeNeighbors(cubies){
+  const out=[];
+  for(const name in CUBE_MOVES){ const nxt=applyCubeMove(cubies,name); out.push([name,nxt,cubeKey(nxt)]); }
+  return out;
+}
+function cubeEnvFromState(){
+  return { key:cubeKey, neighbors:cubeNeighbors, isGoal:cubeIsGoal,
+    h:(c)=>Math.ceil(cubeMisplacedList(c).filter(Boolean).length/4) };
+}
+function scrambleCube(depth, rng){
+  const names=Object.keys(CUBE_MOVES);
+  let cubies=cubeIdentity(), lastAxis=null; const seq=[];
+  for(let i=0;i<depth;i++){
+    let pick;
+    do{ pick=names[Math.floor(rng()*names.length)]; } while(CUBE_MOVES[pick][0]===lastAxis);
+    lastAxis=CUBE_MOVES[pick][0];
+    cubies=applyCubeMove(cubies,pick);
+    seq.push(pick);
+  }
+  return {cubies, seq};
+}
+function colorFacing(cubie, axis, sign){
+  for(let k=0;k<3;k++){
+    const col=cubie.M[k];
+    if(col[axis]===sign && col[(axis+1)%3]===0 && col[(axis+2)%3]===0) return cubie.homeColors[k];
+  }
+  return '?';
+}
+const FACE_DEFS = { u:{axis:1,sign:1,other:[0,2]}, d:{axis:1,sign:-1,other:[0,2]},
+  f:{axis:2,sign:1,other:[0,1]}, b:{axis:2,sign:-1,other:[0,1]}, r:{axis:0,sign:1,other:[1,2]}, l:{axis:0,sign:-1,other:[1,2]} };
+function faceStickers(cubies, faceName){
+  const {axis,sign,other}=FACE_DEFS[faceName]; const [oa,ob]=other;
+  const cells=cubies.filter(c=>c.pos[axis]===sign);
+  cells.sort((c1,c2)=> (c1.pos[oa]-c2.pos[oa]) || (c1.pos[ob]-c2.pos[ob]));
+  return cells.map(c=>colorFacing(c,axis,sign));
+}
+(function selfTestCube(){
+  try{
+    const check=(cc,label)=>{ if(!cubeIsGoal(cc)) throw new Error('cube self-test failed: '+label); };
+    for(const mv of ['U','R','F']){
+      let c=cubeIdentity();
+      for(let i=0;i<4;i++) c=applyCubeMove(c,mv);
+      check(c, mv+' x4 should return to solved');
+    }
+    const inv={U:"U'",R:"R'",F:"F'","U'":'U',"R'":'R',"F'":'F',U2:'U2',R2:'R2',F2:'F2'};
+    let cubies=cubeIdentity();
+    const seq=['R',"U'",'F2','R2',"F'",'U','R','F'];
+    for(const m of seq) cubies=applyCubeMove(cubies,m);
+    for(let i=seq.length-1;i>=0;i--) cubies=applyCubeMove(cubies,inv[seq[i]]);
+    check(cubies, 'scramble then its exact inverse should return to solved');
+    console.log('[cube self-test] OK');
+  }catch(e){ console.error(e); }
+})();
+
+/* ---------- app state ---------- */
+const $=id=>document.getElementById(id);
+let inst=null;       // {kind:'sokoban'|'river'|'cube', env, start}
+let episode=null;    // {states:[...], events:[...], success, planLen}
+let frame=0, playing=false, playTimer=null;
+let cubeDomCache=null;
+const rngSeed = () => Math.random();
+
+function sokobanRender(env, state, target){
+  target.innerHTML='';
+  const grid=document.createElement('div');
+  grid.className='grid';
+  grid.style.gridTemplateColumns=`repeat(${env.W}, minmax(0,1fr))`;
+  grid.style.width=Math.min(520, env.W*34)+'px';
+  for(let r=0;r<env.H;r++) for(let c=0;c<env.W;c++){
+    const k=r+','+c; const cell=document.createElement('div'); cell.className='cell';
+    const isWall=env.wallSet.has(k), isGoal=env.goalSet.has(k), isBox=state.boxes.has(k);
+    const isPlayer=state.player[0]===r && state.player[1]===c;
+    if(isWall) cell.className+=' c-wall';
+    else if(isPlayer && isGoal) cell.className+=' c-playergoal';
+    else if(isPlayer) cell.className+=' c-player';
+    else if(isBox && isGoal) cell.className+=' c-boxgoal';
+    else if(isBox) cell.className+=' c-box';
+    else if(isGoal) cell.className+=' c-goal';
+    else cell.className+=' c-floor';
+    grid.appendChild(cell);
+  }
+  target.appendChild(grid);
+}
+function riverRender(s, target){
+  target.innerHTML='';
+  const wrap=document.createElement('div'); wrap.className='river';
+  const left=document.createElement('div'); left.className='bank';
+  const right=document.createElement('div'); right.className='bank';
+  left.innerHTML='<div class="label">Left bank</div><div class="icons" id="L"></div>';
+  right.innerHTML='<div class="label">Right bank</div><div class="icons" id="R"></div>';
+  const boatzone=document.createElement('div'); boatzone.className='boatzone';
+  boatzone.innerHTML=`<div>boat</div><div class="boat ${s.boat===1?'right':''}">&#9973;</div><div>side: ${s.boat===0?'left':'right'}</div>`;
+  wrap.appendChild(left); wrap.appendChild(boatzone); wrap.appendChild(right);
+  target.appendChild(wrap);
+  const Lm=s.m, Lc=s.c, Rm=inst.env.n-s.m, Rc=inst.env.n-s.c;
+  const icons=(m,c)=>{ let h=''; for(let i=0;i<m;i++) h+='<div class="icon m">M</div>'; for(let i=0;i<c;i++) h+='<div class="icon c">C</div>'; return h; };
+  target.querySelector('#L').innerHTML=icons(Lm,Lc);
+  target.querySelector('#R').innerHTML=icons(Rm,Rc);
+}
+function buildCubeDom(target){
+  target.innerHTML='';
+  const wrap=document.createElement('div'); wrap.className='cubewrap';
+  const stage=document.createElement('div'); stage.className='cubestage';
+  const cube=document.createElement('div'); cube.className='cube3d';
+  const btnRow=document.createElement('div'); btnRow.className='cuberotaterow';
+  let rotX=-24, rotY=35;
+  const clampX=v=>Math.max(-75, Math.min(75, v));
+  const apply=()=>{ cube.style.transform=`rotateX(${rotX}deg) rotateY(${rotY}deg)`; };
+  apply();
+  const faces={};
+  for(const f of ['u','d','f','b','r','l']){
+    const fd=document.createElement('div'); fd.className='cface '+f;
+    const stickers=[];
+    for(let i=0;i<4;i++){ const s=document.createElement('div'); s.className='csticker'; fd.appendChild(s); stickers.push(s); }
+    faces[f]=stickers; cube.appendChild(fd);
+  }
+  // discoverable, reliable controls: snap-rotate buttons alongside the drag-to-orbit interaction,
+  // since a drag gesture alone is easy to miss and doesn't work the same on every input device
+  const mkBtn=(glyph, title, onClick)=>{
+    const b=document.createElement('button'); b.type='button'; b.className='cuberotatebtn'; b.title=title; b.innerHTML=glyph;
+    b.addEventListener('click', ()=>{ cube.classList.remove('dragging'); onClick(); apply(); });
+    return b;
+  };
+  btnRow.appendChild(mkBtn('&#8634;', 'rotate left 90°', ()=>{ rotY -= 90; }));
+  btnRow.appendChild(mkBtn('&#8593;', 'tilt up', ()=>{ rotX = clampX(rotX + 20); }));
+  btnRow.appendChild(mkBtn('&#8595;', 'tilt down', ()=>{ rotX = clampX(rotX - 20); }));
+  btnRow.appendChild(mkBtn('&#8635;', 'rotate right 90°', ()=>{ rotY += 90; }));
+  stage.appendChild(cube);
+  wrap.appendChild(stage); wrap.appendChild(btnRow);
+  target.appendChild(wrap);
+  let dragging=false, lastX=0, lastY=0, moved=false;
+  cube.addEventListener('pointerdown', e=>{ dragging=true; moved=false; lastX=e.clientX; lastY=e.clientY; cube.classList.add('dragging'); cube.setPointerCapture(e.pointerId); });
+  cube.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    moved=true;
+    rotY += (e.clientX-lastX)*0.6; rotX = clampX(rotX - (e.clientY-lastY)*0.6);
+    lastX=e.clientX; lastY=e.clientY;
+    apply();
+  });
+  const endDrag=()=>{ dragging=false; cube.classList.remove('dragging'); };
+  cube.addEventListener('pointerup', endDrag);
+  cube.addEventListener('pointerleave', endDrag);
+  cube.addEventListener('pointercancel', endDrag);
+  cubeDomCache={container:target, cube, faces, prevColors:null};
+}
+function cubeRenderOrUpdate(env, cubies, target){
+  if(!cubeDomCache || cubeDomCache.container!==target || !target.contains(cubeDomCache.cube)) buildCubeDom(target);
+  const order=['u','d','f','b','r','l'];
+  const newColors={}; for(const f of order) newColors[f]=faceStickers(cubies, f);
+  for(const f of order){
+    const stickers=cubeDomCache.faces[f];
+    for(let i=0;i<4;i++){
+      const col=newColors[f][i];
+      const prev=cubeDomCache.prevColors ? cubeDomCache.prevColors[f][i] : null;
+      stickers[i].className='csticker cu-'+col;
+      if(prev && prev!==col){ stickers[i].classList.add('pulse'); setTimeout(()=>stickers[i] && stickers[i].classList.remove('pulse'),500); }
+    }
+  }
+  cubeDomCache.prevColors=newColors;
+}
+function render(){
+  if(!episode){ if(inst) renderState(inst.start); return; }
+  renderState(episode.states[frame]);
+  $('scrub').max=episode.states.length-1; $('scrub').value=frame;
+  $('scrub_v').textContent=`${frame} / ${episode.states.length-1}`;
+  renderLogUpTo(frame);
+}
+function renderState(s){
+  const board=$('board');
+  if(inst.kind==='sokoban') sokobanRender(inst.env, s, board);
+  else if(inst.kind==='cube') cubeRenderOrUpdate(inst.env, s, board);
+  else riverRender(s, board);
+}
+function renderLogUpTo(f){
+  // episode.events is grouped PER FRAME (events[i] = the list of things that happened
+  // while reaching states[i]), not a flat list -- a replan can add a "plan" event and an
+  // "exec"/"dev" event for the very same step, so a flat array would drift out of sync
+  // with the frame you're looking at. Flattening groups [0..f] keeps log and board in lockstep.
+  const log=$('log'); log.innerHTML='';
+  const shown=[];
+  for(let i=0;i<=f && i<episode.events.length;i++) shown.push(...episode.events[i]);
+  shown.forEach(ev=>{
+    const d=document.createElement('div'); d.className='l';
+    d.innerHTML=`<span class="tag ${ev.tag}">${ev.tag}</span> ${ev.text}`;
+    log.appendChild(d);
+  });
+  log.scrollTop=log.scrollHeight;
+  const thisFrame=episode.events[f] || [];
+  $('nowcap').innerHTML = thisFrame.length ? `<b>Right now:</b> ${thisFrame.map(e=>e.text).join(' &middot; ')}` : '';
+  $('replanBadge').classList.toggle('show', thisFrame.some(e=>e.isReplan));
+}
+
+/* ---------- instance generation ---------- */
+function doGenerate(){
+  const kind=$('bench').value;
+  cubeDomCache=null;
+  const MAX_ATTEMPTS=30;
+  let candidate=null, oracle=null, attempts=0;
+  for(; attempts<MAX_ATTEMPTS; attempts++){
+    try{
+      if(kind==='sokoban'){
+        const H=+$('sk_rows').value, W=+$('sk_cols').value, boxes=+$('sk_boxes').value;
+        const wallProb=+$('sk_wall').value/100, depth=+$('sk_depth').value;
+        const {env,start}=generateSokoban(H,W,boxes,wallProb,depth,rngSeed);
+        candidate={kind:'sokoban', env, start};
+      } else if(kind==='cube'){
+        const depth=+$('cube_depth').value;
+        const {cubies, seq}=scrambleCube(depth, rngSeed);
+        candidate={kind:'cube', env:cubeEnvFromState(), start:cubies, scrambleSeq:seq};
+      } else {
+        const m=+$('rv_m').value, c=+$('rv_c').value, cap=+$('rv_boat').value;
+        const env=riverProblemAsym(m,c,cap);
+        candidate={kind:'river', env, start:env.start};
+      }
+    }catch(e){
+      $('genInfo').textContent='Generation failed: '+e.message;
+      return;
+    }
+    oracle=bfsSearch(candidate.env.key(candidate.start), candidate.start, candidate.env.isGoal, candidate.env.neighbors, 300000);
+    if(oracle.status==='ok' && oracle.path.length>0) break;
+    candidate=null;
+  }
+  if(!candidate){
+    $('genInfo').textContent=`Tried ${MAX_ATTEMPTS} times and only got already-solved or unsolved-within-cap instances - adjust the parameters above and try again.`;
+    return;
+  }
+  inst=candidate;
+  inst.Tstar=oracle.path.length;
+  const retryNote = attempts>0 ? ` (rejected ${attempts} already-solved draw${attempts===1?'':'s'} first)` : '';
+  const scrambleNote = inst.kind==='cube' ? ` Scramble: ${inst.scrambleSeq.join(' ')}.` : '';
+  $('genInfo').innerHTML=`<b>Generated.</b> True optimal length T* = ${inst.Tstar} (verified by an independent BFS oracle, not the solver you selected)${retryNote}.${scrambleNote}`;
+  episode=null; frame=0;
+  $('runBtn').disabled=false;
+  $('cubecap').style.display = inst.kind==='cube' ? 'block' : 'none';
+  $('statusbar').innerHTML=`<span class="stat">T* = <b>${inst.Tstar}</b></span><span class="stat">instance freshly generated, not hardcoded</span>`;
+  $('nowcap').textContent=''; $('replanBadge').classList.remove('show');
+  render();
+}
+
+/* ---------- agent simulation (mirrors tapegraph/baselines) ---------- */
+function legalActions(state){ return inst.env.neighbors(state); }
+function oracleViable(state, rem){
+  const out=[];
+  for(const [a,nxt,nk] of legalActions(state)){
+    const r=bfsSearch(nk, nxt, inst.env.isGoal, inst.env.neighbors, 50000);
+    if(r.status==='ok' && r.path.length<=rem-1) out.push(a);
+  }
+  return out;
+}
+function oracleBestAction(state){
+  const r=bfsSearch(inst.env.key(state), state, inst.env.isGoal, inst.env.neighbors, 50000);
+  if(r.status!=='ok' || !r.path.length) return null;
+  return r.path[0];
+}
+function applyAction(state,a){
+  for(const [act,nxt] of legalActions(state)) if(act===a) return nxt;
+  return state;
+}
+function noisyRecommend(state, rem, delta, rng){
+  const legal=legalActions(state).map(x=>x[0]);
+  if(!legal.length) return '';
+  const base = oracleBestAction(state) || legal[Math.floor(rng()*legal.length)];
+  if(rng()<delta){
+    const viable=new Set(oracleViable(state,rem));
+    const pool = legal.filter(a=>!viable.has(a));
+    const fallback = pool.length?pool:legal.filter(a=>a!==base);
+    return fallback.length? fallback[Math.floor(rng()*fallback.length)] : base;
+  }
+  return base;
+}
+function runEpisode(){
+  const solverKind=$('solver').value, agentKind=$('agent').value;
+  const slack=+$('slack').value, delta=+$('delta').value/100, eta=+$('eta').value/100, N=+$('n_rollouts').value;
+  const budget=inst.Tstar+slack;
+  const rng=Math.random;
+  let s=inst.start;
+  const states=[s];
+  // events is grouped PER FRAME, events[i] aligned with states[i] -- NOT a flat list.
+  // A single step can produce two or three log lines (a solve/replan, then the execution,
+  // then a deviation marker); keeping them bundled with the state they led to is what makes
+  // the log and the scrubber/playback agree on what happened at frame i.
+  const events=[[{tag:'plan',text:`budget B = T*(${inst.Tstar}) + slack(${slack}) = ${budget}. agent = ${agentKind}, solver = ${solverKind}, δ=${delta.toFixed(2)}, η=${eta.toFixed(2)}`}]];
+  let plan=[], expectedKey=null, solves=0, success=false;
+
+  for(let t=0;t<budget;t++){
+    if(inst.env.isGoal(s)){ success=true; break; }
+    const rem=budget-t;
+    const stepEvents=[];
+    let action;
+    if(agentKind==='react'){
+      action = noisyRecommend(s, rem, delta, rng);
+      stepEvents.push({tag:'plan', text:`t=${t}: react-sim recommends "${action}" (δ may substitute a non-viable action with prob ${delta.toFixed(2)})`});
+    } else if(agentKind==='tape'){
+      if(!plan.length || inst.env.key(s)!==expectedKey){
+        solves++;
+        const edges=new Set(); const edgeList=[];
+        for(let r=0;r<N;r++){
+          let cur=s;
+          for(let k=0;k<rem;k++){
+            if(inst.env.isGoal(cur)) break;
+            const a=noisyRecommend(cur, rem, delta, rng);
+            const nxt=applyAction(cur,a);
+            const ek=inst.env.key(cur)+'>'+a+'>'+inst.env.key(nxt);
+            if(!edges.has(ek)){ edges.add(ek); edgeList.push([inst.env.key(cur),a,nxt,inst.env.key(nxt)]); }
+            cur=nxt;
+          }
+        }
+        const goalKeys=new Set(); const byKey=new Map();
+        for(const [uk,a,v,vk] of edgeList){ byKey.set(uk,(byKey.get(uk)||[])); byKey.get(uk).push([a,v,vk]); if(inst.env.isGoal(v)) goalKeys.add(vk); }
+        const r = bfsSearch(inst.env.key(s), s, inst.env.isGoal, (st)=>byKey.get(inst.env.key(st))||[], 40000);
+        plan = (r.status==='ok') ? r.path : [];
+        stepEvents.push({tag:'plan', isReplan: solves>1, text:`t=${t}: tape-sim folded ${N} noisy rollouts into a graph (${edgeList.length} edges) and ${plan.length?'found a path of length '+plan.length:'found no path - falling back'}`});
+      }
+      action = plan.length ? plan.shift() : noisyRecommend(s, rem, delta, rng);
+      if(!plan.length) expectedKey=null; else { const nxt=applyAction(s,action); expectedKey=inst.env.key(nxt); }
+    } else { // ours
+      if(!plan.length || inst.env.key(s)!==expectedKey){
+        solves++;
+        const r = solve(solverKind, inst.env.key(s), s, inst.env.isGoal, inst.env.neighbors, inst.env.h, 80000);
+        plan = (r.status==='ok') ? r.path : [];
+        stepEvents.push({tag:'plan', isReplan: solves>1, text:`t=${t}: ${solverKind} re-solved from the true graph (budget ${rem}) - ${plan.length?'plan of length '+plan.length:'status '+r.status+', no plan'}`});
+      }
+      action = plan.length ? plan.shift() : (legalActions(s)[0] ? legalActions(s)[0][0] : '');
+    }
+    if(!action){
+      stepEvents.push({tag:'fail', text:`t=${t}: no legal action available`});
+      events[events.length-1].push(...stepEvents);
+      break;
+    }
+    let executed=action;
+    let deviated=false;
+    if(rng()<eta){
+      const legal=legalActions(s).map(x=>x[0]).filter(a=>a!==action);
+      if(legal.length){ executed=legal[Math.floor(rng()*legal.length)]; deviated=true; }
+    }
+    const intendedNext=applyAction(s,action);
+    s=applyAction(s,executed);
+    states.push(s);
+    if(deviated){
+      stepEvents.push({tag:'dev', text:`t=${t}: execution noise - intended "${action}" but executed "${executed}"`});
+    } else {
+      stepEvents.push({tag:'exec', text:`t=${t}: executed "${executed}"`});
+    }
+    if(agentKind==='ours' || agentKind==='tape'){
+      const actualKey=inst.env.key(s);
+      if(actualKey!==inst.env.key(intendedNext)){
+        plan=[];
+        if(agentKind==='ours') stepEvents.push({tag:'replan', text:`t=${t+1}: state deviated from plan - will re-plan next step`});
+      } else {
+        expectedKey = plan.length ? inst.env.key(applyAction(s,plan[0])) : actualKey;
+      }
+    }
+    events.push(stepEvents); // aligned with the state we just pushed, i.e. frame states.length-1
+  }
+  if(!success && inst.env.isGoal(s)) success=true;
+  events[events.length-1].push(success
+    ? {tag:'done', text:`episode finished - goal reached in ${states.length-1} steps, ${solves} solve${solves===1?'':'s'} called`}
+    : {tag:'fail', text:`episode finished - goal NOT reached within budget ${budget}, ${solves} solve${solves===1?'':'s'} called`});
+  episode={states, events, success, solves};
+  frame=0;
+  $('statusbar').innerHTML = `<span class="stat">T* = <b>${inst.Tstar}</b></span>`+
+    `<span class="stat">budget = <b>${budget}</b></span>`+
+    `<span class="stat ${success?'good':'bad'}">${success?'SUCCESS':'FAILED'}</span>`+
+    `<span class="stat">${solves} solve${solves===1?'':'s'}</span>`+
+    `<span class="stat">${states.length-1} executed step${states.length-1===1?'':'s'}</span>`;
+  render();
+}
+
+/* ---------- playback ---------- */
+function stepTo(f){
+  if(!episode) return;
+  frame=Math.max(0, Math.min(episode.states.length-1, f));
+  render();
+}
+function togglePlay(){
+  if(!episode) return;
+  playing=!playing;
+  $('playPause').innerHTML = playing ? '&#9208; pause' : '&#9654; play';
+  if(playing){
+    playTimer=setInterval(()=>{
+      if(frame>=episode.states.length-1){ togglePlay(); return; }
+      stepTo(frame+1);
+    }, 650);
+  } else { clearInterval(playTimer); }
+}
+
+/* ---------- wiring ---------- */
+function syncBenchFields(){
+  const k=$('bench').value;
+  $('sokobanParams').style.display = k==='sokoban' ? 'block':'none';
+  $('riverParams').style.display = k==='river' ? 'block':'none';
+  $('cubeParams').style.display = k==='cube' ? 'block':'none';
+  episode=null; inst=null; cubeDomCache=null; $('runBtn').disabled=true; $('genInfo').textContent='No instance generated yet.';
+  $('board').innerHTML=''; $('cubecap').style.display='none'; $('nowcap').textContent=''; $('replanBadge').classList.remove('show');
+  $('statusbar').innerHTML='<span class="stat">no instance yet</span>';
+  $('log').innerHTML='<div class="l">Generate an instance, pick a solver and agent, then run an episode.</div>';
+  renderLegend();
+}
+function syncAgentFields(){
+  $('nField').style.display = $('agent').value==='tape' ? 'flex' : 'none';
+}
+function renderLegend(){
+  const k=$('bench').value;
+  const legend=$('legend');
+  if(k==='sokoban'){
+    legend.innerHTML = ['wall','floor','goal','box','box on goal','player'].map((t,i)=>{
+      const cls=['c-wall','c-floor','c-goal','c-box','c-boxgoal','c-player'][i];
+      return `<span class="pill" style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px" class="${cls}"></span>${t}</span>`;
+    }).join('');
+  } else if(k==='cube'){
+    legend.innerHTML = ['u','d','f','b','l','r'].map(f=>{
+      const label={u:'Up',d:'Down',f:'Front',b:'Back',l:'Left',r:'Right'}[f];
+      return `<span class="pill" style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px" class="cu-${f}"></span>${label}</span>`;
+    }).join('') + `<span class="hint" style="margin-left:4px">one corner is fixed on purpose - it anchors the moves below</span>`;
+  } else {
+    legend.innerHTML = `<span class="pill"><span class="icon m" style="width:12px;height:12px;display:inline-block;margin-right:3px">M</span>missionary</span><span class="pill"><span class="icon c" style="width:12px;height:12px;display:inline-block;margin-right:3px">C</span>cannibal</span>`;
+  }
+}
+function bindRange(id, suffix, scale){
+  const el=$(id); const out=$(id+'_v');
+  const upd=()=>{ out.textContent = scale ? (+el.value/100).toFixed(2) : el.value+suffix; };
+  el.addEventListener('input',upd); upd();
+}
+/* ---------- light/dark toggle (manual override on top of the OS default) ---------- */
+const THEME_KEY='tape-demo-theme';
+function osPrefersDark(){ return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
+function applyTheme(t){
+  if(t) document.documentElement.setAttribute('data-theme', t);
+  else document.documentElement.removeAttribute('data-theme');
+  const btn=$('themeToggle');
+  if(!btn) return;
+  const effectiveDark = t ? t==='dark' : osPrefersDark();
+  btn.textContent = effectiveDark ? 'Light mode' : 'Dark mode';
+}
+function initTheme(){
+  let saved=null;
+  try{ saved=localStorage.getItem(THEME_KEY); }catch(e){ /* private window or blocked storage: fall back to OS default */ }
+  applyTheme(saved);
+  $('themeToggle').addEventListener('click', ()=>{
+    const current=document.documentElement.getAttribute('data-theme');
+    const currentlyDark = current ? current==='dark' : osPrefersDark();
+    const next = currentlyDark ? 'light' : 'dark';
+    try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+    applyTheme(next);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  initTheme();
+  $('bench').addEventListener('change', syncBenchFields);
+  $('agent').addEventListener('change', syncAgentFields);
+  $('genBtn').addEventListener('click', doGenerate);
+  $('runBtn').addEventListener('click', runEpisode);
+  $('stepBack').addEventListener('click', ()=>stepTo(frame-1));
+  $('stepFwd').addEventListener('click', ()=>stepTo(frame+1));
+  $('scrub').addEventListener('input', e=>stepTo(+e.target.value));
+  $('playPause').addEventListener('click', togglePlay);
+  bindRange('sk_wall','%'); bindRange('slack',''); bindRange('delta','',true); bindRange('eta','',true); bindRange('cube_depth','');
+  $('slack').addEventListener('input', ()=>{ $('slack_v').textContent='+'+$('slack').value; });
+  syncBenchFields(); syncAgentFields();
+});
+</script>
